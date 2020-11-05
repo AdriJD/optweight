@@ -143,89 +143,6 @@ class PixMatVecAlm(MatVecAlm):
 
         return out
 
-def matvec_pow_ell_alm(alm, ainfo, m_ell, power, inplace=False):
-    '''
-    Calculate M^p alm for M diagonal in the harmonic domain and
-    positive semi-definite symmetric in other axes.
-
-    Parameters
-    ----------
-    alm : (npol, nelem) complex array
-        Input alms.
-    ainfo : sharp.alm_info object
-        Metainfo for input alms.
-    m_ell : (npol, npol, nell) array or (npol, nell) array
-        M matrix, either symmetric but dense in first two axes or diagonal,
-        in which case only the diagonal elements are needed.
-    power : int, float
-        Power of matrix.
-    inplace : bool, optional
-        Perform operation in place.
-
-    Returns
-    -------
-    out : (npol, nelem) complex array
-        Output from matrix-vector operation.
-    '''
-
-    if inplace:
-        out = alm
-    else:
-        out = alm.copy()
-
-    m_ell = _matpow(m_ell, power)
-
-    return ainfo.lmul(alm, m_ell, out=out)
-
-def matvec_pow_pix_alm(alm, ainfo, m_pix, minfo, spin, power, inplace=False,
-                       adjoint=False):
-    '''
-    Calculate M^p alm for M diagonal in the pixel domain and
-    positive semi-definite symmetric in other axes.
-
-    Parameters
-    ----------
-    alm : (npol, nelem) complex array
-        Input alms.
-    ainfo : sharp.alm_info object
-        Metainfo for input alms.
-    m_pix : (npol, npol, npix) array or (npol, npix) array
-        Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
-        in which case only the diagonal elements are needed.
-    minfo : sharp.map_info object
-        Metainfo for pixelization of the M matrix.
-    spin : int, array-like
-        Spin values for spherical harmonic transforms, should be
-        compatible with npol.
-    power : int, float
-        Power of matrix.
-    inplace : bool, optional
-        Perform operation in place.
-    adjoint : bool, optional
-        If set, calculate Yt W M W Y instead of Yt M Y.
-
-    Returns
-    -------
-    out : (npol, nelem) complex array
-        Output from matrix-vector operation.
-    '''
-
-    if inplace:
-        out = alm
-    else:
-        out = alm.copy()
-
-    npol = alm.shape[0]
-    omap = np.zeros((npol, m_pix.shape[-1]))
-
-    m_pix = _matpow(m_pix, power)
-
-    sht.alm2map(alm, omap, ainfo, minfo, spin, adjoint=adjoint)
-    imap = np.einsum('ijk, jk -> ik', m_pix, omap, optimize=True)
-    sht.map2alm(imap, out, minfo, ainfo, spin, adjoint=not adjoint)
-
-    return out
-
 def _full_matrix(mat):
     '''
     If needed, expand matrix diagonal to full-sized matrix.
@@ -286,19 +203,3 @@ def _matpow(mat, power):
     mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)))
 
     return mat
-
-def callable_matvec_pow_ell_alm(ainfo, m_ell, power, inplace=False):
-    '''Return callable version of matvec_pow_ell_alm with matrix power precomputed'''
-
-    m_ell = _matpow(m_ell, power)
-
-    return lambda alm: matvec_pow_ell_alm(alm, ainfo, m_ell, 1, inplace=False)
-
-def callable_matvec_pow_pix_alm(ainfo, m_pix, minfo, spin, power, inplace=False):
-    '''Return callable version of matvec_pow_pix_alm with matrix power precomputed'''
-
-    m_pix = _matpow(m_pix, power)
-
-    return lambda alm: matvec_pow_pix_alm(
-        alm, ainfo, m_pix, minfo, spin, 1, inplace=inplace)
-

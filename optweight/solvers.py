@@ -205,15 +205,10 @@ class CGWiener(cg.CG):
         if kwargs.get('M') and prec:
             raise ValueError('Pick only one preconditioner')
 
-        #icov_signal = operators.callable_matvec_pow_ell_alm(
-        #    ainfo, icov_ell, 1, inplace=False)
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
 
-        #icov_noise = operators.callable_matvec_pow_pix_alm(
-        #    ainfo, icov_pix, minfo, [0, 2], 1, inplace=False)
         icov_noise = operators.PixMatVecAlm(
             ainfo, icov_pix, minfo, [0, 2])
-
 
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)
@@ -231,18 +226,12 @@ class CGWiener(cg.CG):
         if prec == 'harmonic':
 
             itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
-            #preconditioner = preconditioners.harmonic_preconditioner(
-            #    icov_ell, ainfo, itau, b_ell=b_ell)
-
             preconditioner = preconditioners.HarmonicPreconditioner(
                 ainfo, icov_ell, itau, b_ell=b_ell)
 
         elif prec == 'pinv':
          
             itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
-            #preconditioner = preconditioners.pinv_preconditioner(
-            #    icov_ell, ainfo, itau, icov_pix, minfo, b_ell=b_ell)
-
             preconditioner = preconditioners.PseudoInvPreconditioner(
                 ainfo, icov_ell, itau, icov_pix, minfo, b_ell=b_ell)
 
@@ -257,35 +246,6 @@ class CGWiener(cg.CG):
 
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
                    rand_isignal=rand_isignal, rand_inoise=rand_inoise, **kwargs)
-
-    # @staticmethod
-    # def harmonic_preconditioner(icov_ell, ainfo, itau, b_ell=None):
-
-    #     if itau.ndim == 2:
-    #         itau = itau[:,:,np.newaxis]
-
-    #     if b_ell is None:
-    #         preconditioner = operators.callable_matvec_pow_ell_alm(
-    #             ainfo, icov_ell + itau, -1, inplace=False)
-    #     else:
-    #         preconditioner = operators.callable_matvec_pow_ell_alm(
-    #             ainfo, icov_ell + itau * b_ell ** 2, -1, inplace=False)
-
-    #     return preconditioner
-
-    # @staticmethod
-    # def pinv_preconditioner(icov_ell, ainfo, itau, icov_pix, minfo, b_ell=None):
-
-    #     if itau.ndim == 2:
-    #         itau = itau[:,:,np.newaxis]
-
-    #     # no precompution needed
-
-    #     # alm = (a^2 B^2 + icov_ell)^-1 alm
-    #     # alm_sig = icov_ell alm
-    #     # alm_noise = (a^2 B N+ B) alm
-    #     # alm = alm_sig + alm_noise
-    #     # alm = (a^2 B^2 + icov_ell)^-1 alm 
 
 class CGWienerScaled(CGWiener):
     '''
@@ -426,8 +386,6 @@ class CGWienerScaled(CGWiener):
                     b_ell=None, draw_constr=False, prec=None, **kwargs):
         '''Iniitialize solver with arrays instead of callables.'''
 
-        #sqrt_cov_signal = operators.callable_matvec_pow_ell_alm(
-        #    ainfo, icov_ell, -0.5, inplace=False)
         sqrt_cov_signal = operators.EllMatVecAlm(ainfo, icov_ell, power=-0.5)
 
         return super(CGWienerScaled, cls).from_arrays(
