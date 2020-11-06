@@ -1,6 +1,7 @@
 import numpy as np
 
 from enlib import cg
+from pixell import curvedsky
 
 from optweight import operators
 from optweight import alm_utils
@@ -218,7 +219,8 @@ class CGWiener(cg.CG):
         if draw_constr:
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
             rand_inoise = alm_utils.rand_alm_pix(
-                icov_noise, ainfo, minfo, dtype=alm_data.dtype)
+                icov_pix, ainfo, minfo, dtype=alm_data.dtype)
+
         else:
             rand_isignal = None
             rand_inoise = None

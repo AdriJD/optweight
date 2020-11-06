@@ -30,17 +30,18 @@ def contract_almxblm(alm, blm):
     '''
 
     if blm.shape != alm.shape:
-        raise ValueError('Shape alm ({}) != shape blm ({})'.format(alm.shape, blm.shape))
+        raise ValueError('Shape alm ({}) != shape blm ({})'.
+                         format(alm.shape, blm.shape))
 
     lmax = hp.Alm.getlmax(alm.shape[-1])
     blm = np.conj(blm)
-    csum = complex(np.tensordot(alm, blm, axes=alm.ndim))    
+    csum = complex(np.tensordot(alm, blm, axes=alm.ndim))
     had_sum = 2 * np.real(csum)
 
     # We need to subtract the m=0 elements once.
     had_sum -= np.real(np.sum(alm[...,:lmax+1] * blm[...,:lmax+1]))
 
-    return had_sum    
+    return had_sum
 
 def alm2wlm_axisym(alm, ainfo, w_ell):
     '''
@@ -66,7 +67,7 @@ def alm2wlm_axisym(alm, ainfo, w_ell):
     -----
     Wavelet kernels are defined as w^x_lm = sum_ell w^x_ell alm.
     '''
-    
+
     if w_ell.ndim == 1:
         w_ell = w_ell[np.newaxis,:]
     nwav = w_ell.shape[0]
@@ -80,7 +81,7 @@ def alm2wlm_axisym(alm, ainfo, w_ell):
         # Determine lmax of each wavelet.
         lmax_w = lmax - np.argmax(w_ell[idx,::-1] > 0)
 
-        wlm, winfo = trunc_alm(alm, ainfo, lmax_w)        
+        wlm, winfo = trunc_alm(alm, ainfo, lmax_w)
         winfo.lmul(wlm, w_ell[idx], out=wlm)
 
         wlms.append(wlm)
@@ -118,22 +119,22 @@ def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
         If lmax alm < lmax wavelets
     NotImplementedError
         If ainfo has stride != 1 and no output alm is given.
-    
+
     Notes
     -----
     Wavelet kernels are defined as alm = sum_x w^x_lm * w^x_ell.
     '''
 
     lmax_w = np.max([winfo.lmax for winfo in winfos])
-    
-    if ainfo is None:        
+
+    if ainfo is None:
         ainfo = sharp.alm_info(lmax=lmax_w)
     else:
         if ainfo.lmax < lmax_w:
             raise ValueError('lmax alm {} < lmax wavelets {}'.
                              format(ainfo.lmax, lmax_w))
 
-    if alm is None:      
+    if alm is None:
         if ainfo.stride != 1:
             raise NotImplementedError('Cannot create alm for ainfo with stride != 1')
         alm = np.zeros(wlms[0].shape[:-1] + (ainfo.nelem,), dtype=wlms[0].dtype)
@@ -143,22 +144,22 @@ def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
 
     for widx in range(len(wlms)):
         winfo = winfos[widx]
-        wlm = wlms[widx]            
+        wlm = wlms[widx]
         stride_wlm = winfo.stride
         lmax_wlm = winfo.lmax
 
         for m in range(winfo.mmax + 1):
 
-            start_alm = ainfo.lm2ind(m, m)        
+            start_alm = ainfo.lm2ind(m, m)
             end_alm = ainfo.lm2ind(lmax_wlm, m)
             start_wlm = winfo.lm2ind(m, m)
             end_wlm = winfo.lm2ind(lmax_wlm, m)
-            
+
             slice_alm = np.s_[...,start_alm:end_alm+stride:stride]
             slice_wlm = np.s_[...,start_wlm:end_wlm+stride_wlm:stride_wlm]
 
             alm[slice_alm] += wlm[slice_wlm] * w_ell[widx,m:lmax_wlm+1]
-                
+
     return alm, ainfo
 
 def trunc_alm(alm, ainfo, lmax):
@@ -186,7 +187,7 @@ def trunc_alm(alm, ainfo, lmax):
     ValueError
         If new lmax > old lmax.
     '''
-    
+
     lmax_old = ainfo.lmax
     if lmax > lmax_old:
         raise ValueError('New lmax {} exceeds old lmax {}'.format(lmax, lmax_old))
@@ -195,7 +196,7 @@ def trunc_alm(alm, ainfo, lmax):
         layout = 'rect'
     else:
         layout = 'tri'
-        
+
     mmax = min(ainfo.mmax, lmax)
     stride = ainfo.stride
 
@@ -209,7 +210,7 @@ def trunc_alm(alm, ainfo, lmax):
         start_old = ainfo.lm2ind(m, m)
         end_trunc = ainfo_trunc.lm2ind(lmax, m)
         end_old = ainfo.lm2ind(lmax, m)
-        
+
         slice_trunc = np.s_[...,start_trunc:end_trunc+stride:stride]
         slice_old = np.s_[...,start_old:end_old+stride:stride]
 
@@ -237,10 +238,9 @@ def rand_alm_pix(cov_pix, ainfo, minfo, dtype=np.complex128):
     rand_alm : (npol, nelem) array
         Draw from covariance.
     '''
-    
+
     noise = map_utils.rand_map_pix(cov_pix)
     alm_noise = np.zeros((noise.shape[0], ainfo.nelem), dtype=dtype)
     sht.map2alm(noise, alm_noise, minfo, ainfo, [0,2], adjoint=False)
 
     return alm_noise
-    
