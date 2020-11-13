@@ -52,8 +52,7 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
 
     theta_min = min(theta_range)
     theta_max = max(theta_range)
-    minfo, theta_arc_len = get_gauss_minfo(
-        lmax, theta_min=theta_min, theta_max=theta_max, return_arc_len=True)
+    minfo = get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
 
     if order > 1:
         imap = utils.interpol_prefilter(imap, order=order, inplace=destroy_input)
@@ -68,7 +67,6 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
     if area_pow != 0:
         area_in = enmap.pixsizemap(
             imap.shape, imap.wcs, separable="auto", broadcastable=False) 
-        dphi = 2 * np.pi / nphi
 
     for tidx, theta in enumerate(thetas):
         pos[0,:] = np.pi / 2 - theta
@@ -78,9 +76,10 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
             pos, order=order, mask_nan=False, prefilter=False)
 
         if area_pow != 0:
-            area_gauss = np.sin(theta) * dphi * theta_arc_len[tidx]
+            area_gauss = minfo.weight[tidx]
             omap[...,start:end] *= area_gauss ** area_pow
-            omap[...,start:end] *= imap.at(
+
+            omap[...,start:end] *= area_in.at(
                 pos, order=order, mask_nan=False, prefilter=False) ** -area_pow
 
     return omap, minfo

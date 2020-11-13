@@ -73,14 +73,12 @@ class TestMapUtils(unittest.TestCase):
         lmax = 100
         spin = 0
 
-        # Create random enmap.
+        # Create random enmap with a low bandlimit.
         cov_ell = np.ones((1, lmax + 1))
         cov_ell[:,5:] = 0
         alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
         omap = curvedsky.make_projectable_map_by_pos(
             [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=6)
-
-        # Create bandlimited signal.
         curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
         
         m_gl, minfo = map_utils.enmap2gauss(omap, 2 * lmax)
@@ -94,7 +92,53 @@ class TestMapUtils(unittest.TestCase):
         sht.alm2map(alm, m_gl_exp, ainfo, minfo_2, spin)
 
         # This really is not a great method, hard to get correct.
-        np.testing.assert_array_almost_equal(m_gl, m_gl_exp, decimal=2)
+        np.testing.assert_array_almost_equal(m_gl, m_gl_exp, decimal=3)
+
+    def test_enmap2gauss_fullsky_power(self):
+
+        lmax = 100
+        spin = 0
+        area_pow = 3
+
+        # Create random enmap with a low bandlimit.
+        cov_ell = np.ones((1, lmax + 1))
+        cov_ell[:,5:] = 0
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+        omap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=6)
+        curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
+        
+        m_gl, minfo = map_utils.enmap2gauss(omap, 2 * lmax, area_pow=area_pow)
+
+        # map2alm into second GL map.
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+
+        minfo_2 = sharp.map_info_gauss_legendre(nrings, nphi)
+        m_gl_exp = np.zeros((1, minfo_2.npix))
+        sht.alm2map(alm, m_gl_exp, ainfo, minfo_2, spin)
+
+        # Scale expected map by (area_out / area_in)^1.
+        area_in_map = enmap.pixsizemap(
+            omap.shape, omap.wcs, separable="auto", broadcastable=False) 
+
+        m_gl_exp = m_gl_exp.reshape(1, minfo_2.nrow, minfo_2.nphi[0])
+
+        for tidx in range(m_gl_exp.shape[1]):
+            # Determine closest ring in input map.
+            dec = np.pi / 2 - minfo_2.theta[tidx]
+            pix = enmap.sky2pix(omap.shape, omap.wcs, [[dec], [0]])
+            pidx_y = round(pix[0,0])
+            pidx_x = round(pix[1,0])
+            area_in = area_in_map[pidx_y,pidx_x]
+            m_gl_exp[:,tidx,:] *= (minfo_2.weight[tidx] / area_in) ** area_pow
+
+        m_gl_exp = m_gl_exp.reshape((1, minfo_2.npix))
+
+        # Again, kind of terrible. First and last ring areas are 30% different.
+        np.testing.assert_array_almost_equal(m_gl/m_gl_exp, np.ones_like(m_gl),
+                                             decimal=0)
+
 
     def test_get_arc_len(self):
         
