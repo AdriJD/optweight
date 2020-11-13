@@ -54,7 +54,6 @@ class TestSHT(unittest.TestCase):
         spin = 0
         cov_ell = np.ones((1, lmax + 1))
         alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
-        alm_out = np.zeros_like(alm)
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
@@ -74,7 +73,7 @@ class TestSHT(unittest.TestCase):
                                stride=stride, weight=weight)
 
         imap_full = np.zeros((1, minfo_full.npix))
-        omap = np.zeros_like(imap)
+        omap = np.zeros((1, minfo.npix))
 
         # Create signal band-limited at lmax.
         sht.alm2map(alm, imap_full, ainfo, minfo_full, spin)        
@@ -82,8 +81,8 @@ class TestSHT(unittest.TestCase):
         # Extract nonzero rings from input map.
         omap_exp = np.zeros((1, minfo.npix))
         omap_exp = omap_exp.reshape((1, minfo.nrow, minfo.nphi[0]))
-        imap = imap.reshape((1, minfo_full.nrow, minfo_full.nphi[0]))
-        omap_exp[...] = imap[:,mask,:]
+        imap_full = imap_full.reshape((1, minfo_full.nrow, minfo_full.nphi[0]))
+        omap_exp[...] = imap_full[:,theta_mask,:]
         omap_exp = omap_exp.reshape(1, minfo.npix)
         
         # alm2map on cut sky.

@@ -1,11 +1,100 @@
 import unittest
 import numpy as np
+from scipy.special import roots_legendre
 
-from pixell import sharp
+from pixell import sharp, enmap, curvedsky
 
-from optweight import map_utils
+from optweight import map_utils, sht
 
 class TestMapUtils(unittest.TestCase):
+
+    def test_get_gauss_minfo(self):
+        
+        lmax = 5
+        minfo = map_utils.get_gauss_minfo(lmax)
+        
+        # We expect support for polynomial in cos(theta) of order lmax,
+        # so lmax = 2 n - 1 -> n = 3.
+        n_theta = int(lmax / 2) + 1
+        n_phi = lmax + 1
+        ct, ct_w = roots_legendre(n_theta)
+        
+        self.assertTrue(np.all(minfo.nphi == lmax + 1))
+        np.testing.assert_array_almost_equal(minfo.theta, np.arccos(ct)[::-1])
+        np.testing.assert_array_almost_equal(
+            minfo.weight, ct_w[::-1] * 2 * np.pi / n_phi)        
+        np.testing.assert_array_almost_equal(minfo.phi0, np.zeros(n_theta))
+
+        offsets_exp = np.arange(n_theta) * n_phi
+        np.testing.assert_array_almost_equal(minfo.offsets, offsets_exp)
+        np.testing.assert_array_almost_equal(minfo.stride, np.ones(n_theta))
+
+    def test_get_gauss_minfo_cutsky(self):
+        
+        lmax = 5
+        theta_min = np.pi / 3
+        theta_max = 2 * np.pi / 3
+        minfo = map_utils.get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
+        
+        n_theta = 1
+        n_phi = lmax + 1
+        ct, ct_w = roots_legendre(int(lmax / 2) + 1)
+        ct = np.asarray(ct[1])
+        ct_w = np.asarray(ct_w[1])
+        
+        self.assertTrue(np.all(minfo.nphi == lmax + 1))
+        np.testing.assert_array_almost_equal(minfo.theta, np.asarray(np.arccos(ct)))
+        np.testing.assert_array_almost_equal(
+            minfo.weight, ct_w * 2 * np.pi / n_phi)        
+        np.testing.assert_array_almost_equal(minfo.phi0, np.zeros(n_theta))
+
+        offsets_exp = np.arange(n_theta) * n_phi
+        np.testing.assert_array_almost_equal(minfo.offsets, offsets_exp)
+        np.testing.assert_array_almost_equal(minfo.stride, np.ones(n_theta))
+
+    def test_get_gauss_minfo_cutsky_arclen(self):
+        
+        lmax = 5
+        theta_min = np.pi / 3
+        theta_max = 2 * np.pi / 3
+        minfo, arc_len = map_utils.get_gauss_minfo(
+            lmax, theta_min=theta_min, theta_max=theta_max, return_arc_len=True)
+        
+        n_theta = 1
+        n_phi = lmax + 1
+        ct, ct_w = roots_legendre(int(lmax / 2) + 1)
+        
+        arc_len_exp = (np.pi - 2 * np.arccos(ct[-1])) / 2
+
+        np.testing.assert_array_almost_equal(arc_len, np.asarray(arc_len_exp))
+        
+    def test_enmap2gauss_fullsky(self):
+
+        lmax = 100
+        spin = 0
+
+        # Create random enmap.
+        cov_ell = np.ones((1, lmax + 1))
+        cov_ell[:,5:] = 0
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+        omap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=6)
+
+        # Create bandlimited signal.
+        curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
+        
+        m_gl, minfo = map_utils.enmap2gauss(omap, 2 * lmax)
+
+        # map2alm into second GL map.
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+
+        minfo_2 = sharp.map_info_gauss_legendre(nrings, nphi)
+        m_gl_exp = np.zeros((1, minfo_2.npix))
+        sht.alm2map(alm, m_gl_exp, ainfo, minfo_2, spin)
+
+        # This really is not a great method, hard to get correct.
+        np.testing.assert_array_almost_equal(m_gl, m_gl_exp, decimal=2)
 
     def test_get_arc_len(self):
         

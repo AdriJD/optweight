@@ -1,6 +1,6 @@
 import numpy as np
 
-from pixell import enmap, sharp, utils
+from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 
 def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
@@ -28,11 +28,30 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
         Output map(s).
     map_info : sharp.map_info object
         Metadata of output map.
+
+    Raises
+    ------
+    NotImplementedError
+        If enmap is not cilindrical.
     '''
+    
+    if not wcsutils.is_cyl(imap.wcs):
+        raise NotImplementedError('Non-cilindrical enmaps not supported')
 
     ny, nx = imap.shape[-2:]
-    dec_range, ra_range = enmap.pix2sky(imap.shape, imap.wcs, [[0, ny], [0, nx]])
-    theta_max, theta_min = np.pi / 2 - dec_range
+    dec_range = enmap.pix2sky(imap.shape, imap.wcs, [[0, ny-1], [0, 0]], safe=False)[0]
+    ra_range = enmap.pix2sky(imap.shape, imap.wcs, [[0, 0], [0, nx-1]], safe=False)[1]
+
+    theta_range = np.pi / 2 - dec_range
+    
+    # I want to use modulo pi expect that I want to keep pi as pi.
+    if not 0 <= theta_range[0] <= np.pi:
+        theta_range[0] = theta_range[0] % np.pi
+    if not 0 <= theta_range[1] <= np.pi:
+        theta_range[1] = theta_range[1] % np.pi
+
+    theta_min = min(theta_range)
+    theta_max = max(theta_range)
     minfo, theta_arc_len = get_gauss_minfo(
         lmax, theta_min=theta_min, theta_max=theta_max, return_arc_len=True)
 
@@ -165,6 +184,8 @@ def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
     -------
     map_info : sharp.map_info object
         metadata of Gausss-Legendre grid.
+    arc_lengths : (ntheta) array
+        If return_arc_len is set: arc length of rings along the theta direction.
     '''
 
     nrings = int(np.floor(lmax / 2)) + 1
