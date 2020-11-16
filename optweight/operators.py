@@ -143,6 +143,16 @@ class PixMatVecAlm(MatVecAlm):
 
         return out
 
+class WavMatVecAlm(MatVecAlm):
+    
+    def __init__(self, m_jj_pix):
+        '''
+        Apply wavelet-based matrix to input alm.
+        '''
+        pass
+
+        # m_jj_pix needs minfo for each wavelet, 
+
 def _full_matrix(mat):
     '''
     If needed, expand matrix diagonal to full-sized matrix.

@@ -228,12 +228,36 @@ class TestMapUtils(unittest.TestCase):
         itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
 
         icov_pix = icov_pix.reshape((npol, npol, minfo.nrow, minfo.nphi[0]))
-        icov_pix[:,:,:] /= minfo.weight[np.newaxis,:,np.newaxis]
+        icov_pix[:,:,:,:] /= minfo.weight[np.newaxis,np.newaxis,:,np.newaxis]
         icov_pix = icov_pix.reshape((npol, npol, minfo.npix))
         
         itau_exp = np.zeros((npol, npol))
         itau_exp[0,0] = np.sum(icov_pix[0,0] ** 2) / np.sum(icov_pix[0,0])
         itau_exp[1,1] = np.sum(icov_pix[1,1] ** 2) / np.sum(icov_pix[1,1])
         itau_exp[2,2] = np.sum(icov_pix[2,2] ** 2) / np.sum(icov_pix[2,2])
+
+        np.testing.assert_array_almost_equal(itau, itau_exp)
+
+    def test_get_isotropic_ivar_diag(self):
+
+        lmax = 3
+        npol = 3
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        icov_pix = np.ones((npol, minfo.npix))
+        icov_pix[0] = 10
+
+        itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
+
+        icov_pix = icov_pix.reshape((npol, minfo.nrow, minfo.nphi[0]))
+        icov_pix[:,:,:] /= minfo.weight[np.newaxis,:,np.newaxis]
+        icov_pix = icov_pix.reshape((npol, minfo.npix))
+        
+        itau_exp = np.zeros((npol, npol))
+        itau_exp[0,0] = np.sum(icov_pix[0] ** 2) / np.sum(icov_pix[0])
+        itau_exp[1,1] = np.sum(icov_pix[1] ** 2) / np.sum(icov_pix[1])
+        itau_exp[2,2] = np.sum(icov_pix[2] ** 2) / np.sum(icov_pix[2])
 
         np.testing.assert_array_almost_equal(itau, itau_exp)

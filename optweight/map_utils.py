@@ -3,7 +3,8 @@ import numpy as np
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 
-def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
+def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
+                mode='constant'):
     '''
     Interpolate input enmap to Gauss-Legendre grid.
 
@@ -21,6 +22,9 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
         that need a correction for pixel area difference (area_pow = -1).
     destroy_input : bool, optional
         If set, input is filtered inplace.
+    mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
+        How the input array is extended beyond its boundaries, see 
+        scipy.ndimage.map_coordinates.
 
     Returns
     -------
@@ -39,8 +43,10 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
         raise NotImplementedError('Non-cilindrical enmaps not supported')
 
     ny, nx = imap.shape[-2:]
-    dec_range = enmap.pix2sky(imap.shape, imap.wcs, [[0, ny-1], [0, 0]], safe=False)[0]
-    ra_range = enmap.pix2sky(imap.shape, imap.wcs, [[0, 0], [0, nx-1]], safe=False)[1]
+    dec_range = enmap.pix2sky(
+        imap.shape, imap.wcs, [[0, ny-1], [0, 0]], safe=False)[0]
+    ra_range = enmap.pix2sky(
+        imap.shape, imap.wcs, [[0, 0], [0, nx-1]], safe=False)[1]
 
     theta_range = np.pi / 2 - dec_range
     
@@ -52,10 +58,12 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
 
     theta_min = min(theta_range)
     theta_max = max(theta_range)
-    minfo = get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
+    minfo = get_gauss_minfo(
+        lmax, theta_min=theta_min, theta_max=theta_max)
 
     if order > 1:
-        imap = utils.interpol_prefilter(imap, order=order, inplace=destroy_input)
+        imap = utils.interpol_prefilter(
+            imap, order=order, inplace=destroy_input)
 
     omap = np.zeros(imap.shape[:-2] + (minfo.npix,), dtype=imap.dtype)
 
@@ -72,15 +80,16 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False):
         pos[0,:] = np.pi / 2 - theta
         start = tidx * nphi
         end = start + nphi
-        omap[...,start:end] = imap.at(
-            pos, order=order, mask_nan=False, prefilter=False)
+
+        omap[...,start:end] = imap.at(pos, order=order, mask_nan=False,
+                                      prefilter=False, mode=mode)
 
         if area_pow != 0:
             area_gauss = minfo.weight[tidx]
             omap[...,start:end] *= area_gauss ** area_pow
-
             omap[...,start:end] *= area_in.at(
-                pos, order=order, mask_nan=False, prefilter=False) ** -area_pow
+                pos, order=order, mask_nan=False, prefilter=False, 
+                mode='nearest') ** -area_pow
 
     return omap, minfo
 
@@ -355,7 +364,7 @@ def get_isotropic_ivar(icov_pix, minfo):
 
     Parameters
     ----------
-    icov_pix : (npol, npol, npix) array
+    icov_pix : (npol, npol, npix) or (npol, npix) array
         Covariance matrix.
     minfo : sharp.map_info object
         Metainfo spefying pixelization of covariance matrix.
@@ -373,7 +382,11 @@ def get_isotropic_ivar(icov_pix, minfo):
     wcov = inv_qweight_map(icov_pix, minfo, inplace=False)
     
     # Set off-diagonal elements to zero, I only understand diagonal for now.
-    numerator = np.sum(wcov ** 2, axis=2)
-    denominator = np.sum(wcov, axis=2)
+    numerator = np.sum(wcov ** 2, axis=-1)
+    denominator = np.sum(wcov, axis=-1)
 
-    return np.diag(np.diag(numerator) / np.diag(denominator))
+    if icov_pix.ndim == 2:
+        return np.diag(numerator / denominator)
+
+    elif icov_pix.ndim == 3:
+        return np.diag(np.diag(numerator) / np.diag(denominator))
