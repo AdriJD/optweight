@@ -50,7 +50,7 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
 
     theta_range = np.pi / 2 - dec_range
     
-    # I want to use modulo pi expect that I want to keep pi as pi.
+    # I want to use modulo pi except that I want to keep pi as pi.
     if not 0 <= theta_range[0] <= np.pi:
         theta_range[0] = theta_range[0] % np.pi
     if not 0 <= theta_range[1] <= np.pi:
