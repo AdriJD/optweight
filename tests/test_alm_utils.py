@@ -126,5 +126,43 @@ class TestAlmUtils(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(alm_out, alm)
 
+    def test_add_to_alm(self):
+        
+        alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
+        ainfo = sharp.alm_info(lmax=3)
 
+        blm = np.asarray([1, 2, 3, 4, 5j, 6j, 7j, 8j, 9j, 10j], dtype=np.complex64)
+        binfo = sharp.alm_info(lmax=3)
 
+        alm_utils.add_to_alm(alm, blm, ainfo, binfo)
+
+        alm_exp = np.asarray(
+            [2, 4, 6, 8, 5 + 5j, 6 + 6j, 7 + 7j, 8 + 8j, 9 + 9j, 10 + 10j],
+            dtype=np.complex64)
+        
+        np.testing.assert_array_almost_equal(alm, alm_exp)
+
+    def test_add_to_alm_diff_size(self):
+        
+        alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
+        ainfo = sharp.alm_info(lmax=3)
+
+        blm = np.asarray([1, 2, 3, 4j, 5j, 6j], dtype=np.complex64)
+        binfo = sharp.alm_info(lmax=2)
+
+        alm_utils.add_to_alm(alm, blm, ainfo, binfo)
+
+        alm_exp = np.asarray([2, 4, 6, 4, 5 + 4j, 6 + 5j, 7, 8 + 6j, 9, 10],
+                             dtype=np.complex64)
+        
+        np.testing.assert_array_almost_equal(alm, alm_exp)
+
+    def test_add_to_alm_err(self):
+
+        alm = np.asarray([1, 2, 3, 4j, 5j, 6j], dtype=np.complex64)
+        ainfo = sharp.alm_info(lmax=2)
+
+        blm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
+        binfo = sharp.alm_info(lmax=3)
+
+        self.assertRaises(ValueError, alm_utils.add_to_alm, alm, blm, ainfo, binfo)

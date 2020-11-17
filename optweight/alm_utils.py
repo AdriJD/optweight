@@ -244,3 +244,51 @@ def rand_alm_pix(cov_pix, ainfo, minfo, dtype=np.complex128):
     sht.map2alm(noise, alm_noise, minfo, ainfo, [0,2], adjoint=False)
 
     return alm_noise
+
+def add_to_alm(alm, blm, ainfo, binfo):
+    '''
+    In-place addition of blm coefficients to alm coefficients.
+
+    Parameters
+    ----------
+    alm : (..., nelem) array
+        Base SH coeffcients.
+    blm : (..., nelem') array
+        SH coefficients to be added to alm.
+    ainfo : sharp.alm_info object
+        Metainfo for alm.
+    binfo : sharp.alm_info object
+        Metainfo for blm.
+
+    Returns
+    -------
+    alm : (..., nelem) array
+        Result of addition.
+
+    Raises
+    ------
+    ValueError
+        If lmax or mmax of blm exceeds that of alm.
+    '''
+
+    if binfo.lmax > ainfo.lmax:
+        raise ValueError('lmax blm exceeds that of alm : {} > {}'
+                         .format(binfo.lmax, ainfo.lmax))
+
+    if binfo.mmax > ainfo.mmax:
+        raise ValueError('mmax blm exceeds that of alm : {} > {}'
+                         .format(binfo.mmax, ainfo.mmax))
+
+    for m in range(binfo.mmax + 1):
+
+        start_alm = ainfo.lm2ind(m, m)
+        end_alm = ainfo.lm2ind(binfo.lmax, m)
+        start_blm = binfo.lm2ind(m, m)
+        end_blm = binfo.lm2ind(binfo.lmax, m)
+
+        slice_alm = np.s_[...,start_alm:end_alm+ainfo.stride:ainfo.stride]
+        slice_blm = np.s_[...,start_blm:end_blm+binfo.stride:binfo.stride]
+
+        alm[slice_alm] += blm[slice_blm]
+
+    return alm
