@@ -43,7 +43,7 @@ def contract_almxblm(alm, blm):
 
     return had_sum
 
-def alm2wlm_axisym(alm, ainfo, w_ell):
+def alm2wlm_axisym(alm, ainfo, w_ell, lmaxs=None):
     '''
     Convert SH coeffients into wavelet coefficients.
 
@@ -55,6 +55,8 @@ def alm2wlm_axisym(alm, ainfo, w_ell):
         Metainfo for input alms.
     w_ell : (nwav, nell) array
         Wavelet kernels.
+    lmaxs : (nwav) array lmax values, optional
+        Max multipole for each wavelet.
 
     Returns
     -------
@@ -62,6 +64,11 @@ def alm2wlm_axisym(alm, ainfo, w_ell):
         Output wavelets with lmax possibly varing for each wlm.
     winfos : (nwav) list of sharp.alm_info objects
         Metainfo for each wavelet.
+
+    Raises
+    ------
+    ValueError
+        If lmax of alm and w_ell do not match.
 
     Notes
     -----
@@ -73,13 +80,19 @@ def alm2wlm_axisym(alm, ainfo, w_ell):
     nwav = w_ell.shape[0]
 
     lmax = ainfo.lmax
+    if w_ell.shape[1] != lmax + 1:
+        raise ValueError('lmax alm : {} and lmax of w_ell : {} do not match'
+                         .format(lmax, w_ell.shape[1]))
 
     wlms = []
     winfos = []
     for idx in range(nwav):
 
         # Determine lmax of each wavelet.
-        lmax_w = lmax - np.argmax(w_ell[idx,::-1] > 0)
+        if lmaxs is not None:
+            lmax_w = lmaxs[idx]
+        else:
+            lmax_w = lmax - np.argmax(w_ell[idx,::-1] > 0)
 
         wlm, winfo = trunc_alm(alm, ainfo, lmax_w)
         winfo.lmul(wlm, w_ell[idx], out=wlm)

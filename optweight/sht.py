@@ -22,7 +22,15 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     adjoint : bool, optional
         If set, compute adjoint synthesis: Yt, so map2alm without 
         theta integration weights.    
+
+    Raises
+    ------
+    ValueError
+        If spin value is larger than lmax.
     '''
+
+    if np.asarray(spin).max() > ainfo.lmax:
+        raise ValueError('Spin exceeds lmax')
 
     if imap.ndim == 1:
         imap = imap[np.newaxis,:]
@@ -58,7 +66,15 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
         Spin values for transform, should be compatible with npol.
     adjoint : bool
         If set, compute adjoint analysis: WY, so alm2map with integration weights.
+
+    Raises
+    ------
+    ValueError
+        If spin value is larger than lmax.
     '''
+
+    if np.asarray(spin).max() > ainfo.lmax:
+        raise ValueError('Spin exceeds lmax')
 
     if omap.ndim == 1:
         omap = omap[np.newaxis,:]

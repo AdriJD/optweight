@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from pixell import utils
 
-from optweight import sht
+from optweight import sht, wavtrans
 
 class MatVecAlm(ABC):
     '''Template for all matrix-vector operators working on alm-input.'''
@@ -144,14 +144,92 @@ class PixMatVecAlm(MatVecAlm):
         return out
 
 class WavMatVecAlm(MatVecAlm):
+    '''
+    Apply wavelet block matrix to input alm.
     
-    def __init__(self, m_jj_pix):
-        '''
-        Apply wavelet-based matrix to input alm.
-        '''
-        pass
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    m_wav : wavtrans.Wav object
+        Wavelet block matrix.
+    w_ell : (nwav, nell) array
+        Wavelet kernels.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    adjoint : bool, optional
+        If set, calculate Kt Yt W M W Y K instead of Kt Yt M Y K.
 
-        # m_jj_pix needs minfo for each wavelet, 
+    Methods
+    -------
+    call(alm) : Apply the operator to a set of alms.
+    '''
+    
+    def __init__(self, ainfo, m_wav, w_ell, spin, adjoint=False):
+
+        self.ainfo = ainfo
+        self.m_wav = m_wav
+        self.w_ell = w_ell
+        self.spin = spin
+        self.adjoint = adjoint
+        self.v_wav = m_wav.diag()
+
+        winfos = {}
+        for index in v_wav.minfos:
+            minfo = v_wav.minfos[index]
+            # Valid for Gauss Legendre pixels.
+            lmax = minfo.ntheta - 1 
+            winfos[index] = sharp.alm_info(lmax=lmax)
+
+        self.winfos = winfos
+
+        if v_wav.dtype == np.float64:
+            self.alm_dtype = np.complex128
+        elif v_wav.dtype == np.float32:
+            self.alm_dtype = np.complex64
+            
+    def call(self, alm):
+        '''
+        Apply the operator to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+
+        alm_out = np.zeros_like(alm)
+        wavtrans.alm2wav(alm, self.ainfo, self.spin, self.w_ell,
+                         wav=self.v_wav, adjoint=self.adjoint)
+
+        for jidx in range(self.m_wav.shape[0]):
+
+            for jpidx in range(self.m_wav.shape[1]):
+
+                try:
+                    map_mat = self.m_wav.maps[jidx,jpidx]
+                except KeyError:
+                    continue
+                    
+                map_vec = self.v_wav.maps[jpidx]
+                map_prod = map_map * map_vec
+
+                minfo = v_wav.minfos[jpidx]
+                winfo = winfos[jpidx]
+                wlm = np.zeros(alm.shape[:-1] + (winfo.nelem,), 
+                               dtype=self.alm_dtype)
+                
+                sht.map2alm(map_prod, wlm, minfo, winfo, self.spin,
+                            adjoint=not self.adjoint)
+
+                alm_utils.wlm2alm_axisym([wlm], [winfo], w_ell[jidx:jidx+1,:],
+                                         alm=alm_out, ainfo=self.ainfo)
 
 def _full_matrix(mat):
     '''

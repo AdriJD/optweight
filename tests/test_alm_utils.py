@@ -57,6 +57,40 @@ class TestAlmUtils(unittest.TestCase):
         
         np.testing.assert_array_almost_equal(wlms[0], wlms_exp[0])
         np.testing.assert_array_almost_equal(wlms[1], wlms_exp[1])
+        
+        self.assertIs(wlms[0].dtype.type, np.complex64)
+        self.assertIs(wlms[1].dtype.type, np.complex64)
+
+    def test_alm2wlm_axisym_lmaxs(self):
+        
+        alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
+        ainfo = sharp.alm_info(lmax=3)
+        w_ell = np.zeros((2, 4))
+        w_ell[0,:2] = 1
+        w_ell[1,2:] = 0.5
+
+        lmaxs = np.asarray([2, 3])
+
+        wlms, winfos = alm_utils.alm2wlm_axisym(alm, ainfo, w_ell, lmaxs=lmaxs)
+
+        wlms_exp = [np.asarray([1, 2, 0, 5, 0, 0]), 
+                    0.5 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10])]
+        
+        np.testing.assert_array_almost_equal(wlms[0], wlms_exp[0])
+        np.testing.assert_array_almost_equal(wlms[1], wlms_exp[1])
+
+        self.assertIs(wlms[0].dtype.type, np.complex64)
+        self.assertIs(wlms[1].dtype.type, np.complex64)
+
+    def test_alm2wlm_axisym_err(self):
+        
+        alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
+        ainfo = sharp.alm_info(lmax=3)
+        w_ell = np.zeros((2, 5)) # Does not match lmax.
+        w_ell[0,:2] = 1
+        w_ell[1,2:] = 0.5
+
+        self.assertRaises(ValueError, alm_utils.alm2wlm_axisym, alm, ainfo, w_ell)
 
     def test_wlm2alm_axisym(self):
         

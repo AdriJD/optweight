@@ -2,7 +2,6 @@ import numpy as np
 
 from pixell import utils
 
-from optweight import sht
 from optweight import operators
 
 class HarmonicPreconditioner(operators.MatVecAlm):
