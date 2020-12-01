@@ -4,6 +4,9 @@ import numpy as np
 from pixell import sharp
 
 from optweight import operators
+from optweight import wavtrans
+from optweight import sht
+from optweight import alm_utils
 
 class TestOperators(unittest.TestCase):
     
@@ -281,3 +284,94 @@ class TestOperators(unittest.TestCase):
         mat = np.zeros((3))
 
         self.assertRaises(ValueError, operators._full_matrix, mat)
+
+    def test_WavMatVecAlm(self):
+
+        lmax = 3
+        ainfo = sharp.alm_info(lmax=lmax)
+        spin = 0
+        w_ell = np.zeros((2, lmax + 1))
+        lmaxs = [1, lmax]
+        w_ell[0,:lmaxs[0]+1] = 1
+        w_ell[1,lmaxs[0]+1:] = 2
+        m_wav = wavtrans.Wav(2)
+
+        # Add first map.
+        minfo1 = sharp.map_info_gauss_legendre(lmaxs[0] + 1)
+        m_arr1 = np.ones((1, minfo1.npix)) * 10
+        index1 = (0, 0)
+        m_wav.add(index1, m_arr1, minfo1)
+
+        # Add second map.
+        minfo2 = sharp.map_info_gauss_legendre(lmaxs[1] + 1)
+        m_arr2 = np.ones((1, minfo2.npix)) * 20
+        index2 = (1, 1)
+        m_wav.add(index2, m_arr2, minfo2)
+        
+        icov_wav = operators.WavMatVecAlm(ainfo, m_wav, w_ell, spin)
+
+        alm = np.ones((1, ainfo.nelem), dtype=np.complex128)
+        alm_out = icov_wav(alm)
+        
+        # Do manual computation.
+        wlms, winfos = alm_utils.alm2wlm_axisym(alm, ainfo, w_ell)
+        omap1 = m_wav.maps[0,0].copy()
+        sht.alm2map(wlms[0], omap1, winfos[0], m_wav.minfos[0,0], spin, adjoint=False)
+        omap2 = m_wav.maps[1,1].copy()
+        sht.alm2map(wlms[1], omap2, winfos[1], m_wav.minfos[1,1], spin, adjoint=False)
+        
+        omap1 *= m_wav.maps[0,0]
+        omap2 *= m_wav.maps[1,1]
+                
+        sht.map2alm(omap1, wlms[0], m_wav.minfos[0,0], winfos[0], spin, adjoint=True)
+        sht.map2alm(omap2, wlms[1], m_wav.minfos[1,1], winfos[1], spin, adjoint=True)
+
+        alm_exp, _ = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=ainfo)
+
+        np.testing.assert_array_almost_equal(alm_out, alm_exp)
+
+    def test_WavMatVecAlm_pol(self):
+
+        lmax = 3
+        npol = 3
+        ainfo = sharp.alm_info(lmax=lmax)
+        spin = [0, 2]
+        w_ell = np.zeros((2, lmax + 1))
+        lmaxs = [2, lmax]
+        w_ell[0,:lmaxs[0]+1] = 1
+        w_ell[1,lmaxs[0]+1:] = 2
+        m_wav = wavtrans.Wav(2, preshape=(npol,))
+
+        # Add first map.
+        minfo1 = sharp.map_info_gauss_legendre(lmaxs[0] + 1)
+        m_arr1 = np.ones((npol, minfo1.npix)) * 10
+        index1 = (0, 0)
+        m_wav.add(index1, m_arr1, minfo1)
+
+        # Add second map.
+        minfo2 = sharp.map_info_gauss_legendre(lmaxs[1] + 1)
+        m_arr2 = np.ones((npol, minfo2.npix)) * 20
+        index2 = (1, 1)
+        m_wav.add(index2, m_arr2, minfo2)
+        
+        icov_wav = operators.WavMatVecAlm(ainfo, m_wav, w_ell, spin)
+
+        alm = np.ones((npol, ainfo.nelem), dtype=np.complex128)
+        alm_out = icov_wav(alm)
+        
+        # Do manual computation.
+        wlms, winfos = alm_utils.alm2wlm_axisym(alm, ainfo, w_ell)
+        omap1 = m_wav.maps[0,0].copy()
+        sht.alm2map(wlms[0], omap1, winfos[0], m_wav.minfos[0,0], spin, adjoint=False)
+        omap2 = m_wav.maps[1,1].copy()
+        sht.alm2map(wlms[1], omap2, winfos[1], m_wav.minfos[1,1], spin, adjoint=False)
+        
+        omap1 *= m_wav.maps[0,0]
+        omap2 *= m_wav.maps[1,1]
+                
+        sht.map2alm(omap1, wlms[0], m_wav.minfos[0,0], winfos[0], spin, adjoint=True)
+        sht.map2alm(omap2, wlms[1], m_wav.minfos[1,1], winfos[1], spin, adjoint=True)
+
+        alm_exp, _ = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=ainfo)
+
+        np.testing.assert_array_almost_equal(alm_out, alm_exp)
