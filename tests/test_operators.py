@@ -210,6 +210,35 @@ class TestOperators(unittest.TestCase):
         np.testing.assert_array_almost_equal(
             np.dot(mat_out[...,2], mat_out[...,2]), mat[...,2])
 
+        # Test if square root is symmetric. Required, see astro-ph/0608007.
+        np.testing.assert_array_almost_equal(
+            mat_out, np.transpose(mat_out, (1, 0, 2)))
+
+    def test_matpow_minus(self):
+
+        mat = np.zeros((2, 2, 3))
+
+        mat[0,0] = [1,2,3]
+        mat[1,1] = [1,2,3]
+        mat[1,0] = 0.1
+        mat[0,1] = 0.1
+
+        mat_out = operators._matpow(mat, -0.5)
+
+        np.testing.assert_array_almost_equal(
+            np.dot(mat_out[...,0], mat_out[...,0]), 
+            np.linalg.inv(mat[...,0]))
+        np.testing.assert_array_almost_equal(
+            np.dot(mat_out[...,1], mat_out[...,1]), 
+            np.linalg.inv(mat[...,1]))
+        np.testing.assert_array_almost_equal(
+            np.dot(mat_out[...,2], mat_out[...,2]),
+            np.linalg.inv(mat[...,2]))
+
+        # Test if minus square root is symmetric. Required, see astro-ph/0608007.
+        np.testing.assert_array_almost_equal(
+            mat_out, np.transpose(mat_out, (1, 0, 2)))
+        
     def test_matpow_diag(self):
 
         mat = np.zeros((2, 3))
