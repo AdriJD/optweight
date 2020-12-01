@@ -178,8 +178,9 @@ class WavMatVecAlm(MatVecAlm):
         winfos = {}
         for index in self.v_wav.minfos:
             minfo = self.v_wav.minfos[index]
-            # Valid for Gauss Legendre pixels.
-            lmax = minfo.nrow - 1 
+            # Note, only valid for Gauss Legendre pixels.
+            # We use nphi to support maps with cuts in theta.
+            lmax = (minfo.nphi[0] - 1) // 2
             winfos[index] = sharp.alm_info(lmax=lmax)
 
         self.winfos = winfos
