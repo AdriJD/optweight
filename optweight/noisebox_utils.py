@@ -67,11 +67,13 @@ def noisebox2wavmat(noisebox, bins, w_ell, offsets=[-1, 0, 1]):
             icov_pix = np.einsum('j, ijkl -> ikl', wavelet_matrix[index], 
                                  noisebox_full, optimize=True)
             icov_pix = enmap.enmap(icov_pix, wcs=wcs, copy=False)
-
-            # Correct for the pixel areas of the enmap.
-            icov_pix *= pix_areas / ((lmax + 1) ** 2 / 4 / np.pi)
-
-            # Column determines lmax, in order to enable mat vec operations.
+           
+            sum_kernel = np.sum(wavelet_matrix[index])
+            if sum_kernel != 0:
+                # If zero, icov_pix is zero too so its okay to skip this.
+                icov_pix *= pix_areas / sum_kernel
+            
+            # Column determines lmax -> enables matrix-vector operations.
             icov_pix, minfo = map_utils.enmap2gauss(
                 icov_pix, 2 * lmaxs[jpidx], area_pow=1, mode='nearest')
 

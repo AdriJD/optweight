@@ -1,12 +1,13 @@
 import unittest
 import numpy as np
 
-from pixell import sharp
+from pixell import sharp, curvedsky, enmap
 
 from optweight import operators
 from optweight import wavtrans
 from optweight import sht
 from optweight import alm_utils
+from optweight import noisebox_utils
 
 class TestOperators(unittest.TestCase):
     
@@ -375,3 +376,94 @@ class TestOperators(unittest.TestCase):
         alm_exp, _ = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=ainfo)
 
         np.testing.assert_array_almost_equal(alm_out, alm_exp)
+
+    def test_WavMatVecAlm_noisebox(self):
+        
+        # Create noisebox with equal icov spectrum for each
+        # pixel, compare wavelet weighting to N^-1_ell weighting.
+        ny = 50
+        nx = 100
+        omap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], 10, dims=(1,), oversample=4)
+        shape = omap.shape[-2:]
+        wcs = omap.wcs
+
+        lmax = 30
+        bins = np.arange(lmax + 1)
+        # Create oscillating spectrum. Scale by conversion factor
+        # to get muK ^-2 arcmin^-2.
+        icov_ell = np.ones((1, lmax + 1)) * 4 * np.pi / (10800 ** 2)
+        icov_ell *= np.cos(np.arange(lmax+1)) ** 2
+
+        # Create wavelets kernels of Delta_ell = 1 for exact comparison
+        # to direct N^-1_ell weighting.
+        ells_bins = np.arange(0, lmax+1, 1)
+        w_ell = np.zeros((ells_bins.size, lmax + 1))
+        for lidx, ell_bin in enumerate(ells_bins):
+            try:
+                end = ells_bins[lidx+1]
+            except IndexError:
+                end = lmax+1
+            w_ell[lidx,ell_bin:end] = 1
+
+        noisebox = enmap.zeros((1, lmax + 1) + shape, wcs)
+        noisebox[:] = icov_ell[:,:,np.newaxis,np.newaxis]
+
+        icov_wav = noisebox_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
+
+        ainfo = sharp.alm_info(lmax=lmax)
+        spin = 0
+        alm = np.ones((1, ainfo.nelem), dtype=np.complex128)
+        icov_noise = operators.WavMatVecAlm(ainfo, icov_wav, w_ell, spin)
+
+        alm_out = icov_noise(alm)
+        alm_out_exp =  ainfo.lmul(alm, icov_ell[np.newaxis,:,:])
+        alm_out_exp /= (4 * np.pi / (10800 ** 2))
+        np.testing.assert_allclose(alm_out, alm_out_exp, rtol=1e-2)
+
+    def test_WavMatVecAlm_noisebox_flat(self):
+        
+        # Create noisebox with equal icov spectrum for each
+        # pixel, compare wavelet weighting to N^-1_ell weighting.
+        ny = 50
+        nx = 100
+        omap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], 10, dims=(1,), oversample=4)
+        shape = omap.shape[-2:]
+        wcs = omap.wcs
+
+        lmax = 30
+        bins = np.arange(lmax + 1)
+        # Create almost flat spectrum. Scale by conversion factor
+        # to get muK ^-2 arcmin^-2.
+        icov_ell = np.ones((1, lmax + 1)) * 4 * np.pi / (10800 ** 2)
+        icov_ell *= np.linspace(1, 1.5, num=lmax+1)
+
+        # Create wavelets kernels of Delta_ell = 3. Should approximately 
+        # be the same as direct N^-1_ell weighting.
+        ells_bins = np.arange(0, lmax+1, 3)
+        w_ell = np.zeros((ells_bins.size, lmax + 1))
+        for lidx, ell_bin in enumerate(ells_bins):
+            try:
+                end = ells_bins[lidx+1]
+            except IndexError:
+                end = lmax+1
+            w_ell[lidx,ell_bin:end] = 1
+
+        noisebox = enmap.zeros((1, lmax + 1) + shape, wcs)
+        noisebox[:] = icov_ell[:,:,np.newaxis,np.newaxis]
+
+        icov_wav = noisebox_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
+
+        ainfo = sharp.alm_info(lmax=lmax)
+        spin = 0
+        alm = np.ones((1, ainfo.nelem), dtype=np.complex128)
+        icov_noise = operators.WavMatVecAlm(ainfo, icov_wav, w_ell, spin)
+
+        alm_out = icov_noise(alm)
+        alm_out_exp =  ainfo.lmul(alm, icov_ell[np.newaxis,:,:])
+        alm_out_exp /= (4 * np.pi / (10800 ** 2))
+
+        print(alm_out)
+        print(alm_out_exp)
+        np.testing.assert_allclose(alm_out, alm_out_exp, rtol=5e-2)

@@ -61,9 +61,13 @@ class TestNoiseBoxUtils(unittest.TestCase):
         # To go to uK ^ -2:
         icov_exp = 1 * (10800) ** 2 / 4 / np.pi 
         # To go to uK ^ -2 per pixel:
-        icov_exp *= lmax ** 2 / 4 / np.pi 
-        icov_exp *= pix_area_enmap * 4 * np.pi / (lmax + 1) ** 2 
-        # Here is another correction of area_GL / area_enmap, which is 
+        # Since the icov power spectrum in this test is flat,
+        # the multiplication with the wavelet kernel and the 
+        # normalization cancel and thus we only have to scale
+        # by the pixel area.
+        icov_exp *= pix_area_enmap 
+        
+        # Then there comes another correction of area_GL / area_enmap, which is 
         # hard to test without rewriting the function again. So I'll divide
         # the expected map and the real map by their pixel size, those then
         # should be **approximately** equal.
@@ -74,7 +78,7 @@ class TestNoiseBoxUtils(unittest.TestCase):
 
         icov_exp /= pix_area_enmap
 
-        np.testing.assert_allclose(map_ans[0,10,0], icov_exp[10,0], rtol=0.05)
+        np.testing.assert_allclose(map_ans[0,10,0], icov_exp[10,0], rtol=0.005)
                 
     def test_prepare_noisebox(self):
 

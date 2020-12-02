@@ -139,7 +139,6 @@ class TestMapUtils(unittest.TestCase):
         np.testing.assert_array_almost_equal(m_gl/m_gl_exp, np.ones_like(m_gl),
                                              decimal=0)
 
-
     def test_get_arc_len(self):
         
         # Theta range [2, 15].
