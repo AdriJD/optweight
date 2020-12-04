@@ -197,7 +197,7 @@ class CGWiener(cg.CG):
             harmonic
                 Use (S^-1 + itau * 1)^-1, where itau is isotropic inverse variance.
             pinv
-                Use Pseudo inverse method from Seljebotn
+                Use Pseudo-inverse method from Seljebotn et al.
 
         **kwargs
             Keyword arguments for enlib.cg.CG.

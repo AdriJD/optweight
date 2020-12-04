@@ -330,6 +330,7 @@ class TestOperators(unittest.TestCase):
         alm_exp, _ = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=ainfo)
 
         np.testing.assert_array_almost_equal(alm_out, alm_exp)
+        self.assertFalse(np.shares_memory(alm, alm_out))
 
     def test_WavMatVecAlm_pol(self):
 

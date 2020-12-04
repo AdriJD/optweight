@@ -90,7 +90,6 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
             b_ell = np.ones((icov_ell.shape[0], icov_ell.shape[-1]))
 
         if cov_pix is None:
-            
             cov_pix = operators._matpow(icov_pix, -1)
 
         self.harmonic_prec = operators.EllMatVecAlm(

@@ -56,7 +56,7 @@ for pidx in range(3):
     fig.savefig(opj(imgdir, 'icov_real_log_{}'.format(pidx)))
     plt.close(fig)
 
-cov_pix = np.power(icov_pix, -1, where=mask)
+cov_pix = np.power(icov_pix, -1, where=mask, out=icov_pix.copy())
 
 for pidx in range(3):
     fig, ax = plt.subplots(dpi=300)
