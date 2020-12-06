@@ -92,6 +92,8 @@ class PixMatVecAlm(MatVecAlm):
         Perform operation in place.
     adjoint : bool, optional
         If set, calculate Yt W M W Y instead of Yt M Y.
+    use_weights : bool, optional
+        If set, use integration weights: Yt W M Y or Yt M W Y for adjoint.
 
     Methods
     -------
@@ -99,7 +101,7 @@ class PixMatVecAlm(MatVecAlm):
     '''
     
     def __init__(self, ainfo, m_pix, minfo, spin, power=1, inplace=False,
-                 adjoint=False):
+                 adjoint=False, use_weights=False):
 
         m_pix = _full_matrix(m_pix)
         if power != 1:
@@ -111,6 +113,7 @@ class PixMatVecAlm(MatVecAlm):
         self.spin = spin
         self.inplace = inplace
         self.adjoint = adjoint
+        self.use_weights = use_weights
 
     def call(self, alm):
         '''
@@ -138,8 +141,13 @@ class PixMatVecAlm(MatVecAlm):
         sht.alm2map(alm, omap, self.ainfo, self.minfo, self.spin,
                     adjoint=self.adjoint)
         imap = np.einsum('ijk, jk -> ik', self.m_pix, omap, optimize=True)
+
+        if self.use_weights:
+            adjoint = self.adjoint
+        else:
+            adjoint = not self.adjoint
         sht.map2alm(imap, out, self.minfo, self.ainfo, self.spin,
-                    adjoint=not self.adjoint)
+                    adjoint=adjoint)
 
         return out
 
