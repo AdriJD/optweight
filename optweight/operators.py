@@ -219,7 +219,14 @@ class WavMatVecAlm(MatVecAlm):
                     continue
                     
                 map_vec = self.v_wav.maps[jpidx]
-                map_prod = map_mat * map_vec
+
+                # If icov is (3, 3, npix) this should be a 
+                # matrix-vector product.
+                if map_mat.ndim == 3:
+                    map_prod = np.einsum(
+                        'ijk, jk -> ik', map_mat, mat_vec, optimize=True)
+                elif map_mat.ndim == 2:
+                    map_prod = map_mat * map_vec
 
                 minfo = self.v_wav.minfos[jpidx]
                 winfo = self.winfos[jpidx]
