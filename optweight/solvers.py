@@ -268,6 +268,60 @@ class CGWiener(cg.CG):
                    mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
                    **kwargs)
 
+    @classmethod
+    def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell, *extra_args,
+                        b_ell=None, mask_pix=None, minfo_mask=None, **kwargs):
+        '''
+        Iniitialize solver with wavelet-based noise model with arrays
+        instead of callables.
+
+        Parameters
+        ----------
+        alm_data : (npol, nelem) complex array
+            SH coefficients of data.
+        ainfo : sharp.alm_info object
+            Metainfo of data alms.
+        icov_ell : (npol, npol, nell) or (npol, nell) array
+            Inverse signal covariance. If diagonal, only the diagonal suffices.
+        icov_wav : wavtrans.Wav object
+            Wavelet block matrix representing the inverse noise covariance.
+        w_ell : (nwav, nell) array
+            Wavelet kernels.    
+        *extra_args
+            Possible extra arguments to init, used for inherited classes.
+        b_ell : (npol, nell) array, optional
+            Beam window functions.
+        mask_pix = (npol, npix) array, optional
+            Pixel mask.
+        minfo_mask : sharp.map_info object
+            Metainfo for pixel mask.
+        **kwargs
+            Keyword arguments for enlib.cg.CG.
+        '''
+
+        icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
+
+        icov_noise = operators.WavMatVecAlm(
+            ainfo, icov_wav, w_ell, [0, 2])        
+
+        if b_ell is not None:
+            beam = operators.EllMatVecAlm(ainfo, b_ell)
+        else:
+            beam = None
+
+        if mask_pix is not None:
+            mask =  operators.PixMatVecAlm(
+                ainfo, mask_pix, minfo_mask, [0, 2], use_weights=True)
+        else:
+            mask=None
+
+        preconditioner = lambda alm: alm.copy()
+        kwargs.setdefault('M', preconditioner)
+
+        return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
+                   mask=mask, rand_isignal=None, rand_inoise=None,
+                   **kwargs)
+
 class CGWienerScaled(CGWiener):
     '''
     Construct a CG solver for x in the equation system A x = b where:
