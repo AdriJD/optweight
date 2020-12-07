@@ -270,7 +270,7 @@ class CGWiener(cg.CG):
 
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell, *extra_args,
-                        b_ell=None, mask_pix=None, minfo_mask=None, **kwargs):
+                        b_ell=None, mask_pix=None, prec=None, minfo_mask=None, **kwargs):
         '''
         Iniitialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -295,6 +295,13 @@ class CGWiener(cg.CG):
             Pixel mask.
         minfo_mask : sharp.map_info object
             Metainfo for pixel mask.
+        prec : {'harmonic'}, optional
+            Select type of preconditioner, one of:
+
+            harmonic
+                Use (S^-1 + itau * 1)^-1, where itau is an approximate 
+                inverse noise variance spectrum.
+
         **kwargs
             Keyword arguments for enlib.cg.CG.
         '''
@@ -315,8 +322,20 @@ class CGWiener(cg.CG):
         else:
             mask=None
 
-        preconditioner = lambda alm: alm.copy()
-        kwargs.setdefault('M', preconditioner)
+        if prec == 'harmonic':
+
+            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
+            preconditioner = preconditioners.HarmonicPreconditioner(
+                ainfo, icov_ell, itau_ell, b_ell=b_ell)
+
+        elif prec is None:
+            preconditioner = None
+
+        else:
+            raise ValueError('Preconditioner: {} not understood'.format(prec))
+
+        if preconditioner:
+            kwargs.setdefault('M', preconditioner)
 
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
                    mask=mask, rand_isignal=None, rand_inoise=None,

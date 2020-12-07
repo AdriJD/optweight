@@ -15,7 +15,7 @@ class HarmonicPreconditioner(operators.MatVecAlm):
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse covariance matrix, either symmetric but dense in first two axes
         or diagonal, in which case only the diagonal elements are needed.
-    itau : (npol, npol) or (npol) array or float
+    itau : (npol, npol) or (npol, npol, nell) array
         Isotropic noise (co)variance.
     b_ell : (npol, nell) array, optional
         Beam window function.
