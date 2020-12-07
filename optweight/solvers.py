@@ -13,22 +13,23 @@ class CGWiener(cg.CG):
     '''
     Construct a CG solver for x in the equation system A x = b where:
 
-        A : S^-1 + B N^-1 B,
+        A : S^-1 + B M N^-1 M B,
         x : the Wiener filtered version of the input,
-        b : B N^-1 a,
+        b : B M N^-1 a,
 
     and
 
-        a    : input vector (beam-convolved sky + noise),
+        a    : input vector (masked and beam-convolved sky + noise),
         B    : beam convolution operator,
+        M    : mask operator,
         N^-1 : inverse noise covariance,
         S^-1 : inverse signal covariance.
 
     When the class instance is provided with random draws from the inverse noise
     and signal covariance, the solver will instead solve A x = b where:
 
-        x : constrained realisation drawn from P(s |a, B^-1 N B^-1, S),
-        b : B N^-1 a + w_s + B w_n,
+        x : constrained realisation drawn from P(s |a, (B M N^-1 M B)^-1, S),
+        b : B M N^-1 a + w_s + B w_n,
 
     where:
 
@@ -38,7 +39,7 @@ class CGWiener(cg.CG):
     Parameters
     ----------
     alm_data : array
-        Input data alms (already beam convolved).
+        Input data alms (already masked and beam convolved, so M B a).
     icov_signal : callable
         Callable that takes alm_data-shaped alm array as input and applies the
         inverse signal covariance matrix.
@@ -48,6 +49,9 @@ class CGWiener(cg.CG):
     beam : callable, optional
         Callable that takes alm_data-shaped alm array as input and applies the
         beam window function.
+    mask : callable, optional
+        Callable that takes alm_data-shaped alm array as input and applies the
+        pixel mask.
     rand_isignal : array, optional
         Draw from inverse signal covariance as SH coefficients in alm_data shape.
     rand_inoise : array, optional
@@ -57,7 +61,7 @@ class CGWiener(cg.CG):
     '''
 
     def __init__(self, alm_data, icov_signal, icov_noise, beam=None,
-                 rand_isignal=None, rand_inoise=None, **kwargs):
+                 mask=None, rand_isignal=None, rand_inoise=None, **kwargs):
 
         self.alm_data = alm_data
         self.icov_signal = icov_signal
@@ -65,6 +69,9 @@ class CGWiener(cg.CG):
         if beam is None:
             beam = lambda alm: alm
         self.beam = beam
+        if mask is None:
+            mask = lambda alm: alm
+        self.mask = mask
         self.rand_isignal = rand_isignal
         self.rand_inoise = rand_inoise
 
@@ -79,7 +86,7 @@ class CGWiener(cg.CG):
 
     def a_matrix(self, alm):
         '''
-        Apply the A (= S^-1 + B N^-1 B)) matrix to input alm.
+        Apply the A (= S^-1 + B M N^-1 M B)) matrix to input alm.
 
         Parameters
         ----------
@@ -93,7 +100,9 @@ class CGWiener(cg.CG):
         '''
 
         alm_noise = self.beam(alm.copy())
+        alm_noise = self.mask(alm_noise)
         alm_noise = self.icov_noise(alm_noise)
+        alm_noise = self.mask(alm_noise)
         alm_noise = self.beam(alm_noise)
 
         alm_signal = self.icov_signal(alm.copy())
@@ -116,6 +125,7 @@ class CGWiener(cg.CG):
         '''
 
         alm = self.icov_noise(alm.copy())
+        alm = self.mask(alm)
         alm = self.beam(alm)
 
         return alm
@@ -137,7 +147,7 @@ class CGWiener(cg.CG):
         '''
 
         alm = self.b_vec(alm)
-        alm += self.beam(self.rand_inoise.copy())
+        alm += self.beam(self.mask(self.rand_inoise.copy()))
         alm += self.rand_isignal
 
         return alm
@@ -153,12 +163,12 @@ class CGWiener(cg.CG):
         return self.icov_signal(self.x.copy())
 
     def get_chisq(self):
-        '''Return x^dagger S^-1 x + (a - x)^dagger B N^-1 B (a - x).'''
+        '''Return x^dagger S^-1 x + (a - x)^dagger B M N^-1 M B (a - x).'''
 
         x_w = self.get_wiener()
         out = self.dot(x_w, self.icov_signal(x_w))
-        out += self.dot(self.beam(self.alm_data - x_w),
-                        self.icov_noise(self.beam(self.alm_data - x_w)))
+        out += self.dot(self.beam(self.mask(self.alm_data - x_w)),
+                        self.icov_noise(self.beam(self.mask(self.alm_data - x_w))))
         return out
 
     def get_residual(self):
@@ -169,7 +179,7 @@ class CGWiener(cg.CG):
 
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
-                    b_ell=None, draw_constr=False, prec=None, **kwargs):
+                    b_ell=None, mask_pix=None, draw_constr=False, prec=None, **kwargs):
         '''
         Iniitialize solver with arrays instead of callables.
 
@@ -189,6 +199,8 @@ class CGWiener(cg.CG):
             Possible extra arguments to init, used for inherited classes.
         b_ell : (npol, nell) array, optional
             Beam window functions.
+        mask_pix = (npol, npix) array, optional
+            Pixel mask.
         draw_constr : bool, optional
             If set, initialize for constrained realization instead of Wiener.
         prec : {'harmonic', 'pinv'}, optional
@@ -215,6 +227,12 @@ class CGWiener(cg.CG):
             beam = operators.EllMatVecAlm(ainfo, b_ell)
         else:
             beam = None
+
+        if mask_pix is not None:
+            mask =  operators.PixMatVecAlm(
+                ainfo, mask_pix, minfo, [0, 2], use_weights=True)
+        else:
+            mask=None
 
         if draw_constr:
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
@@ -247,7 +265,8 @@ class CGWiener(cg.CG):
             kwargs.setdefault('M', preconditioner)
 
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
-                   rand_isignal=rand_isignal, rand_inoise=rand_inoise, **kwargs)
+                   mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
+                   **kwargs)
 
 class CGWienerScaled(CGWiener):
     '''
