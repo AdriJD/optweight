@@ -4,7 +4,7 @@ from scipy.special import roots_legendre
 
 from pixell import sharp, enmap, curvedsky
 
-from optweight import map_utils, sht
+from optweight import map_utils, sht, wavtrans
 
 class TestMapUtils(unittest.TestCase):
 
@@ -260,3 +260,55 @@ class TestMapUtils(unittest.TestCase):
         itau_exp[2,2] = np.sum(icov_pix[2] ** 2) / np.sum(icov_pix[2])
 
         np.testing.assert_array_almost_equal(itau, itau_exp)
+
+    def test_get_ivar_ell(self):
+        
+        lmax = 3
+        npol = 3
+        minfo = sharp.map_info_gauss_legendre(lmax + 1)
+
+        icov_pix = np.ones((npol, minfo.npix))
+
+        icov_wav = wavtrans.Wav(2)
+
+        # Add first map.
+        icov_wav.add((0,0), icov_pix, minfo)
+
+        # Second map.
+        m_arr = np.ones((3, minfo.npix))
+        icov_wav.add((1,1), icov_pix * 2, minfo)
+
+        w_ell = np.zeros((2, lmax + 1))
+        w_ell[0] = [1, 1, 0, 0]
+        w_ell[1] = [0, 0, 1, 1]
+                         
+        ivar_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
+
+        self.assertEqual(ivar_ell.shape, (npol, npol, lmax + 1))
+
+        icov_pix = icov_pix.reshape((npol, minfo.nrow, minfo.nphi[0]))
+        icov_pix[:,:,:] /= minfo.weight[np.newaxis,:,np.newaxis]
+        icov_pix = icov_pix.reshape((npol, minfo.npix))
+        
+        amp_exp = np.sum(icov_pix[0] ** 2) / np.sum(icov_pix[0])
+        ivar_ell_exp = np.zeros((npol, npol, lmax+1))
+        ivar_ell_exp[0,0] = np.asarray([1, 1, 2, 2]) * amp_exp
+        ivar_ell_exp[1,1] = np.asarray([1, 1, 2, 2]) * amp_exp
+        ivar_ell_exp[2,2] = np.asarray([1, 1, 2, 2]) * amp_exp
+
+        np.testing.assert_array_almost_equal(ivar_ell, ivar_ell_exp)
+        
+    def test_get_ivar_ell_err(self):
+
+        lmax = 3
+        w_ell = np.zeros((2, lmax + 1))
+        w_ell[0] = [1, 1, 0, 0]
+        w_ell[1] = [0, 0, 1, 1]
+
+        # Not (npol, npol).
+        icov_wav = wavtrans.Wav(2, preshape=(1,2))
+        self.assertRaises(ValueError, map_utils.get_ivar_ell, icov_wav, w_ell)
+
+        # Too many leading dimensions.
+        icov_wav = wavtrans.Wav(2, preshape=(2, 2, 2))
+        self.assertRaises(ValueError, map_utils.get_ivar_ell, icov_wav, w_ell)

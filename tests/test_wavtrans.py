@@ -15,6 +15,7 @@ class TestWavTrans(unittest.TestCase):
         preshape = (3,)
         wavvec = wavtrans.Wav(1, indices=indices, minfos=minfos, preshape=preshape)
 
+        self.assertEqual(wavvec.preshape, preshape)
         np.testing.assert_array_almost_equal(wavvec.maps[3], 
                                              np.zeros((3, 4 * 7)))
         np.testing.assert_array_almost_equal(wavvec.maps[4], 
@@ -103,6 +104,7 @@ class TestWavTrans(unittest.TestCase):
 
         wavvec.add(index, m_arr, minfo)
 
+        self.assertEqual(wavvec.preshape, (1,))
         self.assertEqual(wavvec.ndim, 1)
         self.assertEqual(wavvec.dtype, np.float64)
         self.assertEqual(wavvec.shape, (11,))
@@ -143,6 +145,30 @@ class TestWavTrans(unittest.TestCase):
         self.assertEqual(wavvec.minfos[10], minfo_2)
         np.testing.assert_array_equal(wavvec.indices, np.asarray([[5, 10]]).T)
 
+    def test_wav_init_vec_add_preshape(self):
+        
+        wavvec = wavtrans.Wav(1, preshape=(3,))
+
+        # Add first map.
+        minfo = sharp.map_info_gauss_legendre(3)
+        m_arr = np.ones((2, minfo.npix))
+        index = 10
+
+        wavvec.add(index, m_arr, minfo)
+
+        # First map is allowed to redefine preshape
+        self.assertEqual(wavvec.preshape, (2,))
+
+        # Second map is not allowed to do that.
+        m_arr = np.ones((3, minfo.npix))
+        index = 5
+        self.assertRaises(ValueError, wavvec.add, index, m_arr, minfo)
+
+        # But this should work.
+        m_arr = np.ones((2, minfo.npix))
+        wavvec.add(index, m_arr, minfo)
+        np.testing.assert_array_equal(wavvec.maps[5], m_arr)
+
     def test_wav_init_mat(self):
         
         indices = np.asarray([(0,0), (0,1), (1,1)])
@@ -151,6 +177,7 @@ class TestWavTrans(unittest.TestCase):
         preshape = (3,)
         wavmat = wavtrans.Wav(2, indices=indices, minfos=minfos, preshape=preshape)
 
+        self.assertEqual(wavmat.preshape, preshape)
         np.testing.assert_array_almost_equal(wavmat.maps[0,0], 
                                              np.zeros((3, 4 * 7)))
         np.testing.assert_array_almost_equal(wavmat.maps[0,1], 
@@ -245,6 +272,7 @@ class TestWavTrans(unittest.TestCase):
 
         wavmat.add(index, m_arr, minfo)
 
+        self.assertEqual(wavmat.preshape, (1,))
         self.assertEqual(wavmat.ndim, 2)
         self.assertEqual(wavmat.dtype, np.float64)
         self.assertEqual(wavmat.shape, (11, 11))

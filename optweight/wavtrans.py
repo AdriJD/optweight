@@ -78,7 +78,7 @@ class Wav():
     (2, 2)
     '''
 
-    def __init__(self, ndim, indices=None, minfos=None, preshape=(1,),
+    def __init__(self, ndim, indices=None, minfos=None, preshape=None,
                  dtype=np.float64):
 
         if not (ndim == 1 or ndim == 2):
@@ -90,7 +90,7 @@ class Wav():
             indices = indices[:,np.newaxis]
 
         self.ndim = ndim
-        self.preshape = preshape
+        self.preshape = () if preshape is None else preshape
         self.dtype = dtype
         self.maps = {}
         self.minfos = {}
@@ -99,7 +99,7 @@ class Wav():
         for idx in range(indices.shape[0]):
 
             minfo = minfos[idx]
-            m_arr = np.zeros(tuple(preshape) + (minfo.npix,), dtype=dtype)
+            m_arr = np.zeros(self.preshape + (minfo.npix,), dtype=dtype)
             index = indices[idx]
         
             self.add(index, m_arr, minfo)
@@ -161,6 +161,16 @@ class Wav():
             # We use integers to index vectors, tuples for matrices.
             index2dict = index[0]
 
+        # Check if preshape matches existing maps, if none exist allow updating.
+        preshape = m_arr.shape[:-1]
+        if self.maps:
+            if preshape != self.preshape:
+                raise ValueError(
+                    'Wrong leading dimensions of map array: expected : {}, got {}'.
+                    format(self.preshape, preshape))
+        else:
+            self.preshape = preshape
+        
         self.maps[index2dict] = m_arr
         self.minfos[index2dict] = minfo
 

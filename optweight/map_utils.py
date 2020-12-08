@@ -408,10 +408,22 @@ def get_ivar_ell(icov_wav, w_ell):
     ivar_ell : (npol, npol, nell) array
         Inverse variance spectrum. Note that only the diagonal 
         is calculated.
+
+    Raises
+    ------
+    ValueError
+        If npol cannot be determined from preshape of wavelet object.
     '''
 
-    # TODO, fix hardcoded npol.
-    
+    preshape = icov_wav.preshape
+    if len(preshape) > 2 or len(set(preshape)) > 1:
+        raise ValueError('Could not determine npol from preshape : {}'
+                         .format(preshape))
+    if len(preshape) == 0:
+        npol = 1
+    else:
+        npol = preshape[0]
+                    
     itaus = np.zeros((3, 3, w_ell.shape[0]))
 
     for jidx in range(w_ell.shape[0]):
