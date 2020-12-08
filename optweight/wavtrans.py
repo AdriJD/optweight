@@ -2,7 +2,7 @@ import numpy as np
 
 from pixell import sharp
 
-from optweight import alm_utils, sht
+from optweight import alm_utils, sht, type_utils, type_utils
 
 class Wav():
     '''
@@ -250,11 +250,7 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
             imap = imap[np.newaxis,:]
         npol = imap.shape[0]
 
-        if imap.dtype == np.float32:
-            dtype = np.complex64
-        elif imap.dtype == np.float64:
-            dtype = np.complex128
-
+        dtype = type_utils.to_complex(imap.dtype)
         winfo = sharp.alm_info(lmax=lmax_w)
         wlm = np.zeros((npol, winfo.nelem), dtype=dtype)
 
@@ -308,12 +304,7 @@ def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
                 lmax_w + 1, nphi=2 * lmax_w + 1))
 
         minfos = np.asarray(minfos)
-
-        if alm.dtype == np.complex128:
-            dtype = np.float64
-        elif alm.dtype == np.complex64:
-            dtype = np.float32
-
+        dtype = type_utils.to_real(alm.dtype)
         wav = Wav(1, indices=indices, minfos=minfos, preshape=preshape, dtype=dtype)
 
     for widx in indices:

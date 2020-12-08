@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from pixell import utils, sharp
 
-from optweight import sht, wavtrans, alm_utils
+from optweight import sht, wavtrans, alm_utils, type_utils
 
 class MatVecAlm(ABC):
     '''Template for all matrix-vector operators working on alm-input.'''
@@ -219,10 +219,7 @@ class WavMatVecAlm(MatVecAlm):
 
         self.winfos = winfos
 
-        if self.v_wav.dtype == np.float64:
-            self.alm_dtype = np.complex128
-        elif self.v_wav.dtype == np.float32:
-            self.alm_dtype = np.complex64
+        self.alm_dtype = type_utils.to_complex(self.v_wav.dtype)
 
     def call(self, alm):
         '''

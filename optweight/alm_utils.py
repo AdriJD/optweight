@@ -231,7 +231,7 @@ def trunc_alm(alm, ainfo, lmax):
 
     return alm_trunc, ainfo_trunc
 
-def rand_alm_pix(cov_pix, ainfo, minfo, dtype=np.complex128):
+def rand_alm_pix(cov_pix, ainfo, minfo):
     '''
     Draw random alm from covariance diagonal in pixel domain.
 
@@ -243,8 +243,6 @@ def rand_alm_pix(cov_pix, ainfo, minfo, dtype=np.complex128):
         Metainfo for output alms.
     minfo : sharp.map_info object
         Metainfo specifying pixelization of covariance.
-    dtype : type
-        dtype of output alms.
 
     Returns
     -------
@@ -252,11 +250,18 @@ def rand_alm_pix(cov_pix, ainfo, minfo, dtype=np.complex128):
         Draw from covariance.
     '''
 
+    dtype = type_utils.to_complex(cov_pix.dtype)
     noise = map_utils.rand_map_pix(cov_pix)
     alm_noise = np.zeros((noise.shape[0], ainfo.nelem), dtype=dtype)
     sht.map2alm(noise, alm_noise, minfo, ainfo, [0,2], adjoint=False)
 
     return alm_noise
+
+def rand_alm_wav(cov_wav, ainfo):
+    '''
+    
+    '''
+    pass
 
 def add_to_alm(alm, blm, ainfo, binfo):
     '''
