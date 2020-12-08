@@ -36,7 +36,7 @@ class EllMatVecAlm(MatVecAlm):
     -------
     call(alm) : Apply the operator to a set of alms.
     '''
-    
+
     def __init__(self, ainfo, m_ell, power=1, inplace=False):
 
         m_ell = _full_matrix(m_ell)
@@ -46,7 +46,7 @@ class EllMatVecAlm(MatVecAlm):
         self.m_ell = m_ell
         self.ainfo = ainfo
         self.inplace = inplace
-            
+
     def call(self, alm):
         '''
         Apply the operator to a set of alms.
@@ -99,7 +99,7 @@ class PixMatVecAlm(MatVecAlm):
     -------
     call(alm) : Apply the operator to a set of alms.
     '''
-    
+
     def __init__(self, ainfo, m_pix, minfo, spin, power=1, inplace=False,
                  adjoint=False, use_weights=False):
 
@@ -154,7 +154,7 @@ class PixMatVecAlm(MatVecAlm):
 class WavMatVecAlm(MatVecAlm):
     '''
     Apply wavelet block matrix to input alm.
-    
+
     Parameters
     ----------
     ainfo : sharp.alm_info object
@@ -166,22 +166,48 @@ class WavMatVecAlm(MatVecAlm):
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
         compatible with npol.
+    power : int, float
+        Power of matrix.
     adjoint : bool, optional
         If set, calculate Kt Yt W M W Y K instead of Kt Yt M Y K.
 
     Methods
     -------
     call(alm) : Apply the operator to a set of alms.
+
+    Raises
+    ------
+    NotImplementedErrror
+        If matrix power is computed for non-diagonal block matrix.
     '''
-    
-    def __init__(self, ainfo, m_wav, w_ell, spin, adjoint=False):
+
+    def __init__(self, ainfo, m_wav, w_ell, spin, power=1, adjoint=False):
 
         self.ainfo = ainfo
-        self.m_wav = m_wav
         self.w_ell = w_ell
         self.spin = spin
         self.adjoint = adjoint
-        self.v_wav = m_wav.diag()
+
+        if power != 1:
+            if not np.array_equal(m_wav.indices[:,0], m_wav.indices[:,1]):
+                raise NotImplementedError(
+                    'Can only raise diagonal block matrix to a power')
+
+            m_wav_power = wavtrans.Wav(2)
+
+            for jidx in range(self.m_wav.shape[0]):
+
+                minfo = m_wav.minfo[jidx,jidx]
+                map_mat = m_wav.maps[jidx,jidx]
+
+                map_mat = _matpow(mat_map, power)
+                m_wav_power.add((jidx,jpidx), mat_map, minfo)
+
+            self.m_wav = m_wav_power
+        else:
+            self.m_wav = m_wav
+
+        self.v_wav = self.m_wav.diag()
 
         winfos = {}
         for index in self.v_wav.minfos:
@@ -197,7 +223,7 @@ class WavMatVecAlm(MatVecAlm):
             self.alm_dtype = np.complex128
         elif self.v_wav.dtype == np.float32:
             self.alm_dtype = np.complex64
-            
+
     def call(self, alm):
         '''
         Apply the operator to a set of alms.
@@ -225,10 +251,10 @@ class WavMatVecAlm(MatVecAlm):
                     map_mat = self.m_wav.maps[jidx,jpidx]
                 except KeyError:
                     continue
-                    
+
                 map_vec = self.v_wav.maps[jpidx]
 
-                # If icov is (3, 3, npix) this should be a 
+                # If icov is (3, 3, npix) this should be a
                 # matrix-vector product.
                 if map_mat.ndim == 3:
                     map_prod = np.einsum(
@@ -238,9 +264,9 @@ class WavMatVecAlm(MatVecAlm):
 
                 minfo = self.v_wav.minfos[jpidx]
                 winfo = self.winfos[jpidx]
-                wlm = np.zeros(alm.shape[:-1] + (winfo.nelem,), 
+                wlm = np.zeros(alm.shape[:-1] + (winfo.nelem,),
                                dtype=self.alm_dtype)
-                
+
                 sht.map2alm(map_prod, wlm, minfo, winfo, self.spin,
                             adjoint=not self.adjoint)
 
@@ -248,7 +274,7 @@ class WavMatVecAlm(MatVecAlm):
                                          alm=alm_out, ainfo=self.ainfo)
 
         return alm_out
-                
+
 def _full_matrix(mat):
     '''
     If needed, expand matrix diagonal to full-sized matrix.
@@ -275,12 +301,12 @@ def _full_matrix(mat):
             format(mat.ndim))
 
     if mat.ndim == 2:
-        # Diagonal of matrix, expand to full matrix. 
+        # Diagonal of matrix, expand to full matrix.
         npol = mat.shape[0]
         mat = np.eye(npol)[:,:,np.newaxis] * mat
 
     return mat
-        
+
 def _matpow(mat, power):
     '''
     Raise matrix to a given power.
@@ -292,7 +318,7 @@ def _matpow(mat, power):
         in which case only the diagonal elements are needed.
     power : int, float
         Power of matrix.
-    
+
     Returns
     -------
     mat_out : (npol, npol, N) array
@@ -303,7 +329,7 @@ def _matpow(mat, power):
 
     if power == 1:
         return mat
-        
+
     mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)))
     mat = utils.eigpow(mat, power)
     mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)))

@@ -206,7 +206,7 @@ class Wav():
                 wav_new.add(index[0], m_arr, minfo)
 
         return wav_new
-        
+
 def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     '''
     Convert wavelet maps to SH coefficients.
