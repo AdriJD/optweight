@@ -3,8 +3,7 @@ import numpy as np
 import healpy as hp
 from pixell import sharp
 
-from optweight import map_utils
-from optweight import sht
+from optweight import map_utils, sht, type_utils, wavtrans
 
 def contract_almxblm(alm, blm):
     '''
@@ -231,7 +230,7 @@ def trunc_alm(alm, ainfo, lmax):
 
     return alm_trunc, ainfo_trunc
 
-def rand_alm_pix(cov_pix, ainfo, minfo):
+def rand_alm_pix(cov_pix, ainfo, minfo, spin):
     '''
     Draw random alm from covariance diagonal in pixel domain.
 
@@ -243,6 +242,8 @@ def rand_alm_pix(cov_pix, ainfo, minfo):
         Metainfo for output alms.
     minfo : sharp.map_info object
         Metainfo specifying pixelization of covariance.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
 
     Returns
     -------
@@ -253,15 +254,59 @@ def rand_alm_pix(cov_pix, ainfo, minfo):
     dtype = type_utils.to_complex(cov_pix.dtype)
     noise = map_utils.rand_map_pix(cov_pix)
     alm_noise = np.zeros((noise.shape[0], ainfo.nelem), dtype=dtype)
-    sht.map2alm(noise, alm_noise, minfo, ainfo, [0,2], adjoint=False)
+
+    sht.map2alm(noise, alm_noise, minfo, ainfo, spin, adjoint=False)
 
     return alm_noise
 
-def rand_alm_wav(cov_wav, ainfo):
+def rand_alm_wav(cov_wav, ainfo, w_ell, spin):
     '''
-    
+    Draw random alm from covariance diagonal in wavelet domain.
+
+    Parameters
+    ----------
+    cov_wav : (nwav, nwav) wavtrans.Wav object.
+        Block diagonal wavelet covariance matrix.
+    ainfo : sharp.alm_info object
+        Metainfo for output alms.
+    w_ell : (nwav, nell) array
+        Wavelet kernels.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
+
+    Returns
+    -------
+    rand_alm : (npol, nelem) array
+        Draw from covariance.
     '''
-    pass
+
+    npol = wavtrans.preshape2npol(cov_wav.preshape)
+
+    alm_dtype = type_utils.to_complex(cov_wav.dtype)
+    alm_shape = (npol, ainfo.nelem)
+    rand_alm = np.zeros(alm_shape, dtype=alm_dtype)
+
+    for jidx in range(cov_wav.shape[0]):
+
+        cov_pix = cov_wav.maps[jidx,jidx]
+        minfo = cov_wav.minfos[jidx, jidx]
+
+        rand_map = map_utils.rand_map_pix(cov_pix)
+
+        # Note, only valid for Gauss Legendre pixels.
+        # We use nphi to support maps with cuts in theta.
+        lmax = (minfo.nphi[0] - 1) // 2
+        winfo = sharp.alm_info(lmax=lmax)
+
+        wlm = np.zeros(alm_shape[:-1] + (winfo.nelem,),
+                       dtype=alm_dtype)
+
+        sht.map2alm(rand_map, wlm, minfo, winfo, spin)
+
+        wlm2alm_axisym([wlm], [winfo], w_ell[jidx:jidx+1,:],
+                       alm=rand_alm, ainfo=ainfo)
+
+    return rand_alm
 
 def add_to_alm(alm, blm, ainfo, binfo):
     '''

@@ -145,6 +145,17 @@ class TestWavTrans(unittest.TestCase):
         self.assertEqual(wavvec.minfos[10], minfo_2)
         np.testing.assert_array_equal(wavvec.indices, np.asarray([[5, 10]]).T)
 
+    def test_wav_init_vec_dtype(self):
+        
+        wavvec = wavtrans.Wav(1, dtype=np.float64)
+
+        # Add map with wrong dtype.
+        minfo = sharp.map_info_gauss_legendre(3)
+        m_arr = np.ones((1, minfo.npix), dtype=np.float32)
+        index = 10
+
+        self.assertRaises(ValueError, wavvec.add, index, m_arr, minfo)
+
     def test_wav_init_vec_add_preshape(self):
         
         wavvec = wavtrans.Wav(1, preshape=(3,))
@@ -567,3 +578,18 @@ class TestWavTrans(unittest.TestCase):
         alm_exp[0,1] += alm_1[0,1]
         alm_exp[0,4] += alm_1[0,2]
         np.testing.assert_array_almost_equal(alm, alm_exp)
+
+    def test_preshape2npol(self):
+
+        preshape = ()
+        self.assertEqual(wavtrans.preshape2npol(preshape), 1)
+
+        preshape = (2,)
+        self.assertEqual(wavtrans.preshape2npol(preshape), 2)
+
+        preshape = (3, 3)
+        self.assertEqual(wavtrans.preshape2npol(preshape), 3)
+        
+        self.assertRaises(ValueError, wavtrans.preshape2npol, (2, 1))
+
+        self.assertRaises(ValueError, wavtrans.preshape2npol, (2, 2, 2))

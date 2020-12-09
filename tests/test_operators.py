@@ -465,6 +465,4 @@ class TestOperators(unittest.TestCase):
         alm_out_exp =  ainfo.lmul(alm, icov_ell[np.newaxis,:,:])
         alm_out_exp /= (4 * np.pi / (10800 ** 2))
 
-        print(alm_out)
-        print(alm_out_exp)
         np.testing.assert_allclose(alm_out, alm_out_exp, rtol=5e-2)

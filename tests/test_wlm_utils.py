@@ -13,8 +13,6 @@ class TestWlmUtils(unittest.TestCase):
         
         s_exp = np.zeros_like(ts)
         mask = (ts >= -1) & (ts <= 1)
-        print(ts)
-        print(mask)
         s_exp[(ts > -1) & (ts < 1)] = np.exp(-1 / (1 - ts[mask] ** 2))
         
         np.testing.assert_array_almost_equal(s_out, s_exp)

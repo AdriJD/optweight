@@ -3,6 +3,8 @@ import numpy as np
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 
+from optweight import wavtrans
+
 def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
                 mode='constant'):
     '''
@@ -398,7 +400,7 @@ def get_ivar_ell(icov_wav, w_ell):
 
     Parameters
     ----------
-    icov_wav : wavetrans.Wav object
+    icov_wav : (nwav, nwav) wavtrans.Wav object
         Inverse covariance matrix.
     w_ell : (nwav, nell) array
         Wavelet kernels.
@@ -415,15 +417,8 @@ def get_ivar_ell(icov_wav, w_ell):
         If npol cannot be determined from preshape of wavelet object.
     '''
 
-    preshape = icov_wav.preshape
-    if len(preshape) > 2 or len(set(preshape)) > 1:
-        raise ValueError('Could not determine npol from preshape : {}'
-                         .format(preshape))
-    if len(preshape) == 0:
-        npol = 1
-    else:
-        npol = preshape[0]
-                    
+    npol = wavtrans.preshape2npol(icov_wav.preshape)
+   
     itaus = np.zeros((3, 3, w_ell.shape[0]))
 
     for jidx in range(w_ell.shape[0]):
@@ -435,3 +430,28 @@ def get_ivar_ell(icov_wav, w_ell):
     
     return ivar_ell
 
+def rand_wav(cov_wav):
+    '''
+    Draw random Gaussian realisation from wavelet-based 
+    block diagonal covariance matrix.
+
+    Parameters
+    ----------
+    cov_wav : (nwav, nwav) wavtrans.Wav object
+        Block-diagonal covariance matrix.
+
+    returns
+    -------
+    rand_wav : (nwav) wavtrans.Wav object
+        Wavelet vector containing the random draw.
+    '''
+    
+    rand_wav = wavtrans.Wav(1, dtype=cov_wav.dtype)
+
+    for jidx in range(cov_wav.shape[0]):
+        
+        cov_pix = cov_wav.maps[jidx,jidx]
+        rand_wav.add(np.asarray([jidx]), rand_map_pix(cov_pix),
+                     cov_wav.minfos[jidx,jidx])
+                                 
+    return rand_wav

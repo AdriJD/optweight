@@ -140,6 +140,7 @@ class Wav():
             If index has wrong length.
             If index contains negative numbers.
             If index does not contain integers.
+            If array has wrong dtype.
         '''
         
         index = np.asarray(index)
@@ -160,6 +161,10 @@ class Wav():
         if len(index) == 1:
             # We use integers to index vectors, tuples for matrices.
             index2dict = index[0]
+
+        if m_arr.dtype != self.dtype:
+            raise ValueError('Adding array of wrong dtype : {}, expected {}'.
+                             format(m_arr.dtype, self.dtype))
 
         # Check if preshape matches existing maps, if none exist allow updating.
         preshape = m_arr.shape[:-1]
@@ -312,3 +317,34 @@ def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
                     spin, adjoint=adjoint)
 
     return wav
+
+def preshape2npol(preshape):
+    '''
+    Try to determine npol from the leading dimensions of a 
+    wavelet object.
+
+    Parameters
+    ----------
+    preshape : tuple
+        Leading dimensions of array.
+
+    Returns
+    -------
+    npol : int
+    
+    Raises
+    ------
+    ValueError
+        If npol cannot be determined, i.e. wavelet is not block
+        vector or square matrix.
+    '''
+
+    if len(preshape) > 2 or len(set(preshape)) > 1:
+        raise ValueError('Could not determine npol from preshape : {}'
+                         .format(preshape))
+    if len(preshape) == 0:
+        npol = 1
+    else:
+        npol = preshape[0]
+
+    return npol

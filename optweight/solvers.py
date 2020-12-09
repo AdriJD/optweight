@@ -181,7 +181,7 @@ class CGWiener(cg.CG):
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
                     b_ell=None, mask_pix=None, draw_constr=False, prec=None, **kwargs):
         '''
-        Iniitialize solver with arrays instead of callables.
+        Initialize solver with arrays instead of callables.
 
         Parameters
         ----------
@@ -272,7 +272,7 @@ class CGWiener(cg.CG):
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell, *extra_args,
                         b_ell=None, mask_pix=None, prec=None, minfo_mask=None, **kwargs):
         '''
-        Iniitialize solver with wavelet-based noise model with arrays
+        Initialize solver with wavelet-based noise model with arrays
         instead of callables.
 
         Parameters
@@ -478,7 +478,7 @@ class CGWienerScaled(CGWiener):
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo,
                     b_ell=None, draw_constr=False, prec=None, **kwargs):
-        '''Iniitialize solver with arrays instead of callables.'''
+        '''Initialize solver with arrays instead of callables.'''
 
         sqrt_cov_signal = operators.EllMatVecAlm(ainfo, icov_ell, power=-0.5)
 

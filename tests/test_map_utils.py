@@ -148,7 +148,6 @@ class TestMapUtils(unittest.TestCase):
         # Give unsorted array.
         thetas = np.asarray([10, 3, 5, 14])
         arc_lens = map_utils.get_arc_len(thetas, 2, 15)
-        print(np.sort(arc_lens))
         arc_lens_exp = np.asarray([4.5, 2, 3.5, 3])
         
         np.testing.assert_almost_equal(arc_lens_exp, arc_lens)
@@ -312,3 +311,27 @@ class TestMapUtils(unittest.TestCase):
         # Too many leading dimensions.
         icov_wav = wavtrans.Wav(2, preshape=(2, 2, 2))
         self.assertRaises(ValueError, map_utils.get_ivar_ell, icov_wav, w_ell)
+
+    def test_rand_wav(self):
+        
+        npol = 3
+
+        cov_wav = wavtrans.Wav(2)
+
+        # Add first map.
+        lmax = 3
+        minfo1 = sharp.map_info_gauss_legendre(lmax + 1)
+        cov_pix = np.ones((npol, npol, minfo1.npix))
+        cov_wav.add((0,0), cov_pix, minfo1)
+
+        # Second map.
+        lmax = 4
+        minfo2 = sharp.map_info_gauss_legendre(lmax + 1)
+        cov_pix = np.ones((npol, npol, minfo2.npix))
+        cov_wav.add((1,1), cov_pix, minfo2)
+
+        rand_wav = map_utils.rand_wav(cov_wav)
+
+        self.assertEqual(rand_wav.shape, (2,))
+        self.assertEqual(rand_wav.maps[0].shape, (npol, minfo1.npix))
+        self.assertEqual(rand_wav.maps[1].shape, (npol, minfo2.npix))
