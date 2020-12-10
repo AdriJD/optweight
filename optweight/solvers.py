@@ -317,16 +317,24 @@ class CGWiener(cg.CG):
             beam = None
 
         if mask_pix is not None:
-            mask =  operators.PixMatVecAlm(
+            mask = operators.PixMatVecAlm(
                 ainfo, mask_pix, minfo_mask, [0, 2], use_weights=True)
         else:
-            mask=None
+            mask = None
 
         if prec == 'harmonic':
 
             itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
             preconditioner = preconditioners.HarmonicPreconditioner(
                 ainfo, icov_ell, itau_ell, b_ell=b_ell)
+
+        elif prec == 'pinv':
+         
+            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
+            preconditioner = preconditioners.PseudoInvPreconditionerWav(
+                ainfo, icov_ell, itau_ell, icov_wav, w_ell, mask_pix=mask_pix, 
+                minfo_mask=minfo_mask, b_ell=b_ell)
+
 
         elif prec is None:
             preconditioner = None

@@ -77,6 +77,8 @@ def noisebox2wavmat(noisebox, bins, w_ell, offsets=[-1, 0, 1]):
             icov_pix, minfo = map_utils.enmap2gauss(
                 icov_pix, 2 * lmaxs[jpidx], area_pow=1, mode='nearest')
 
+            icov_pix = map_utils.round_icov_matrix(icov_pix)
+            
             icov_wav.add(index, icov_pix, minfo)
 
     return icov_wav

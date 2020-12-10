@@ -195,20 +195,30 @@ class WavMatVecAlm(MatVecAlm):
 
             m_wav_power = wavtrans.Wav(2)
 
-            for jidx in range(self.m_wav.shape[0]):
+            for jidx in range(m_wav.shape[0]):
 
-                minfo = m_wav.minfo[jidx,jidx]
+                minfo = m_wav.minfos[jidx,jidx]
                 map_mat = m_wav.maps[jidx,jidx]
 
-                map_mat = _matpow(mat_map, power)
-                m_wav_power.add((jidx,jpidx), mat_map, minfo)
+                map_mat = _matpow(map_mat, power)
+                m_wav_power.add((jidx,jidx), map_mat, minfo)
 
             self.m_wav = m_wav_power
         else:
             self.m_wav = m_wav
 
-        self.v_wav = self.m_wav.diag()
+        # Create wavelet vector that has correct preshape.
+        npol = wavtrans.preshape2npol(self.m_wav.preshape)
+        self.v_wav = wavtrans.Wav(1, preshape=(npol,), 
+                                  dtype=self.m_wav.dtype)
 
+        for jidx in range(m_wav.shape[0]):
+            
+            minfo = self.m_wav.minfos[jidx,jidx]
+            m_arr = np.zeros(self.v_wav.preshape + (minfo.npix,),
+                             dtype=self.v_wav.dtype)
+            self.v_wav.add([jidx], m_arr, minfo)
+                            
         winfos = {}
         for index in self.v_wav.minfos:
             minfo = self.v_wav.minfos[index]
@@ -255,7 +265,7 @@ class WavMatVecAlm(MatVecAlm):
                 # matrix-vector product.
                 if map_mat.ndim == 3:
                     map_prod = np.einsum(
-                        'ijk, jk -> ik', map_mat, mat_vec, optimize=True)
+                        'ijk, jk -> ik', map_mat, map_vec, optimize=True)
                 elif map_mat.ndim == 2:
                     map_prod = map_mat * map_vec
 

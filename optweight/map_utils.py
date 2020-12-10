@@ -455,3 +455,61 @@ def rand_wav(cov_wav):
                      cov_wav.minfos[jidx,jidx])
                                  
     return rand_wav
+
+def round_icov_matrix(icov_pix, rtol=1e-2):
+    '''
+    Set too small values in inverse covariance matrix to zero.
+
+    Parameters
+    ----------
+    icov_pix : (npol, npol, npix) or (npol, npix) array
+        Inverse covariance matrix.
+    rtol : float, optional
+        Elements below rtol times the median of nonzero elements 
+        are set to zero.
+
+    Returns
+    -------
+    icov_pix_round : (npol, npol, npix) or (npol, npix) array
+        Rounded inverse covariance matrix.
+
+    Raises
+    ------
+    ValueError
+        If dimensionality of matrix is not understood.
+    '''
+
+    ndim = icov_pix.ndim
+    if not (ndim == 2 or ndim == 3):
+        raise ValueError(
+            'Wrong dimensionality of icov_pix : {}, expected 2 or 3'.
+            format(ndim))
+
+    npol = icov_pix.shape[0]
+    if ndim == 3 and icov_pix.shape[1] != npol:
+        raise ValueError('Expected (npol, npol, npix) matrix, got : {}'.
+                         format(icov_pix.shape))
+
+    icov_pix = icov_pix.copy()
+    
+    # Loop over diagonal.
+    for pidx in range(npol):
+
+        index = (pidx, pidx) if ndim == 3 else pidx
+        
+        mask_nonzero = icov_pix[index] > 0
+        if np.sum(mask_nonzero) == 0:
+            continue
+
+        median = np.median(icov_pix[index][mask_nonzero])
+        mask = icov_pix[index] < rtol * median
+        
+        #print(icov_pix)
+
+        if ndim == 2:
+            icov_pix[index][mask] = 0
+        else:
+            icov_pix[:,pidx,mask] = 0
+            icov_pix[pidx,:,mask] = 0
+
+    return icov_pix

@@ -335,3 +335,79 @@ class TestMapUtils(unittest.TestCase):
         self.assertEqual(rand_wav.shape, (2,))
         self.assertEqual(rand_wav.maps[0].shape, (npol, minfo1.npix))
         self.assertEqual(rand_wav.maps[1].shape, (npol, minfo2.npix))
+        
+    def test_round_icov_matrix(self):
+        
+        npol = 3
+        npix = 4
+
+        icov_pix = np.ones((npol, npol, npix))
+
+        icov_pix_round = map_utils.round_icov_matrix(icov_pix)
+        
+        self.assertFalse(np.shares_memory(icov_pix_round, icov_pix))
+        np.testing.assert_array_equal(icov_pix_round, icov_pix)
+
+        # I expect that rows and columns that hit zero diagonal 
+        # are set to zero too
+        icov_pix[1,1,2] = 1e-3
+        icov_pix_exp = np.ones_like(icov_pix)
+        icov_pix_exp[:,1,2] = 0
+        icov_pix_exp[1,:,2] = 0
+        icov_pix_round = map_utils.round_icov_matrix(icov_pix)
+        
+        np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
+
+        # Small off-diagonal element should not triger update.
+        icov_pix[:] = 1
+        icov_pix[1,0,2] = 1e-3
+        icov_pix_exp = icov_pix.copy()
+        icov_pix_round = map_utils.round_icov_matrix(icov_pix)
+        
+        np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
+
+        # Matrix that is completely zeros should work.
+        icov_pix[:] = 0
+        icov_pix_exp = icov_pix.copy()
+        icov_pix_round = map_utils.round_icov_matrix(icov_pix)
+        
+        np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
+
+        #assert False
+
+    def test_round_icov_matrix_diag(self):
+        
+        # Test if function also works if (npol, npix) array is given.
+
+        npol = 3
+        npix = 4
+
+        icov_pix = np.ones((npol, npix))
+
+        icov_pix_round = map_utils.round_icov_matrix(icov_pix)
+        
+        self.assertFalse(np.shares_memory(icov_pix_round, icov_pix))
+        np.testing.assert_array_equal(icov_pix_round, icov_pix)
+
+        # I expect that rows and columns that hit zero diagonal 
+        # are set to zero too
+        icov_pix[1,2] = 1e-3
+        icov_pix_exp = np.ones_like(icov_pix)
+        icov_pix_exp[1,2] = 0
+        icov_pix_round = map_utils.round_icov_matrix(icov_pix)
+        
+        np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
+
+    def test_round_icov_matrix_err(self):
+        
+        npol = 3
+        npix = 4
+
+        icov_pix = np.ones((npol, 2, npix))
+        self.assertRaises(ValueError, map_utils.round_icov_matrix, icov_pix)
+
+        icov_pix = np.ones((npol, npol, npol, npix))
+        self.assertRaises(ValueError, map_utils.round_icov_matrix, icov_pix)
+
+        icov_pix = np.ones((npix))
+        self.assertRaises(ValueError, map_utils.round_icov_matrix, icov_pix)

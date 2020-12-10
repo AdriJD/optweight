@@ -137,3 +137,104 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         alm = self.harmonic_prec(alm)
 
         return alm
+
+class PseudoInvPreconditionerWav(operators.MatVecAlm):
+    '''
+    Adaptation of the pseudo-inverse preconditioner from Seljebotn et al.,
+    2017 (1710.00621) to a wavelet-based noise model.
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    icov_ell : (npol, npol, nell) array or (npol, nell) array
+        Inverse signal covariance, If diagonal, only the diagonal suffices.
+    itau_ell : (npol, npol, nell) array
+        Isotropic noise (co)variance.
+    icov_wav : wavtrans.Wav object
+        Wavelet block matrix representing the inverse noise covariance.
+    w_ell : (nwav, nell) array
+        Wavelet kernels.
+    mask_pix = (npol, npix) array, optional
+        Pixel mask.
+    minfo_mask : sharp.map_info object, optional
+        Metainfo for pixel mask covariance.
+    b_ell : (npol, nell) array, optional
+        Beam window function.
+
+    Methods
+    -------
+    call(alm) : Apply the preconditioner to a set of alms.
+
+    '''
+    
+    def __init__(self, ainfo, icov_ell, itau_ell, icov_wav, w_ell,
+                 mask_pix=None, minfo_mask=None, b_ell=None):
+
+        if itau_ell.ndim != 3:
+            raise ValueError(
+                'Wrong dimensions itau_ell : expected 3, got {}'.
+                format(itau_ell.ndim))
+
+        if b_ell is None:
+            b_ell = np.ones((icov_ell.shape[0], icov_ell.shape[-1]))
+
+        if mask_pix is None:
+            self.imask = lambda alm: alm
+        else:            
+            self.imask = operators.PixMatVecAlm(
+                ainfo, mask_pix, minfo_mask, [0, 2], power=-1,
+                use_weights=True)
+
+        self.harmonic_prec = operators.EllMatVecAlm(
+            ainfo, icov_ell + itau_ell * b_ell ** 2, -1, inplace=True)
+        
+        self.icov_signal = operators.EllMatVecAlm(
+            ainfo, icov_ell, inplace=True)
+
+        self.beam = operators.EllMatVecAlm(
+            ainfo, b_ell, inplace=True)
+
+        self.ivar_noise_iso = operators.EllMatVecAlm(
+            ainfo, itau_ell, inplace=True)
+
+        self.pcov_noise = operators.WavMatVecAlm(
+            ainfo, icov_wav, w_ell, [0, 2], power=-1, adjoint=True)
+
+    def call(self, alm):
+        '''
+        Apply the preconditioner to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+
+        alm = alm.copy()
+
+        alm = self.harmonic_prec(alm)
+
+        alm_signal = alm.copy()
+        alm_noise = alm
+
+        alm_signal = self.icov_signal(alm_signal)
+        alm_noise = self.beam(alm_noise)
+        alm_noise = self.imask(alm_noise)
+        alm_noise = self.ivar_noise_iso(alm_noise)
+        alm_noise = self.pcov_noise(alm_noise)
+        alm_noise = self.ivar_noise_iso(alm_noise)
+        alm_noise = self.imask(alm_noise)
+        alm_noise = self.beam(alm_noise)
+
+        alm = alm_noise
+        alm += alm_signal
+
+        alm = self.harmonic_prec(alm)
+
+        return alm
