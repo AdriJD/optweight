@@ -504,8 +504,6 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
         median = np.median(icov_pix[index][mask_nonzero])
         mask = icov_pix[index] < rtol * median
         
-        #print(icov_pix)
-
         if ndim == 2:
             icov_pix[index][mask] = 0
         else:

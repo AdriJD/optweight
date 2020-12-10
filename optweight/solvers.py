@@ -295,12 +295,15 @@ class CGWiener(cg.CG):
             Pixel mask.
         minfo_mask : sharp.map_info object
             Metainfo for pixel mask.
-        prec : {'harmonic'}, optional
+        prec : {'harmonic', 'pinv'}, optional
             Select type of preconditioner, one of:
 
             harmonic
                 Use (S^-1 + itau * 1)^-1, where itau is an approximate 
                 inverse noise variance spectrum.
+            pinv
+                Use Pseudo-inverse method from Seljebotn et al adapted
+                to a wavelet-based noise model.
 
         **kwargs
             Keyword arguments for enlib.cg.CG.
