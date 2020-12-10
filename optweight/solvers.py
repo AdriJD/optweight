@@ -269,8 +269,9 @@ class CGWiener(cg.CG):
                    **kwargs)
 
     @classmethod
-    def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell, *extra_args,
-                        b_ell=None, mask_pix=None, prec=None, minfo_mask=None, **kwargs):
+    def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
+                        *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
+                        icov_pix=None, minfo_icov_pix=None, prec=None, **kwargs):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -295,15 +296,22 @@ class CGWiener(cg.CG):
             Pixel mask.
         minfo_mask : sharp.map_info object
             Metainfo for pixel mask.
-        prec : {'harmonic', 'pinv'}, optional
+        icov_pix : (npol, npol, npix) or (npol, npix) array, optional
+            Inverse noise covariance. If diagonal, only the diagonal suffices.
+        minfo_icov_pix : sharp.map_info object
+            Metainfo for pixel mask.
+        prec : {'harmonic', 'pinv_wav', 'pinv'}, optional
             Select type of preconditioner, one of:
 
             harmonic
                 Use (S^-1 + itau * 1)^-1, where itau is an approximate 
                 inverse noise variance spectrum.
-            pinv
+            pinv_wav
                 Use Pseudo-inverse method from Seljebotn et al adapted
                 to a wavelet-based noise model.
+            pinv
+                Use Pseudo-inverse method from Seljebotn et al. Requires 
+                a covariance matrix to be passed though the `icov_pix` kwarg.
 
         **kwargs
             Keyword arguments for enlib.cg.CG.
@@ -333,11 +341,21 @@ class CGWiener(cg.CG):
 
         elif prec == 'pinv':
          
+            if icov_pix is None:
+                raise ValueError('pinv preconditioner requires icov_pix.')
+            if minfo_icov_pix is None:
+                raise ValueError('pinv preconditioner requires minfo_icov_pix.')
+
+            itau = map_utils.get_isotropic_ivar(icov_pix, minfo_icov_pix)
+            preconditioner = preconditioners.PseudoInvPreconditioner(
+                ainfo, icov_ell, itau, icov_pix, minfo_icov_pix, b_ell=b_ell)
+
+        elif prec == 'pinv_wav':
+         
             itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
             preconditioner = preconditioners.PseudoInvPreconditionerWav(
                 ainfo, icov_ell, itau_ell, icov_wav, w_ell, mask_pix=mask_pix, 
                 minfo_mask=minfo_mask, b_ell=b_ell)
-
 
         elif prec is None:
             preconditioner = None
