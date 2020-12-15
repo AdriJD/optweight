@@ -78,7 +78,8 @@ class TestNoiseBoxUtils(unittest.TestCase):
 
         icov_exp /= pix_area_enmap
 
-        np.testing.assert_allclose(map_ans[0,10,0], icov_exp[10,0], rtol=0.005)
+        np.testing.assert_allclose(map_ans[0,10,0], icov_exp[10,0],
+                                   rtol=0.005)
                 
     def test_prepare_noisebox(self):
 
