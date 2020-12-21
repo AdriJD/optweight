@@ -4,7 +4,8 @@ described in Leistedt et al., 2013 (1211.1680).
 '''
 import numpy as np
 
-def get_sd_kernels(lamb, lmax, j0=None, lmin=None, return_j=False):
+def get_sd_kernels(lamb, lmax, j0=None, lmin=None, jmax=None, lmax_j=None,
+                   return_j=False):
     '''
     Compute Scale-Discrete wavelet kernels.
 
@@ -13,11 +14,16 @@ def get_sd_kernels(lamb, lmax, j0=None, lmin=None, return_j=False):
     lamb : float
         Lambda parameter specifying the width of the kernels.
     lmax : int
-        Maximum mulitpole.
+        Maximum multipole.
     j0 : int, optional
         Minimum J scale used, i.e. the phi wavelet.
     lmin : int, optional
         Multipole after which the first kernel (phi) ends, alternative to j0.
+    jmax : int, optional
+        Maximum J scale used, i.e.g the omega wavelet.
+    lmax_j : int, optional
+        Multipole after which the second to last multipole ends, alternative
+        to jmax.
     return_j : bool, optional
         Return J scales.
 
@@ -36,24 +42,36 @@ def get_sd_kernels(lamb, lmax, j0=None, lmin=None, return_j=False):
         if both j0 and lmin are provided.
         If j0 exceeds jmax (which is set by lmax).
         If j0 is smaller than 0.
+        if both jmax and lmax_j are provided.
 
     Notes
     -----
-    Wavelet numbers J run from 0 to jmax if j0 or lmax is not specified.
+    Wavelet numbers J run from 0 to jmax if j0 or lmin is not specified.
     The lowest wavelet number corresponds to Phi (i.e. the scaling kernel that
     that starts as a constant of 1 at ell = 0. This differs from the s2let code.
+    Optionally, the last wavelet scale can be "omega", i.e. a kernel that is 1
+    for all ell above lambda.
     '''
 
     if j0 and lmin:
         raise ValueError('Cannot have both j0 and lmin.')
 
-    jmax = lmax_to_j_scale(lmax, lamb)
+    if jmax and lmax_j:
+        raise ValueError('Cannot have both jmax and lmax_j.')
+
+    jmax_lmax = lmax_to_j_scale(lmax, lamb)
+    if lmax_j:
+        jmax = lmax_to_j_scale(lmax_j, lamb)
+    if jmax is None:
+        jmax = jmax_lmax
+    else:
+        jmax = min(jmax, jmax_lmax)
 
     if j0 is None:
         if lmin is None:
             j0 = 0
         else:
-            if lmin < 0: 
+            if lmin < 0:
                 raise ValueError('lmin : {} cannot be negative'.format(lmin))
             j0 = max(0, lmax_to_j_scale(lmin, lamb) - 1)
 
@@ -74,10 +92,15 @@ def get_sd_kernels(lamb, lmax, j0=None, lmin=None, return_j=False):
 
         if jidx == 0:
             w_ell[jidx,:] = phi_ell(ells, lamb, j_scale + 1)
+        elif j_scale == jmax:
+            w_ell[jidx,:] = omega_ell(ells, lamb, j_scale)
         else:
             w_ell[jidx,:] = psi_ell(ells, lamb, j_scale)
 
-        lmaxs[jidx] = min(lmax, j_scale_to_lmax(j_scale, lamb))
+        if j_scale == jmax:
+            lmaxs[jidx] = lmax
+        else:
+            lmaxs[jidx] = min(lmax, j_scale_to_lmax(j_scale, lamb))
 
     if return_j:
         return w_ell, lmaxs, js
@@ -100,7 +123,7 @@ def j_scale_to_lmax(j_scale, lamb):
     lmax : int
         Band-limit of wavelet.
     '''
-    
+
     # We round up to be conservative.
     return int(np.ceil(lamb ** (j_scale + 1)))
 
@@ -120,7 +143,7 @@ def j_scale_to_lmin(j_scale, lamb):
     lmin : int
         Lower band-limit of wavelet.
     '''
-    
+
     return max(0, int(lamb ** (j_scale - 1)))
 
 def lmax_to_j_scale(lmax, lamb):
@@ -149,6 +172,21 @@ def psi_ell(ells, lamb, j_scale):
 def phi_ell(ells, lamb, j0_scale):
     '''Calculate Eq. 16 in Leisteid et al. Note no prefactor.'''
     return eta_lambda(ells / (lamb ** j0_scale), lamb)
+
+def omega_ell(ells, lamb, j_scale):
+    '''Calculate zeta_lambda (ell / lambda^J).'''
+    return zeta_lambda(ells / (lamb ** j_scale), lamb)
+
+def zeta_lambda(ts, lamb):
+    ''' Calculate sqrt(1 - k_lambda(t)).'''
+
+    # To avoid floating point errors in difference.
+    arg = 1 - k_lambda(ts, lamb)
+    mask = arg >= 0
+    out = np.zeros_like(arg)
+
+    np.sqrt(arg, where=mask, out=out)
+    return out
 
 def eta_lambda(ts, lamb):
     '''Calculate Eq. 14 in Leisteid et al.'''

@@ -180,7 +180,7 @@ class WavMatVecAlm(MatVecAlm):
     NotImplementedErrror
         If matrix power is computed for non-diagonal block matrix.
     '''
-
+    #@profile
     def __init__(self, ainfo, m_wav, w_ell, spin, power=1, adjoint=False):
 
         self.ainfo = ainfo
@@ -231,6 +231,7 @@ class WavMatVecAlm(MatVecAlm):
 
         self.alm_dtype = type_utils.to_complex(self.v_wav.dtype)
 
+    #@profile
     def call(self, alm):
         '''
         Apply the operator to a set of alms.

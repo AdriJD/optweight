@@ -41,7 +41,7 @@ def contract_almxblm(alm, blm):
     had_sum -= np.real(np.sum(alm[...,:lmax+1] * blm[...,:lmax+1]))
 
     return had_sum
-
+#@profile
 def alm2wlm_axisym(alm, ainfo, w_ell, lmaxs=None):
     '''
     Convert SH coeffients into wavelet coefficients.
@@ -100,7 +100,7 @@ def alm2wlm_axisym(alm, ainfo, w_ell, lmaxs=None):
         winfos.append(winfo)
 
     return wlms, winfos
-
+#@profile
 def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
     '''
     Convert wavelet coeffients into alm coefficients.
@@ -173,7 +173,7 @@ def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
             alm[slice_alm] += wlm[slice_wlm] * w_ell[widx,m:lmax_wlm+1]
 
     return alm, ainfo
-
+#@profile
 def trunc_alm(alm, ainfo, lmax):
     '''
     Truncate alm to lmax.

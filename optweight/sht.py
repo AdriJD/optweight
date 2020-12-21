@@ -2,6 +2,7 @@ import numpy as np
 
 from pixell import enmap, sharp
 
+#@profile
 def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     '''
     Wrapper around pixell's libsharp wrapper that does not
@@ -47,6 +48,7 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     for s, i1, i2 in enmap.spin_helper(spin, npol):    
         sharp.execute(job_type, ainfo, alm[i1:i2,:], minfo, imap[i1:i2,:], spin=s)
 
+#@profile
 def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     '''
     Wrapper around pixell's libsharp wrapper that does not

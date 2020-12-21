@@ -211,7 +211,7 @@ class Wav():
                 wav_new.add(index[0], m_arr, minfo)
 
         return wav_new
-
+#@profile
 def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     '''
     Convert wavelet maps to SH coefficients.
@@ -266,7 +266,7 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
                                  alm=alm, ainfo=ainfo)  
 
     return alm, ainfo
-
+#@profile
 def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
     '''
     Convert SH coefficients to wavelet maps. Defaults to Gauss-Legendre maps.

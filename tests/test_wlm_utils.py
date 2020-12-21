@@ -63,6 +63,21 @@ class TestWlmUtils(unittest.TestCase):
         self.assertTrue(out[3] > 0)
         self.assertAlmostEqual(out[4], 0)
 
+    def test_zeta_lambda(self):
+
+        lamb = 3
+        ts = np.asarray([0, 0.1, 1 / lamb, 0.5, 1, 2])
+
+        out = wlm_utils.zeta_lambda(ts, lamb)
+        
+        # Zero for t < 1 / lambda, one for t > 1.
+        self.assertAlmostEqual(out[0], 0)
+        self.assertAlmostEqual(out[1], 0)
+        self.assertAlmostEqual(out[2], 0)
+        self.assertTrue(out[3] > 0)
+        self.assertTrue(out[3] < 1)
+        self.assertAlmostEqual(out[4], 1)
+                
     def test_phi_ell(self):
         
         ells = np.arange(20)
@@ -102,6 +117,19 @@ class TestWlmUtils(unittest.TestCase):
         self.assertTrue(np.all(psi_ell[ells < 2] == 0))
         self.assertTrue(np.all(psi_ell[ells > 8] == 0))
         self.assertTrue(np.all(psi_ell[(ells >= 2) & (ells <= 8)] >= 0))
+
+    def test_omega_ell(self):
+        
+        ells = np.arange(20)
+        j_scale = 2
+        lamb = 2
+
+        # We want support in [lambda^(j-1), lmax] = [2, 20].
+        omega_ell = wlm_utils.omega_ell(ells, lamb, j_scale)
+        
+        self.assertTrue(np.all(omega_ell[ells < 2] == 0))
+        self.assertTrue(np.all(omega_ell[(ells >= 2) & (ells <= 4)] >= 0))
+        self.assertTrue(np.all(omega_ell[ells > 4] == 1))
 
     def test_lmax_to_j_scale(self):
         
@@ -160,7 +188,6 @@ class TestWlmUtils(unittest.TestCase):
         lmax = 6000
 
         w_ell, lmaxs = wlm_utils.get_sd_kernels(lamb, lmax)
-        
         np.testing.assert_array_almost_equal(np.sum(w_ell ** 2, axis=0),
                                              np.ones(lmax + 1), decimal=10)
 
@@ -200,12 +227,48 @@ class TestWlmUtils(unittest.TestCase):
         np.testing.assert_array_almost_equal(np.sum(w_ell ** 2, axis=0),
                                              np.ones(lmax + 1))
 
+    def test_get_sd_kernels_jmax(self):
+
+        lamb = 3
+        lmax = 30
+        jmax = 3
+
+        w_ell, lmaxs = wlm_utils.get_sd_kernels(lamb, lmax, jmax=jmax)
+
+        self.assertEqual(w_ell.shape, (4, lmax + 1))
+
+        # See Fig. 1 in (1211.1680). 
+        lmaxs_exp = np.asarray([3, 9, 27, lmax])        
+        np.testing.assert_array_equal(lmaxs, lmaxs_exp)
+        
+        # Check for Eq. 9 in that same paper.
+        np.testing.assert_array_almost_equal(np.sum(w_ell ** 2, axis=0),
+                                             np.ones(lmax + 1))
+
+    def test_get_sd_kernels_lmax_j(self):
+
+        lamb = 3
+        lmax = 30
+        lmax_j= 25
+
+        w_ell, lmaxs = wlm_utils.get_sd_kernels(lamb, lmax, lmax_j=lmax_j)
+
+        self.assertEqual(w_ell.shape, (4, lmax + 1))
+
+        # See Fig. 1 in (1211.1680). 
+        lmaxs_exp = np.asarray([3, 9, 27, lmax])        
+        np.testing.assert_array_equal(lmaxs, lmaxs_exp)
+        
+        # Check for Eq. 9 in that same paper.
+        np.testing.assert_array_almost_equal(np.sum(w_ell ** 2, axis=0),
+                                             np.ones(lmax + 1))
+
     def test_get_sd_kernels_err(self):
 
         lamb = 3
         lmax = 30
         j0 = 1
-        lmin = 10
+        lmin = 10        
 
         # Cannot have both lmin and j0.
         self.assertRaises(
@@ -223,6 +286,13 @@ class TestWlmUtils(unittest.TestCase):
         self.assertRaises(
             ValueError, wlm_utils.get_sd_kernels, lamb, lmax, j0=10)
     
+        # Cannot have both jmax and lmax_j.
+        jmax = 3
+        lmax_j = 20
+        self.assertRaises(
+            ValueError, wlm_utils.get_sd_kernels, lamb, lmax, j0=10,
+            jmax=jmax, lmax_j=lmax_j)
+
     def test_get_sd_kernels_return_j(self):
 
         lamb = 3
