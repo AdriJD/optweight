@@ -174,11 +174,6 @@ class WavMatVecAlm(MatVecAlm):
     Methods
     -------
     call(alm) : Apply the operator to a set of alms.
-
-    Raises
-    ------
-    NotImplementedErrror
-        If matrix power is computed for non-diagonal block matrix.
     '''
     #@profile
     def __init__(self, ainfo, m_wav, w_ell, spin, power=1, adjoint=False):
@@ -189,21 +184,7 @@ class WavMatVecAlm(MatVecAlm):
         self.adjoint = adjoint
 
         if power != 1:
-            if not np.array_equal(m_wav.indices[:,0], m_wav.indices[:,1]):
-                raise NotImplementedError(
-                    'Can only raise diagonal block matrix to a power')
-
-            m_wav_power = wavtrans.Wav(2)
-
-            for jidx in range(m_wav.shape[0]):
-
-                minfo = m_wav.minfos[jidx,jidx]
-                map_mat = m_wav.maps[jidx,jidx]
-
-                map_mat = _matpow(map_mat, power)
-                m_wav_power.add((jidx,jidx), map_mat, minfo)
-
-            self.m_wav = m_wav_power
+            self.m_wav = _wavmat_pow(m_wav, power)
         else:
             self.m_wav = m_wav
 
@@ -343,3 +324,41 @@ def _matpow(mat, power):
     mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)))
 
     return mat
+
+def _wavmat_pow(m_wav, power):
+    '''
+    Raise wavelet block matrix to a given power.
+
+    Parameters
+    ----------
+    m_wav : wavtrans.Wav object
+        Wavelet block matrix.
+    power : int, float
+        Power of matrix.
+    
+    Returns
+    -------
+    m_wav_power : wavtrans.Wav object
+        Wavelet block matrix raised to power.
+
+    Raises
+    ------
+    NotImplementedErrror
+        If matrix power is computed for non-diagonal block matrix.
+    '''
+
+    if not np.array_equal(m_wav.indices[:,0], m_wav.indices[:,1]):
+        raise NotImplementedError(
+            'Can only raise diagonal block matrix to a power')
+
+    m_wav_power = wavtrans.Wav(2)
+
+    for jidx in range(m_wav.shape[0]):
+
+        minfo = m_wav.minfos[jidx,jidx]
+        map_mat = m_wav.maps[jidx,jidx]
+
+        map_mat = _matpow(map_mat, power)
+        m_wav_power.add((jidx,jidx), map_mat, minfo)
+
+    return m_wav_power

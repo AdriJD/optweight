@@ -200,7 +200,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
 
         self.pcov_noise = operators.WavMatVecAlm(
             ainfo, icov_wav, w_ell, [0, 2], power=-1, adjoint=True)
-
+    #@profile
     def call(self, alm):
         '''
         Apply the preconditioner to a set of alms.

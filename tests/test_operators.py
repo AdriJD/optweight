@@ -466,3 +466,42 @@ class TestOperators(unittest.TestCase):
         alm_out_exp /= (4 * np.pi / (10800 ** 2))
 
         np.testing.assert_allclose(alm_out, alm_out_exp, rtol=5e-2)
+
+    def test_wavmat_pow(self):
+
+        power = 0.5
+        lmax = 3
+        npol = 3
+        ainfo = sharp.alm_info(lmax=lmax)
+        spin = [0, 2]
+        w_ell = np.zeros((2, lmax + 1))
+        lmaxs = [2, lmax]
+        w_ell[0,:lmaxs[0]+1] = 1
+        w_ell[1,lmaxs[0]+1:] = 2
+        m_wav = wavtrans.Wav(2)
+
+        # Add first map.
+        minfo1 = sharp.map_info_gauss_legendre(lmaxs[0] + 1)
+        m_arr1 = np.ones((npol, npol, minfo1.npix)) + 10 * \
+                 np.eye(3)[:,:,np.newaxis]
+        index1 = (0, 0)
+        m_wav.add(index1, m_arr1, minfo1)
+
+        # Add second map.
+        minfo2 = sharp.map_info_gauss_legendre(lmaxs[1] + 1)
+        m_arr2 = np.ones((npol, minfo2.npix)) + 20 * \
+                 np.eye(3)[:,:,np.newaxis]
+        index2 = (1, 1)
+        m_wav.add(index2, m_arr2, minfo2)
+
+        m_wav_sqrt = operators._wavmat_pow(m_wav, power)
+                
+        np.testing.assert_array_almost_equal(
+            np.einsum('ijk, jlk -> ilk',
+                      m_wav_sqrt.maps[0,0], m_wav_sqrt.maps[0,0]),
+            m_wav.maps[0,0])
+
+        np.testing.assert_array_almost_equal(
+            np.einsum('ijk, jlk -> ilk',
+                      m_wav_sqrt.maps[1,1], m_wav_sqrt.maps[1,1]),
+            m_wav.maps[1,1])
