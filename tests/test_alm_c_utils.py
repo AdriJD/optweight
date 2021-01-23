@@ -34,6 +34,38 @@ class TestAlmCUtils(unittest.TestCase):
         alm_out_exp = ainfo.lmul(alm, lmat * np.eye(3)[:,:,np.newaxis])
         np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
 
+        # 1d mat.
+        lmat = np.arange((lmax + 1), dtype=float)
+
+        alm_c_utils.lmul(alm, lmat, ainfo, alm_out=alm_out)
+        alm_out_exp = ainfo.lmul(alm, lmat)
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
+    def test_lmul_inplace_dp(self):
+        
+        lmax = 4
+        ncomp = 3
+
+        ainfo = sharp.alm_info(4)
+        alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
+        alm = alm.reshape(ncomp, ainfo.nelem)
+        alm *= 1 + 1j
+
+        lmat = np.arange(ncomp * ncomp * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(ncomp, ncomp, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat)
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
+        # Diag mat.
+        lmat = np.arange(ncomp * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(ncomp, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat * np.eye(3)[:,:,np.newaxis])
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
     def test_lmul_sp(self):
         
         lmax = 4
@@ -61,6 +93,38 @@ class TestAlmCUtils(unittest.TestCase):
         alm_out_exp = ainfo.lmul(alm, lmat * np.eye(3)[:,:,np.newaxis])
         np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
 
+        # 1d mat.
+        lmat = np.arange((lmax + 1), dtype=np.float32)
+
+        alm_c_utils.lmul(alm, lmat, ainfo, alm_out=alm_out)
+        alm_out_exp = ainfo.lmul(alm, lmat)
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
+    def test_lmul_inplace_sp(self):
+        
+        lmax = 4
+        ncomp = 3
+
+        ainfo = sharp.alm_info(4)
+        alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex64)
+        alm = alm.reshape(ncomp, ainfo.nelem)
+        alm *= 1 + 1j
+
+        lmat = np.arange(ncomp * ncomp * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(ncomp, ncomp, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat)
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
+        # Diag mat.
+        lmat = np.arange(ncomp * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(ncomp, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat * np.eye(3)[:,:,np.newaxis])
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
     def test_lmul_err(self):
 
         lmax = 4
@@ -74,12 +138,6 @@ class TestAlmCUtils(unittest.TestCase):
         alm_out = np.zeros_like(alm)
 
         # Wrong shape.
-        lmat = np.arange((lmax + 1), dtype=np.float64)
-
-        self.assertRaises(ValueError, alm_c_utils.lmul, alm, lmat, ainfo,
-                          alm_out=alm_out)
-
-        # Wrong shape 2.
         lmat = np.arange(ncomp * ncomp * (lmax + 2), dtype=np.float64)
         lmat = lmat.reshape(ncomp, ncomp, lmax + 2)
 

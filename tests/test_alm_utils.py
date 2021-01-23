@@ -46,7 +46,7 @@ class TestAlmUtils(unittest.TestCase):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
         ainfo = sharp.alm_info(lmax=3)
-        w_ell = np.zeros((2, 4))
+        w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
 
@@ -65,7 +65,7 @@ class TestAlmUtils(unittest.TestCase):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
         ainfo = sharp.alm_info(lmax=3)
-        w_ell = np.zeros((2, 4))
+        w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
 
@@ -86,7 +86,7 @@ class TestAlmUtils(unittest.TestCase):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
         ainfo = sharp.alm_info(lmax=3)
-        w_ell = np.zeros((2, 5)) # Does not match lmax.
+        w_ell = np.zeros((2, 5), dtype=np.float32) # Does not match lmax.
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
 
@@ -150,7 +150,7 @@ class TestAlmUtils(unittest.TestCase):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
         ainfo = sharp.alm_info(lmax=3)
-        w_ell = np.zeros((2, 4))
+        w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = -1
 

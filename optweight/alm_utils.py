@@ -3,7 +3,7 @@ import numpy as np
 import healpy as hp
 from pixell import sharp
 
-from optweight import map_utils, sht, type_utils, wavtrans
+from optweight import map_utils, sht, type_utils, wavtrans, alm_c_utils
 
 def contract_almxblm(alm, blm):
     '''
@@ -94,7 +94,8 @@ def alm2wlm_axisym(alm, ainfo, w_ell, lmaxs=None):
             lmax_w = lmax - np.argmax(w_ell[idx,::-1] > 0)
 
         wlm, winfo = trunc_alm(alm, ainfo, lmax_w)
-        winfo.lmul(wlm, w_ell[idx], out=wlm)
+        #winfo.lmul(wlm, w_ell[idx], out=wlm)
+        alm_c_utils.lmul(wlm, w_ell[idx,:winfo.lmax+1], winfo, inplace=True)
 
         wlms.append(wlm)
         winfos.append(winfo)

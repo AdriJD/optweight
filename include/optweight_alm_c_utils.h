@@ -3,7 +3,7 @@
 #include <omp.h>
 
 /*
- * Compute matrix multiplication out:[i,nelem] = mat_ell[i,j,nell] alm[j,nelem].
+ * Compute matrix multiplication out[i,nelem] = mat_ell[i,j,nell] alm[j,nelem].
  *
  * Arguments
  * ---------
@@ -21,7 +21,7 @@ void lmul_dp(const double *restrict lmat,
 	     int ncomp);
 
 /*
- * Compute multiplication out:[i,nelem] = mat_ell[i,nell] alm[i,nelem].
+ * Compute multiplication out[i,nelem] = mat_ell[i,nell] alm[i,nelem].
  *
  * Arguments
  * ---------
@@ -35,6 +35,38 @@ void lmul_dp(const double *restrict lmat,
 void lmul_diag_dp(const double *restrict lmat,
 	     const double _Complex *restrict alm_in,
 	     double _Complex *restrict alm_out,
+	     int lmax,
+	     int ncomp);
+
+/*
+ * Compute inplace matrix multiplication alm[i,nelem] = mat_ell[i,j,nell] alm[j,nelem].
+ *
+ * Arguments
+ * ---------
+ * lmat     : (ncomp * ncomp * nell) array with input matrix.
+ * alm      : (ncomp * nell) array with alm vector.
+ * lmax     : Maximum multipole of both matrix and alm arrays.
+ * ncomp    : Number of components of alm vector.
+ */
+
+void lmul_inplace_dp(const double *restrict lmat,
+	     double _Complex *restrict alm,
+	     int lmax,
+	     int ncomp);
+
+/*
+ * Compute multiplication out:[i,nelem] = mat_ell[i,nell] alm[i,nelem].
+ *
+ * Arguments
+ * ---------
+ * lmat     : (ncomp * nell) array with input diagonal of matrix.
+ * alm      : (ncomp * nell) array with alm vector.
+ * lmax     : Maximum multipole of both matrix and alm arrays.
+ * ncomp    : Number of components of alm vector.
+ */
+
+void lmul_diag_inplace_dp(const double *restrict lmat,
+	     double _Complex *restrict alm,
 	     int lmax,
 	     int ncomp);
 
@@ -54,3 +86,12 @@ void lmul_diag_sp(const float *restrict lmat,
 	     int lmax,
 	     int ncomp);
 
+void lmul_inplace_sp(const float *restrict lmat,
+	     float _Complex *restrict alm,
+	     int lmax,
+	     int ncomp);
+
+void lmul_diag_inplace_sp(const float *restrict lmat,
+	     float _Complex *restrict alm,
+	     int lmax,
+	     int ncomp);
