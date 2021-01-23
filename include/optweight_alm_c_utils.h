@@ -7,7 +7,7 @@
  *
  * Arguments
  * ---------
- * lmat      : (ncomp * ncomp * nell) array with input matrix.
+ * lmat     : (ncomp * ncomp * nell) array with input matrix.
  * alm_in   : (ncomp * nell) array with input alm vector.
  * alm_out  : (ncomp * nell) array for output alm vector.
  * lmax     : Maximum multipole of both matrix and alm arrays.
@@ -25,7 +25,7 @@ void lmul_dp(const double *restrict lmat,
  *
  * Arguments
  * ---------
- * lmat      : (ncomp * nell) array with input diagonal of matrix.
+ * lmat     : (ncomp * nell) array with input diagonal of matrix.
  * alm_in   : (ncomp * nell) array with input alm vector.
  * alm_out  : (ncomp * nell) array for output alm vector.
  * lmax     : Maximum multipole of both matrix and alm arrays.
