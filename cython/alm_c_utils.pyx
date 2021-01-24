@@ -3,7 +3,7 @@ import numpy as np
 
 def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     '''       
-    Compute the a'[i,lm] = m[i,j,ell] a[j,lm] matrix matrix multiplication.
+    Compute the a'[i,lm] = m[i,j,ell] a[j,lm] matrix multiplication.
 
     Arguments
     ---------

@@ -62,12 +62,6 @@ class EllMatVecAlm(MatVecAlm):
             Output from matrix-vector operation.
         '''
 
-        # if self.inplace:
-        #     out = alm
-        # else:
-        #     out = alm.copy()
-
-        # #return self.ainfo.lmul(alm, self.m_ell, out=out)
         if self.inplace:
             return alm_c_utils.lmul(alm, self.m_ell, self.ainfo, inplace=True)
         else:
