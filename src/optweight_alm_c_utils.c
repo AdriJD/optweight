@@ -1,9 +1,5 @@
 #include "optweight_alm_c_utils_test.h"
 
-// _trunc_alm
-
-// _wlm2alm
-
 static inline int get_mstart(int m, int lmax){
   return m * (2 * lmax + 1 - m) / 2;
 }
@@ -116,9 +112,9 @@ void lmul_diag_dp(const double *restrict lmat,
 }
 
 void lmul_inplace_dp(const double *restrict lmat,
-	     double _Complex *restrict alm,
-	     int lmax,
-	     int ncomp){
+         	     double _Complex *restrict alm,
+	             int lmax,
+	             int ncomp){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
@@ -158,9 +154,9 @@ void lmul_inplace_dp(const double *restrict lmat,
 }
 
 void lmul_diag_inplace_dp(const double *restrict lmat,
-	     double _Complex *restrict alm,
-	     int lmax,
-	     int ncomp){
+                	  double _Complex *restrict alm,
+	                  int lmax,
+	                  int ncomp){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
@@ -188,8 +184,46 @@ void lmul_diag_inplace_dp(const double *restrict lmat,
     }
   }
 }
+
+void trunc_alm_dp(const double _Complex *restrict alm,
+		  double _Complex *restrict alm_out,
+		  int lmax,
+		  int lmax_out,
+		  int ncomp){
+
+  int nelem = get_nelem(lmax);
+  int nelem_out = get_nelem(lmax_out);
+  int nell_out = lmax_out + 1;
+
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(guided)
+    for (int m=0; m<=lmax_out; m++){
+
+      int mstart = get_mstart(m, lmax);
+      int mstart_out = get_mstart(m, lmax_out);
+
+      for (int ell=m; ell<=lmax_out; ell++){
+        
+	for (int idx=0; idx<ncomp; idx++){
+
+	  int astart = idx * nelem;
+	  int astart_out = idx * nelem_out;      	    
+	  alm_out[astart_out + mstart_out + ell] = alm[astart + mstart + ell];
+	}
+      }
+    }
+  }
+}
+
+
+// _wlm2alm
+
+
+
+
       
-// Single precision versions.
+/********* Single precision versions. **********/
 
 void lmul_sp(const float *restrict lmat,
 	     const float _Complex *restrict alm_in,
@@ -294,9 +328,9 @@ void lmul_diag_sp(const float *restrict lmat,
 }
 
 void lmul_inplace_sp(const float *restrict lmat,
-	     float _Complex *restrict alm,
-	     int lmax,
-	     int ncomp){
+	             float _Complex *restrict alm,
+	             int lmax,
+	             int ncomp){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
@@ -336,9 +370,9 @@ void lmul_inplace_sp(const float *restrict lmat,
 }
 
 void lmul_diag_inplace_sp(const float *restrict lmat,
-	     float _Complex *restrict alm,
-	     int lmax,
-	     int ncomp){
+	                  float _Complex *restrict alm,
+	                  int lmax,
+	                  int ncomp){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
@@ -361,6 +395,37 @@ void lmul_diag_inplace_sp(const float *restrict lmat,
 	  alm[astart_i + mstart + ell] = 0;
 	  int matstart = idx * nell;       	    
 	  alm[astart_i + mstart + ell] += lmat[matstart + ell] * tmp;	  
+	}
+      }
+    }
+  }
+}
+
+void trunc_alm_sp(const float _Complex *restrict alm,
+		  float _Complex *restrict alm_out,
+		  int lmax,
+		  int lmax_out,
+		  int ncomp){
+
+  int nelem = get_nelem(lmax);
+  int nelem_out = get_nelem(lmax_out);
+  int nell_out = lmax_out + 1;
+
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(guided)
+    for (int m=0; m<=lmax_out; m++){
+
+      int mstart = get_mstart(m, lmax);
+      int mstart_out = get_mstart(m, lmax_out);
+
+      for (int ell=m; ell<=lmax_out; ell++){
+        
+	for (int idx=0; idx<ncomp; idx++){
+
+	  int astart = idx * nelem;
+	  int astart_out = idx * nelem_out;      	    
+	  alm_out[astart_out + mstart_out + ell] = alm[astart + mstart + ell];
 	}
       }
     }

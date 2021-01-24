@@ -1,6 +1,78 @@
 cimport calm_c_utils
 import numpy as np
 
+def trunc_alm(alm_in, alm_out, lmax_in, lmax_out):
+    '''
+    Truncate alm to lmax.
+
+    Parameters
+    ----------
+    alm_in : (ncomp, nelem) complex array
+        Input alm.
+    alm_out : (ncomp, nelem') complex array
+        Output alm.
+    lmax_in : int
+        Old lmax.
+    lmax_out : int
+        New lmax.
+
+    Returns
+    -------
+    alm_trunc : array
+        Output alm.
+
+    Raises
+    ------
+    ValueError
+        If new lmax > old lmax.
+        If alm shapes are not triangular with lmax = mmax.
+	If input shapes are not consistent.
+    '''
+
+    if lmax_out > lmax_in:
+        raise ValueError('New lmax {} exceeds old lmax {}'.format(
+                         lmax_out, lmax_in))
+    if alm_in.ndim == 1:
+        ncomp = 1
+    else:
+        ncomp = np.prod(alm_in.shape[:-1])
+
+    nelem_in_exp = (lmax_in * lmax_in + 3 * lmax_in) // 2 + 1
+    nelem_out_exp = (lmax_out * lmax_out + 3 * lmax_out) // 2 + 1
+
+    if alm_in.size != ncomp * nelem_in_exp:
+        raise ValueError('Wrong input size, expected : {}, got : {}'.format(
+                                           ncomp * nelem_in_exp, alm_in.size))
+    if alm_out.size != ncomp * nelem_out_exp:
+        raise ValueError('Wrong output size, expected : {}, got : {}'.format(
+                                          ncomp * nelem_out_exp, alm_out.size))
+
+    if alm_in.dtype == np.complex128:
+        _trunc_alm_dp(alm_in, alm_out, lmax_in, lmax_out, ncomp)
+    elif alm_in.dtype == np.complex64:
+        _trunc_alm_sp(alm_in, alm_out, lmax_in, lmax_out, ncomp)
+    else:
+        raise ValueError('dtype alm : {} not supported'.format(
+                                                   alm_in.dtype))
+
+def _trunc_alm_dp(alm_in, alm_out, lmax_in, lmax_out, ncomp):
+    '''Double precision variant.'''
+
+    cdef double complex [::1] alm_in_ = alm_in.reshape(-1)
+    cdef double complex [::1] alm_out_ = alm_out.reshape(-1)
+
+    calm_c_utils.trunc_alm_dp(
+       &alm_in_[0], &alm_out_[0], lmax_in, lmax_out, ncomp)
+
+def _trunc_alm_sp(alm_in, alm_out, lmax_in, lmax_out, ncomp):
+    '''Single precision variant.'''
+
+    cdef float complex [::1] alm_in_ = alm_in.reshape(-1)
+    cdef float complex [::1] alm_out_ = alm_out.reshape(-1)
+
+    calm_c_utils.trunc_alm_sp(
+       &alm_in_[0], &alm_out_[0], lmax_in, lmax_out, ncomp)
+
 def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     '''       
     Compute the a'[i,lm] = m[i,j,ell] a[j,lm] matrix multiplication.
@@ -28,7 +100,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     ValueError
         If input/output shapes/dtypes do not match.
         If alm array does not have triangular layout.
-	if both alm_out and inplace are set.
+        if both alm_out and inplace are set.
 
     Notes
     -----

@@ -217,16 +217,21 @@ def trunc_alm(alm, ainfo, lmax):
 
     alm_trunc = np.zeros(alm.shape[:-1] + (ainfo_trunc.nelem,), dtype=alm.dtype)
 
-    for m in range(mmax + 1):
-        start_trunc = ainfo_trunc.lm2ind(m, m)
-        start_old = ainfo.lm2ind(m, m)
-        end_trunc = ainfo_trunc.lm2ind(lmax, m)
-        end_old = ainfo.lm2ind(lmax, m)
+    if layout == 'tri' and ainfo.mmax == ainfo.lmax:
+        alm_c_utils.trunc_alm(alm, alm_trunc, ainfo.lmax, lmax)
 
-        slice_trunc = np.s_[...,start_trunc:end_trunc+stride:stride]
-        slice_old = np.s_[...,start_old:end_old+stride:stride]
+    else:
+        # Slower but more general version.
+        for m in range(mmax + 1):
+            start_trunc = ainfo_trunc.lm2ind(m, m)
+            start_old = ainfo.lm2ind(m, m)
+            end_trunc = ainfo_trunc.lm2ind(lmax, m)
+            end_old = ainfo.lm2ind(lmax, m)
 
-        alm_trunc[slice_trunc] = alm[slice_old]
+            slice_trunc = np.s_[...,start_trunc:end_trunc+stride:stride]
+            slice_old = np.s_[...,start_old:end_old+stride:stride]
+
+            alm_trunc[slice_trunc] = alm[slice_old]
 
     return alm_trunc, ainfo_trunc
 

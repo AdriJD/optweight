@@ -55,7 +55,7 @@ void lmul_inplace_dp(const double *restrict lmat,
 	     int ncomp);
 
 /*
- * Compute multiplication out:[i,nelem] = mat_ell[i,nell] alm[i,nelem].
+ * Compute multiplication out[i,nelem] = mat_ell[i,nell] alm[i,nelem].
  *
  * Arguments
  * ---------
@@ -68,6 +68,24 @@ void lmul_inplace_dp(const double *restrict lmat,
 void lmul_diag_inplace_dp(const double *restrict lmat,
 	     double _Complex *restrict alm,
 	     int lmax,
+	     int ncomp);
+
+/*
+ * Truncate alm to a smaller lmax.
+ *
+ * Arguments
+ * ---------
+ * alm      : (ncomp * nell) array with input alm vector.
+ * alm_out  : (ncomp * nell_out) array with output alm vector.
+ * lmax     : Maximum multipole of input alm array.
+ * lmax_out : Maximum multipole of output alm array.
+ * ncomp    : Number of components of alm vector.
+ */
+
+void trunc_alm_dp(const double _Complex *restrict alm,
+	     double _Complex *restrict alm_out,
+	     int lmax,
+	     int lmax_out,
 	     int ncomp);
 
 /* 
@@ -94,4 +112,10 @@ void lmul_inplace_sp(const float *restrict lmat,
 void lmul_diag_inplace_sp(const float *restrict lmat,
 	     float _Complex *restrict alm,
 	     int lmax,
+	     int ncomp);
+
+void trunc_alm_sp(const float _Complex *restrict alm,
+	     float _Complex *restrict alm_out,
+	     int lmax,
+	     int lmax_out,
 	     int ncomp);

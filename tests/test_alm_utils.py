@@ -9,10 +9,10 @@ class TestAlmUtils(unittest.TestCase):
 
     def test_trunc_alm(self):
 
-        alm = np.asarray([1, 2, 3, 4, 5, 6])
+        alm = np.asarray([1, 2, 3, 4, 5, 6], dtype=np.complex128)
         ainfo = sharp.alm_info(lmax=2)
         lmax_new = 1
-        alm_new_exp = np.asarray([1, 2, 4])
+        alm_new_exp = np.asarray([1, 2, 4], dtype=np.complex128)
 
         alm_new, ainfo_new = alm_utils.trunc_alm(alm, ainfo, lmax_new)
 
@@ -20,13 +20,13 @@ class TestAlmUtils(unittest.TestCase):
 
     def test_trunc_alm_2d(self):
 
-        alm = np.zeros((2, 6))
+        alm = np.zeros((2, 6), dtype=np.complex128)
         alm[0] = np.asarray([1, 2, 3, 4, 5, 6])
         alm[1] = np.asarray([1, 2, 3, 4, 5, 6]) * 2
 
         ainfo = sharp.alm_info(lmax=2)
         lmax_new = 1
-        alm_new_exp = np.zeros((2, 3))
+        alm_new_exp = np.zeros((2, 3), dtype=np.complex128)
         alm_new_exp[0] = np.asarray([1, 2, 4])
         alm_new_exp[1] = np.asarray([1, 2, 4]) * 2
 
