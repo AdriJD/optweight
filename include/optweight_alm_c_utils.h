@@ -15,10 +15,10 @@
  */
 
 void lmul_dp(const double *restrict lmat,
-	     const double _Complex *restrict alm_in,
-	     double _Complex *restrict alm_out,
-	     int lmax,
-	     int ncomp);
+             const double _Complex *restrict alm_in,
+             double _Complex *restrict alm_out,
+             int lmax,
+             int ncomp);
 
 /*
  * Compute multiplication out[i,nelem] = mat_ell[i,nell] alm[i,nelem].
@@ -33,10 +33,30 @@ void lmul_dp(const double *restrict lmat,
  */
 
 void lmul_diag_dp(const double *restrict lmat,
-	     const double _Complex *restrict alm_in,
-	     double _Complex *restrict alm_out,
-	     int lmax,
-	     int ncomp);
+             const double _Complex *restrict alm_in,
+             double _Complex *restrict alm_out,
+             int lmax,
+             int ncomp);
+
+/*
+ * Compute alm[i,nelem] += w_ell[nell] wlm[i,nelem].
+ *
+ * Arguments
+ * ---------
+ * w_ell    : (nell) f_ell array.
+ * wlm      : (ncomp * nell) array with input alm vector.
+ * alm      : (ncomp * nell) array for output alm vector.
+ * lmax_w   : Maximum multipole of wlm array.
+ * lmax_a   : Maximum multipole of alm array.
+ * ncomp    : Number of components of alm vector.
+ */
+
+void wlm2alm_dp(const double *restrict w_ell,
+             const double _Complex *restrict wlm,
+             double _Complex *restrict alm,
+             int lmax_w,
+             int lmax_a,
+             int ncomp);
 
 /*
  * Compute inplace matrix multiplication alm[i,nelem] = mat_ell[i,j,nell] alm[j,nelem].
@@ -50,9 +70,9 @@ void lmul_diag_dp(const double *restrict lmat,
  */
 
 void lmul_inplace_dp(const double *restrict lmat,
-	     double _Complex *restrict alm,
-	     int lmax,
-	     int ncomp);
+             double _Complex *restrict alm,
+             int lmax,
+             int ncomp);
 
 /*
  * Compute multiplication out[i,nelem] = mat_ell[i,nell] alm[i,nelem].
@@ -66,9 +86,9 @@ void lmul_inplace_dp(const double *restrict lmat,
  */
 
 void lmul_diag_inplace_dp(const double *restrict lmat,
-	     double _Complex *restrict alm,
-	     int lmax,
-	     int ncomp);
+             double _Complex *restrict alm,
+             int lmax,
+             int ncomp);
 
 /*
  * Truncate alm to a smaller lmax.
@@ -83,39 +103,46 @@ void lmul_diag_inplace_dp(const double *restrict lmat,
  */
 
 void trunc_alm_dp(const double _Complex *restrict alm,
-	     double _Complex *restrict alm_out,
-	     int lmax,
-	     int lmax_out,
-	     int ncomp);
+             double _Complex *restrict alm_out,
+             int lmax,
+             int lmax_out,
+             int ncomp);
 
 /* 
  * Single precision versions.
  */
 
 void lmul_sp(const float *restrict lmat,
-	     const float _Complex *restrict alm_in,
-	     float _Complex *restrict alm_out,
-	     int lmax,
-	     int ncomp);
+             const float _Complex *restrict alm_in,
+             float _Complex *restrict alm_out,
+             int lmax,
+             int ncomp);
 
 void lmul_diag_sp(const float *restrict lmat,
-	     const float _Complex *restrict alm_in,
-	     float _Complex *restrict alm_out,
-	     int lmax,
-	     int ncomp);
+             const float _Complex *restrict alm_in,
+             float _Complex *restrict alm_out,
+             int lmax,
+             int ncomp);
+
+void wlm2alm_sp(const float *restrict w_ell,
+             const float _Complex *restrict wlm,
+             float _Complex *restrict alm,
+             int lmax_w,
+             int lmax_a,
+             int ncomp);
 
 void lmul_inplace_sp(const float *restrict lmat,
-	     float _Complex *restrict alm,
-	     int lmax,
-	     int ncomp);
+             float _Complex *restrict alm,
+             int lmax,
+             int ncomp);
 
 void lmul_diag_inplace_sp(const float *restrict lmat,
-	     float _Complex *restrict alm,
-	     int lmax,
-	     int ncomp);
+             float _Complex *restrict alm,
+             int lmax,
+             int ncomp);
 
 void trunc_alm_sp(const float _Complex *restrict alm,
-	     float _Complex *restrict alm_out,
-	     int lmax,
-	     int lmax_out,
-	     int ncomp);
+             float _Complex *restrict alm_out,
+             int lmax,
+             int lmax_out,
+             int ncomp);

@@ -95,13 +95,13 @@ class TestAlmUtils(unittest.TestCase):
     def test_wlm2alm_axisym(self):
 
         ainfo_exp = sharp.alm_info(lmax=3)
-        w_ell = np.zeros((2, 4))
+        w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = -1
         alm_exp = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
 
-        wlms = [np.asarray([1, 2, 5]),
-                -1 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10])]
+        wlms = [np.asarray([1, 2, 5], dtype=np.complex64),
+                -1 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10], dtype=np.complex64)]
         winfos = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
 
         alm, ainfo = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell)
@@ -121,6 +121,7 @@ class TestAlmUtils(unittest.TestCase):
         wlms = [np.asarray([[1, 2, 5], [2, 4, 10]]),
                 -1 * np.asarray([[0, 0, 3, 4, 0, 6, 7, 8, 9, 10],
                                  [0, 0, 6, 8, 0, 12, 14, 16, 18, 20]])]
+        wlms = [w.astype(np.complex128) for w in wlms]
         winfos = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
 
         alm, ainfo = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell)

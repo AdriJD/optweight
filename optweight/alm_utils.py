@@ -151,8 +151,8 @@ def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
             raise NotImplementedError('Cannot create alm for ainfo with stride != 1')
         alm = np.zeros(wlms[0].shape[:-1] + (ainfo.nelem,), dtype=wlms[0].dtype)
 
-    stride = ainfo.stride
-    w_ell = w_ell.astype(wlms[0].dtype)
+    stride = ainfo.stride    
+    lmax_a = ainfo.lmax
 
     for widx in range(len(wlms)):
         winfo = winfos[widx]
@@ -160,17 +160,25 @@ def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
         stride_wlm = winfo.stride
         lmax_wlm = winfo.lmax
 
-        for m in range(winfo.mmax + 1):
+        if stride == 1 and stride_wlm == 1:
+            # Fast method.
+            alm_c_utils.wlm2alm(w_ell[widx], wlm, alm, lmax_wlm, lmax_a)
 
-            start_alm = ainfo.lm2ind(m, m)
-            end_alm = ainfo.lm2ind(lmax_wlm, m)
-            start_wlm = winfo.lm2ind(m, m)
-            end_wlm = winfo.lm2ind(lmax_wlm, m)
+        else:
+            # Slow method.
+            for m in range(winfo.mmax + 1):
 
-            slice_alm = np.s_[...,start_alm:end_alm+stride:stride]
-            slice_wlm = np.s_[...,start_wlm:end_wlm+stride_wlm:stride_wlm]
+                start_alm = ainfo.lm2ind(m, m)
+                end_alm = ainfo.lm2ind(lmax_wlm, m)
+                start_wlm = winfo.lm2ind(m, m)
+                end_wlm = winfo.lm2ind(lmax_wlm, m)
 
-            alm[slice_alm] += wlm[slice_wlm] * w_ell[widx,m:lmax_wlm+1]
+                w_ells = w_ell[widx,m:lmax_wlm+1].astype(wlms[widx].dtype) 
+
+                slice_alm = np.s_[...,start_alm:end_alm+stride:stride]
+                slice_wlm = np.s_[...,start_wlm:end_wlm+stride_wlm:stride_wlm]
+
+                alm[slice_alm] += wlm[slice_wlm] * w_ells
 
     return alm, ainfo
 #@profile

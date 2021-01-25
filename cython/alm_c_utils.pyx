@@ -1,6 +1,84 @@
 cimport calm_c_utils
 import numpy as np
 
+def wlm2alm(w_ell, wlm, alm, lmax_w, lmax_a):
+    '''		   
+    Compute alm[i,nelem] += w_ell[nell] wlm[i,nelem]. 
+
+    Arguments
+    ---------
+    w_ell : (nell) array
+        Wavelet kernel for single wavelet.
+    w_ell : (ncomp, nelem') complex array
+        Wavelet coefficients
+    alm : (ncomp, nelem) complex array
+        SH coefficients.
+    lmax_w : int
+        Maximum multipole of wlm.
+    lmax_a : int
+        Maximum multipole of alm. Note, lmax_a >= lmax_w.
+
+    Returns
+    -------
+    alm : (ncomp, nelem) complex array.
+        Modified input alm array.
+
+    Raises
+    ------
+    ValueError
+        If lmax_w > lmax_a.
+	If input shapes are inconsistent.
+	If dtype alms is not np.complex64 or np.complex128.
+    '''
+
+    if lmax_w > lmax_a:
+        raise ValueError('Wavelet lmax {} exceeds alm lmax {}'.format(
+                         lmax_w, lmax_a))
+    if alm.ndim == 1:
+        ncomp = 1
+    else:
+        ncomp = np.prod(alm.shape[:-1])
+
+    nelem_w_exp = (lmax_w * lmax_w + 3 * lmax_w) // 2 + 1
+    nelem_a_exp = (lmax_a * lmax_a + 3 * lmax_a) // 2 + 1
+
+    if alm.size != ncomp * nelem_a_exp:
+        raise ValueError('Wrong alm size, expected : {}, got : {}'.format(
+                                           ncomp * nelem_a_exp, alm.size))
+    if wlm.size != ncomp * nelem_w_exp:
+        raise ValueError('Wrong wlm size, expected : {}, got : {}'.format(
+                                          ncomp * nelem_w_exp, wlm.size))
+
+    if wlm.dtype == np.complex128:
+        _wlm2alm_dp(w_ell, wlm, alm, lmax_w, lmax_a, ncomp)
+    elif wlm.dtype == np.complex64:
+        _wlm2alm_sp(w_ell, wlm, alm, lmax_w, lmax_a, ncomp)
+    else:
+        raise ValueError('dtype wlm : {} not supported'.format(
+                                                   wlm.dtype))
+   
+    return alm
+
+def _wlm2alm_dp(w_ell, wlm, alm, lmax_w, lmax_a, ncomp):
+    '''Double precision variant.'''
+
+    cdef double [::1] w_ell_ = w_ell.reshape(-1)
+    cdef double complex [::1] wlm_ = wlm.reshape(-1)
+    cdef double complex [::1] alm_ = alm.reshape(-1)
+
+    calm_c_utils.wlm2alm_dp(
+       &w_ell_[0], &wlm_[0], &alm_[0], lmax_w, lmax_a, ncomp)
+
+def _wlm2alm_sp(w_ell, wlm, alm, lmax_w, lmax_a, ncomp):
+    '''Single precision variant.'''
+
+    cdef float [::1] w_ell_ = w_ell.reshape(-1)
+    cdef float complex [::1] wlm_ = wlm.reshape(-1)
+    cdef float complex [::1] alm_ = alm.reshape(-1)
+
+    calm_c_utils.wlm2alm_sp(
+       &w_ell_[0], &wlm_[0], &alm_[0], lmax_w, lmax_a, ncomp)
+
 def trunc_alm(alm_in, alm_out, lmax_in, lmax_out):
     '''
     Truncate alm to lmax.
@@ -27,6 +105,7 @@ def trunc_alm(alm_in, alm_out, lmax_in, lmax_out):
         If new lmax > old lmax.
         If alm shapes are not triangular with lmax = mmax.
 	If input shapes are not consistent.
+	If dtype alms is not np.complex64 or np.complex128.
     '''
 
     if lmax_out > lmax_in:

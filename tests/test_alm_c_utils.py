@@ -256,3 +256,65 @@ class TestAlmCUtils(unittest.TestCase):
         self.assertRaises(ValueError, alm_c_utils.lmul, alm, lmat, ainfo,
                           alm_out=alm_out)
 
+    def test_wlm2alm_dp(self):
+        
+        alm = np.ones((3, 10), dtype=np.complex128)
+        wlm = np.ones((3, 6), dtype=np.complex128) * 1j
+        wlm *= np.arange(6)
+        w_ell = np.arange(4, dtype=np.float64)
+        w_ell[-1] = 0
+        alm_exp = np.zeros_like(alm)
+        alm_exp[:] = np.asarray(
+            [1, 1 + 1j, 1 + 4j, 1, 1 + 3j, 1 + 8j, 1, 1 + 10j, 1, 1],
+            dtype=np.complex128)[np.newaxis,:]
+
+        alm_c_utils.wlm2alm(w_ell, wlm, alm, 2, 3)
+        
+        np.testing.assert_array_almost_equal(alm, alm_exp)
+
+    def test_wlm2alm_sp(self):
+        
+        alm = np.ones((3, 10), dtype=np.complex64)
+        wlm = np.ones((3, 6), dtype=np.complex64) * 1j
+        wlm *= np.arange(6)
+        w_ell = np.arange(4, dtype=np.float32)
+        w_ell[-1] = 0
+        alm_exp = np.zeros_like(alm)
+        alm_exp[:] = np.asarray(
+            [1, 1 + 1j, 1 + 4j, 1, 1 + 3j, 1 + 8j, 1, 1 + 10j, 1, 1],
+            dtype=np.complex64)[np.newaxis,:]
+
+        alm_c_utils.wlm2alm(w_ell, wlm, alm, 2, 3)
+        
+        np.testing.assert_array_almost_equal(alm, alm_exp)
+
+    def test_wlm2alm_err(self):
+        
+        alm = np.ones((3, 10), dtype=np.complex128)
+        wlm = np.ones((3, 6), dtype=np.complex128) * 1j
+        w_ell = np.arange(4, dtype=np.float64)
+
+        # Wrong lmax.
+        self.assertRaises(ValueError,
+            alm_c_utils.wlm2alm, w_ell, wlm, alm, 3, 2)
+
+        # Wrong shape.
+        wlm_wrong = np.ones((2, 6), dtype=np.complex128)
+        self.assertRaises(ValueError,
+            alm_c_utils.wlm2alm, w_ell, wlm_wrong, alm, 2, 3)
+
+        # Wrong shape 2.
+        alm_wrong = np.ones((2, 10), dtype=np.complex128)
+        self.assertRaises(ValueError,
+            alm_c_utils.wlm2alm, w_ell, wlm, alm_wrong, 2, 3)
+
+        # Wrong dtype.
+        wlm_wrong = np.ones((3, 6), dtype=np.complex64) 
+        self.assertRaises(ValueError,
+            alm_c_utils.wlm2alm, w_ell, wlm_wrong, alm, 2, 3)
+
+        # Wrong dtype 2.
+        w_ell_wrong = np.arange(4, dtype=np.float32)        
+        self.assertRaises(ValueError,
+            alm_c_utils.wlm2alm, w_ell_wrong, wlm, alm, 2, 3)
+

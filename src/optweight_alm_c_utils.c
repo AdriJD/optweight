@@ -111,6 +111,39 @@ void lmul_diag_dp(const double *restrict lmat,
   } 
 }
 
+void wlm2alm_dp(const double *restrict w_ell,
+		const double _Complex *restrict wlm,
+		double _Complex *restrict alm,
+		int lmax_w,
+		int lmax_a,
+		int ncomp){
+
+  int nelem_a = get_nelem(lmax_a);
+  int nelem_w = get_nelem(lmax_w);
+
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(guided)
+    for (int m=0; m<=lmax_w; m++){
+
+      int mstart_w = get_mstart(m, lmax_w);
+      int mstart_a = get_mstart(m, lmax_a);
+
+      for (int ell=m; ell<=lmax_w; ell++){
+
+	for (int idx=0; idx<ncomp; idx++){
+
+	  int astart_i = idx * nelem_a;
+	  int wstart_i = idx * nelem_w;
+
+	  alm[astart_i + mstart_a + ell] += w_ell[ell] 
+	    * wlm[wstart_i + mstart_w + ell];  
+        }
+      }
+    }
+  } 
+}
+
 void lmul_inplace_dp(const double *restrict lmat,
          	     double _Complex *restrict alm,
 	             int lmax,
@@ -216,13 +249,6 @@ void trunc_alm_dp(const double _Complex *restrict alm,
   }
 }
 
-
-// _wlm2alm
-
-
-
-
-      
 /********* Single precision versions. **********/
 
 void lmul_sp(const float *restrict lmat,
@@ -321,6 +347,37 @@ void lmul_diag_sp(const float *restrict lmat,
 	  int matstart = idx * nell;       	    
 	  alm_out[astart_i + mstart + ell] += lmat[matstart + ell] 
 	    * alm_in[astart_i + mstart + ell];  
+        }
+      }
+    }
+  } 
+}
+
+void wlm2alm_sp(const float *restrict w_ell,
+		const float _Complex *restrict wlm,
+		float _Complex *restrict alm,
+		int lmax_w,
+		int lmax_a,
+		int ncomp){
+
+  int nelem_a = get_nelem(lmax_a);
+
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(guided)
+    for (int m=0; m<=lmax_w; m++){
+
+      int mstart_w = get_mstart(m, lmax_w);
+      int mstart_a = get_mstart(m, lmax_a);
+
+      for (int ell=m; ell<=lmax_w; ell++){
+
+	for (int idx=0; idx<ncomp; idx++){
+
+	  int astart_i = idx * nelem_a;
+
+	  alm[astart_i + mstart_a + ell] += w_ell[ell] 
+	    * wlm[mstart_w + ell];  
         }
       }
     }

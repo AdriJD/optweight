@@ -11,6 +11,13 @@ cdef extern from "optweight_alm_c_utils.h":
                  int lmax,
                  int ncomp);
 
+    void wlm2alm_dp(const double *w_ell,
+                 const double complex *wlm,
+                 double complex *alm,
+                 int lmax_w,
+                 int lmax_a,
+                 int ncomp);
+
     void lmul_inplace_dp(const double *lmat,
                  const double complex *alm_in,
                  int lmax,
@@ -38,6 +45,13 @@ cdef extern from "optweight_alm_c_utils.h":
                  const float complex *alm_in,
                  float complex *alm_out,
                  int lmax,
+                 int ncomp);
+
+    void wlm2alm_sp(const float *w_ell,
+                 const float complex *wlm,
+                 float complex *alm,
+                 int lmax_w,
+                 int lmax_a,
                  int ncomp);
 
     void lmul_inplace_sp(const float *lmat,
