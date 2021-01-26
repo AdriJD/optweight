@@ -39,7 +39,6 @@ void lmul_dp(const double *restrict lmat,
     // Actual matrix multiplication.
     // Weirdly enough, this access pattern gives less cache misses 
     // and thus a bit better performance. Perhaps easier prefetching?
-    // OMP False sharing issues with lmat matrix seem to be not significant.
     #pragma omp for schedule(guided)
     for (int m=0; m<=lmax; m++){
 
@@ -281,7 +280,6 @@ void lmul_sp(const float *restrict lmat,
     // Actual matrix multiplication.
     // Weirdly enough, this access pattern gives less cache misses 
     // and thus a bit better performance. Perhaps easier prefetching?
-    // OMP False sharing issues with lmat matrix seem to be not significant.
     #pragma omp for schedule(guided)
     for (int m=0; m<=lmax; m++){
 
