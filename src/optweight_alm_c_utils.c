@@ -1,4 +1,4 @@
-#include "optweight_alm_c_utils_test.h"
+#include "optweight_alm_c_utils.h"
 
 static inline int get_mstart(int m, int lmax){
   return m * (2 * lmax + 1 - m) / 2;
