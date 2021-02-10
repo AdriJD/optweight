@@ -5,8 +5,10 @@ Filter CMB maps in a statically optimal way using the preconditioned conjugate g
 ### Dependencies
 
 - Python>=3.4
+- a C compiler (tested with gcc and icc)
 - [pytest](https://pypi.org/project/pytest/)
 - [pixell](https://pypi.org/project/pixell/)
+- [enlib](https://github.com/amaurea/enlib)
 
 
 ### Installation
