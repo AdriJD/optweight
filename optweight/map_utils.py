@@ -38,30 +38,10 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
     Raises
     ------
     NotImplementedError
-        If enmap is not cilindrical.
+        If enmap is not cylindrical.
     '''
     
-    if not wcsutils.is_cyl(imap.wcs):
-        raise NotImplementedError('Non-cilindrical enmaps not supported')
-
-    ny, nx = imap.shape[-2:]
-    dec_range = enmap.pix2sky(
-        imap.shape, imap.wcs, [[0, ny-1], [0, 0]], safe=False)[0]
-    ra_range = enmap.pix2sky(
-        imap.shape, imap.wcs, [[0, 0], [0, nx-1]], safe=False)[1]
-
-    theta_range = np.pi / 2 - dec_range
-    
-    # I want to use modulo pi except that I want to keep pi as pi.
-    if not 0 <= theta_range[0] <= np.pi:
-        theta_range[0] = theta_range[0] % np.pi
-    if not 0 <= theta_range[1] <= np.pi:
-        theta_range[1] = theta_range[1] % np.pi
-
-    theta_min = min(theta_range)
-    theta_max = max(theta_range)
-    minfo = get_gauss_minfo(
-        lmax, theta_min=theta_min, theta_max=theta_max)
+    minfo = get_enmap_minfo(imap.shape,imap.wcs,lmax)
 
     if order > 1:
         imap = utils.interpol_prefilter(
@@ -511,3 +491,45 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
             icov_pix[pidx,:,mask] = 0
 
     return icov_pix
+
+
+def get_enmap_minfo(shape,wcs,lmax):
+    '''
+    Compute map_info metadata for a Gauss-Legendre grid
+    given a cylindrical enmap shape and wcs.
+
+    Parameters
+    ----------
+    shape : the shape of the enmap geometry
+    wcs : the wcs object of the enmap geometry
+    lmax : int
+        Band limit supported by Gauss-Legendre grid.
+
+    Returns
+    -------
+    map_info : sharp.map_info object
+        metadata of Gausss-Legendre grid.
+    '''
+
+    if not wcsutils.is_cyl(wcs):
+        raise NotImplementedError('Non-cylindrical enmaps not supported')
+
+    ny, nx = shape[-2:]
+    dec_range = enmap.pix2sky(
+        shape, wcs, [[0, ny-1], [0, 0]], safe=False)[0]
+    ra_range = enmap.pix2sky(
+        shape, wcs, [[0, 0], [0, nx-1]], safe=False)[1]
+
+    theta_range = np.pi / 2 - dec_range
+    
+    # I want to use modulo pi except that I want to keep pi as pi.
+    if not 0 <= theta_range[0] <= np.pi:
+        theta_range[0] = theta_range[0] % np.pi
+    if not 0 <= theta_range[1] <= np.pi:
+        theta_range[1] = theta_range[1] % np.pi
+
+    theta_min = min(theta_range)
+    theta_max = max(theta_range)
+    minfo = get_gauss_minfo(
+        lmax, theta_min=theta_min, theta_max=theta_max)
+    return minfo
