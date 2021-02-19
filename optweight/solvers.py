@@ -870,7 +870,7 @@ class CGWienerScaled(CGWiener):
 
     def get_icov(self):
         '''Return copy of (S + N)^-1 filtered input at current state.'''
-        return self.icov_signal(self.get_wiener(self.x.copy()))
+        return self.icov_signal(self.get_wiener())
 
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo,
