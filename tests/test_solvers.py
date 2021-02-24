@@ -69,6 +69,21 @@ class TestCGWiener(unittest.TestCase):
         x_exp = alm_data * (0.1 * 3 / (2 + 0.01 * 3))
         np.testing.assert_array_almost_equal(solver.x, x_exp) 
         np.testing.assert_array_almost_equal(solver.A(solver.x), b_in)
+
+    def test_CGWiener_run_beam_icov(self):
+        
+        alm_data = np.asarray([1, 2, 3, 4j, 5j, 6])
+        icov_signal = lambda alm: 2 * alm
+        icov_noise = lambda alm: 3 * alm
+        beam = lambda alm: 0.1 * alm
+
+        solver = solvers.CGWiener(alm_data, icov_signal, icov_noise, beam=beam)
+        b_in = solver.b.copy()
+        while solver.i < 1:
+            solver.step()
+
+        icov_exp = alm_data * (10 / (1/2 + 100 * 1/3))
+        np.testing.assert_array_almost_equal(solver.get_icov(), icov_exp) 
     
     def test_CGWiener_constrained_realisation_init(self):
         

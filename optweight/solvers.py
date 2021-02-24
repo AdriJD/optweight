@@ -526,7 +526,7 @@ class CGWiener(cg.CG):
         return self.x.copy()
 
     def get_icov(self):
-        '''Return copy of (S + N)^-1 filtered input at current state.'''
+        '''Return copy of (S + B^-1 N B^-1)^-1 B^-1 filtered input at current state.'''
 
         return self.icov_signal(self.x.copy())
 
@@ -869,7 +869,7 @@ class CGWienerScaled(CGWiener):
         return self.sqrt_cov_signal(self.x.copy())
 
     def get_icov(self):
-        '''Return copy of (S + N)^-1 filtered input at current state.'''
+        '''Return copy of (S + B^-1 N B^-1)^-1 B^-1 filtered input at current state.'''
         return self.icov_signal(self.get_wiener())
 
     @classmethod
