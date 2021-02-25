@@ -290,7 +290,7 @@ def _full_matrix(mat):
     if mat.ndim == 2:
         # Diagonal of matrix, expand to full matrix.
         npol = mat.shape[0]
-        mat = np.eye(npol)[:,:,np.newaxis] * mat
+        mat = np.eye(npol, dtype=mat.dtype)[:,:,np.newaxis] * mat
 
     return mat
 

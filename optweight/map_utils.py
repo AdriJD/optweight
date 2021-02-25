@@ -4,7 +4,7 @@ from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 
 from optweight import wavtrans
-
+#@profile
 def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
                 mode='constant'):
     '''
@@ -295,7 +295,7 @@ def rand_map_pix(cov_pix):
 
     return uv
 
-def inv_qweight_map(imap, minfo, inplace=False):
+def inv_qweight_map(imap, minfo, inplace=False, qweight=False):
     '''
     Calculate W^-1 m where W is a diagonal matrix with quadrature weights
     in the pixel domain and m is a set of input maps.
@@ -310,6 +310,8 @@ def inv_qweight_map(imap, minfo, inplace=False):
         Metainfo for internally used alms.
     inplace : bool, optional
         Perform operation in place.
+    qweight : bool
+        If set, calculate W m instead.
 
     Returns
     -------
@@ -328,7 +330,10 @@ def inv_qweight_map(imap, minfo, inplace=False):
         out = out[np.newaxis,:]
 
     for ridx in range(minfo.nrow):
-        iweight = 1 / minfo.weight[ridx]
+        if qweight:
+            iweight = minfo.weight[ridx]
+        else:
+            iweight = 1 / minfo.weight[ridx]
         stride = minfo.stride[ridx]
         start = minfo.offsets[ridx]
         end = start + (minfo.nphi[ridx]) * stride
@@ -491,7 +496,6 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
             icov_pix[pidx,:,mask] = 0
 
     return icov_pix
-
 
 def get_enmap_minfo(shape,wcs,lmax):
     '''
