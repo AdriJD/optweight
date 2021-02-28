@@ -40,6 +40,7 @@ class EllMatVecAlm(MatVecAlm):
     def __init__(self, ainfo, m_ell, power=1, inplace=False):
 
         m_ell = _full_matrix(m_ell)
+
         if power != 1:
             m_ell = _matpow(m_ell, power)
 
@@ -316,10 +317,19 @@ def _matpow(mat, power):
 
     if power == 1:
         return mat
+        
+    # 64 bit to avoid truncation of small values in eigpow.
+    dtype_in = mat.dtype
+    if dtype_in == np.float32:
+        dtype = np.float64
+    elif dtype_in == np.complex64:
+        dtype = np.complex128
+    else:
+        dtype = dtype_in
 
-    mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)))
+    mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
     mat = utils.eigpow(mat, power)
-    mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)))
+    mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
 
     return mat
 
