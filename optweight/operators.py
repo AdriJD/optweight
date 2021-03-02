@@ -135,7 +135,8 @@ class PixMatVecAlm(MatVecAlm):
             out = alm.copy()
 
         npol = alm.shape[0]
-        omap = np.zeros((npol, self.m_pix.shape[-1]))
+        omap = np.zeros((npol, self.m_pix.shape[-1]),
+                        dtype=type_utils.to_real(alm.dtype))
 
         sht.alm2map(alm, omap, self.ainfo, self.minfo, self.spin,
                     adjoint=self.adjoint)
