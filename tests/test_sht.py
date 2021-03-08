@@ -89,3 +89,49 @@ class TestSHT(unittest.TestCase):
         sht.alm2map(alm, omap, ainfo, minfo, spin)
 
         np.testing.assert_array_almost_equal(omap, omap_exp)
+
+    def test_map2alm_err(self):
+
+        lmax = 4
+        spin = 0
+        ainfo = sharp.alm_info(lmax)
+        alm = np.zeros((1, ainfo.nelem), dtype=np.complex128)
+
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        imap = np.zeros((1, minfo.npix))
+
+        # Wrong spin.
+        self.assertRaises(ValueError, sht.map2alm, imap, alm, minfo, ainfo, 5)
+
+        # Wrong npix.
+        imap_wrong = np.zeros((1, minfo.npix + 1))
+        self.assertRaises(ValueError, sht.map2alm, imap_wrong, alm, minfo, ainfo, spin)
+
+        # Wrong nelem.
+        alm_wrong = np.zeros((1, ainfo.nelem + 1), dtype=alm.dtype)
+        self.assertRaises(ValueError, sht.map2alm, imap, alm_wrong, minfo, ainfo, spin)
+
+    def test_alm2map_err(self):
+
+        lmax = 4
+        spin = 0
+        ainfo = sharp.alm_info(lmax)
+        alm = np.zeros((1, ainfo.nelem), dtype=np.complex128)
+
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        omap = np.zeros((1, minfo.npix))
+
+        # Wrong spin.
+        self.assertRaises(ValueError, sht.alm2map, alm, omap, ainfo, minfo, 5)
+
+        # Wrong npix.
+        omap_wrong = np.zeros((1, minfo.npix + 1))
+        self.assertRaises(ValueError, sht.alm2map, alm, omap_wrong, ainfo, minfo, spin)
+
+        # Wrong nelem.
+        alm_wrong = np.zeros((1, ainfo.nelem + 1), dtype=alm.dtype)
+        self.assertRaises(ValueError, sht.alm2map, alm_wrong, omap, ainfo, minfo, spin)

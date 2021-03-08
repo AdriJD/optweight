@@ -28,11 +28,19 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     ------
     ValueError
         If spin value is larger than lmax.
+        If npix does not match size map.
+        If nelem does not match size alm.
     '''
 
     if np.asarray(spin).max() > ainfo.lmax:
         raise ValueError('Spin exceeds lmax')
-
+    if imap.shape[-1] != minfo.npix:
+        raise ValueError(
+            f'Wrong map size, got {imap.shape[-1]} expected {minfo.npix}')
+    if alm.shape[-1] != ainfo.nelem:
+        raise ValueError(
+            f'Wrong alm size, got {alm.shape[-1]} expected {ainfo.nelem}')
+    
     if imap.ndim == 1:
         imap = imap[np.newaxis,:]
     if alm.ndim == 1:
@@ -73,11 +81,22 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     ------
     ValueError
         If spin value is larger than lmax.
+        If npix does not match size map.
+        If nelem does not match size alm.
     '''
 
     if np.asarray(spin).max() > ainfo.lmax:
         raise ValueError('Spin exceeds lmax')
 
+    if np.asarray(spin).max() > ainfo.lmax:
+        raise ValueError('Spin exceeds lmax')
+    if omap.shape[-1] != minfo.npix:
+        raise ValueError(
+            f'Wrong map size, got {omap.shape[-1]} expected {minfo.npix}')
+    if alm.shape[-1] != ainfo.nelem:
+        raise ValueError(
+            f'Wrong alm size, got {alm.shape[-1]} expected {ainfo.nelem}')
+    
     if omap.ndim == 1:
         omap = omap[np.newaxis,:]
     if alm.ndim == 1:
