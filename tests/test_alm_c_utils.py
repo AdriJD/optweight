@@ -111,6 +111,14 @@ class TestAlmCUtils(unittest.TestCase):
         alm_out_exp = ainfo.lmul(alm, lmat)
         np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
 
+        # Non-contiguous mat.
+        lmat = np.arange(ncomp * (ncomp + 1) * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(ncomp, ncomp + 1, lmax + 1)
+
+        alm_c_utils.lmul(alm, lmat[:,:ncomp:,:], ainfo, alm_out=alm_out)
+        alm_out_exp = ainfo.lmul(alm, lmat[:,:ncomp,:].copy())
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
         # Diag mat.
         lmat = np.arange(ncomp * (lmax + 1), dtype=float)
         lmat = lmat.reshape(ncomp, lmax + 1)
@@ -143,6 +151,14 @@ class TestAlmCUtils(unittest.TestCase):
         alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
         np.testing.assert_array_almost_equal(alm, alm_out_exp)
 
+        # Non-contiguous mat.
+        lmat = np.arange(ncomp * (ncomp + 1) * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(ncomp, ncomp + 1, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat[:,:ncomp,:].copy())
+        alm_c_utils.lmul(alm, lmat[:,:ncomp:,:], ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
         # Diag mat.
         lmat = np.arange(ncomp * (lmax + 1), dtype=float)
         lmat = lmat.reshape(ncomp, lmax + 1)
@@ -168,6 +184,14 @@ class TestAlmCUtils(unittest.TestCase):
 
         alm_c_utils.lmul(alm, lmat, ainfo, alm_out=alm_out)
         alm_out_exp = ainfo.lmul(alm, lmat)
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
+        # Non-contiguous mat.
+        lmat = np.arange(ncomp * (ncomp + 1) * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(ncomp, ncomp + 1, lmax + 1)
+
+        alm_c_utils.lmul(alm, lmat[:,:ncomp:,:], ainfo, alm_out=alm_out)
+        alm_out_exp = ainfo.lmul(alm, lmat[:,:ncomp,:].copy())
         np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
 
         # Diag mat.
@@ -200,6 +224,14 @@ class TestAlmCUtils(unittest.TestCase):
 
         alm_out_exp = ainfo.lmul(alm, lmat)
         alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
+        # Non-contiguous mat.
+        lmat = np.arange(ncomp * (ncomp + 1) * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(ncomp, ncomp + 1, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat[:,:ncomp,:].copy())
+        alm_c_utils.lmul(alm, lmat[:,:ncomp:,:], ainfo, inplace=True)
         np.testing.assert_array_almost_equal(alm, alm_out_exp)
 
         # Diag mat.
