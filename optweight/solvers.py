@@ -16,7 +16,7 @@ class CGPixFilter(object):
     def __init__(self,ncomp,theory_cls,b_ell,lmax,
                  icov=None,icov_pix=None,minfo=None,
                  include_te=False,
-                 rtol_icov=1e-2):
+                 rtol_icov=1e-2,order=1):
 
         """
         Prepare to filter maps using a pixel-space instrument noise model
@@ -66,6 +66,9 @@ class CGPixFilter(object):
         rtol_icov: float, optional
             Elements below rtol_icov times the median of nonzero elements 
             are set to zero in the reprojected icov_pix map.
+        order: int, optional
+            The order of spline interpolation when transforming icov to GL
+            pixelization.
         """
 
         if np.any(np.logical_not(np.isfinite(b_ell))): raise Exception
@@ -84,7 +87,7 @@ class CGPixFilter(object):
             else:
                 raise ValueError
             if np.any(np.logical_not(np.isfinite(icov))): raise Exception
-            icov_pix, minfo = map_utils.enmap2gauss(icov, 2 * lmax, area_pow=1, mode='nearest')
+            icov_pix, minfo = map_utils.enmap2gauss(icov, 2 * lmax, area_pow=1, mode='nearest',order=order)
         else:
             if minfo is None:
                 warnings.warn(f"optfilt: No minfo for icov_guess specified. Using 2x {lmax}.")
@@ -93,6 +96,7 @@ class CGPixFilter(object):
         if np.any(np.logical_not(np.isfinite(icov_pix))): raise Exception
 
         icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=rtol_icov)
+        if np.any(icov_pix<0): raise Exception
 
         tlmax = theory_cls['TT'].size - 1
         if not(tlmax>=lmax): raise Exception
@@ -265,7 +269,7 @@ def cg_pix_filter(alm,theory_cls,b_ell,lmax,
                   niter=None,stype='pcg_pinv',ainfo=None,
                   benchmark=None,verbose=True,
                   err_tol=1e-15,
-                  rtol_icov=1e-2):
+                  rtol_icov=1e-2,order=1):
 
     """
     Filter a map using a pixel-space instrument noise model
@@ -344,6 +348,9 @@ def cg_pix_filter(alm,theory_cls,b_ell,lmax,
     err_tol: float
         If the CG error is below this number, stop iterating even if niter
         has not been reached.
+    order: int, optional
+        The order of spline interpolation when transforming icov to GL
+        pixelization.
 
     Returns
     -------
@@ -370,7 +377,7 @@ def cg_pix_filter(alm,theory_cls,b_ell,lmax,
     cgobj = CGPixFilter(ncomp,theory_cls=theory_cls,b_ell=b_ell,lmax=lmax,
                         icov=icov,icov_pix=icov_pix,minfo=minfo,
                         include_te=include_te,
-                        rtol_icov=rtol_icov)
+                        rtol_icov=rtol_icov,order=order)
     return cgobj.filter(alm,benchmark=benchmark,
                         verbose=verbose,ainfo=ainfo,
                         niter=niter,stype=stype,
