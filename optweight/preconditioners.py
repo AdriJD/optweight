@@ -70,6 +70,8 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         Inverse noise covariance. If diagonal, only the diagonal suffices.
     minfo : sharp.map_info object
         Metainfo for inverse noise covariance.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
     b_ell : (npol, nell) array, optional
         Beam window function.
     cov_pix : (npol, npol, npix) or (npol, npix) array, optional
@@ -80,7 +82,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
     call(alm) : Apply the preconditioner to a set of alms.
     '''
 
-    def __init__(self, ainfo, icov_ell, itau, icov_pix, minfo,
+    def __init__(self, ainfo, icov_ell, itau, icov_pix, minfo, spin,
                  b_ell=None, cov_pix=None):
 
         if itau.ndim == 2:
@@ -102,7 +104,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
             ainfo, itau * b_ell, inplace=True)
 
         self.pcov_noise = operators.PixMatVecAlm(
-            ainfo, cov_pix, minfo, [0, 2], inplace=True, adjoint=True)
+            ainfo, cov_pix, minfo, spin, inplace=True, adjoint=True)
 
     def call(self, alm):
         '''
@@ -155,6 +157,8 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         Wavelet block matrix representing the inverse noise covariance.
     w_ell : (nwav, nell) array
         Wavelet kernels.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
     mask_pix = (npol, npix) array, optional
         Pixel mask.
     minfo_mask : sharp.map_info object, optional
@@ -168,7 +172,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
 
     '''
     
-    def __init__(self, ainfo, icov_ell, itau_ell, icov_wav, w_ell,
+    def __init__(self, ainfo, icov_ell, itau_ell, icov_wav, w_ell, spin,
                  mask_pix=None, minfo_mask=None, b_ell=None):
 
         if itau_ell.ndim != 3:
@@ -183,7 +187,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
             self.imask = lambda alm: alm
         else:            
             self.imask = operators.PixMatVecAlm(
-                ainfo, mask_pix, minfo_mask, [0, 2], power=-1,
+                ainfo, mask_pix, minfo_mask, spin, power=-1,
                 use_weights=True)
 
         self.harmonic_prec = operators.EllMatVecAlm(
@@ -199,7 +203,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
             ainfo, itau_ell, inplace=True)
 
         self.pcov_noise = operators.WavMatVecAlm(
-            ainfo, icov_wav, w_ell, [0, 2], power=-1, adjoint=True)
+            ainfo, icov_wav, w_ell, spin, power=-1, adjoint=True)
     #@profile
     def call(self, alm):
         '''

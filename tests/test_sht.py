@@ -135,3 +135,15 @@ class TestSHT(unittest.TestCase):
         # Wrong nelem.
         alm_wrong = np.zeros((1, ainfo.nelem + 1), dtype=alm.dtype)
         self.assertRaises(ValueError, sht.alm2map, alm_wrong, omap, ainfo, minfo, spin)
+
+    def test_default_spin(self):
+        
+        self.assertEqual(sht.default_spin((10,)), 0)
+        self.assertEqual(sht.default_spin((1, 10)), 0)
+        self.assertEqual(sht.default_spin((2, 10,)), 2)
+        self.assertEqual(sht.default_spin((3, 10,)), [0, 2])                
+
+    def test_default_spin_err(self):
+        
+        self.assertRaises(ValueError, sht.default_spin, (2, 2, 10))
+        self.assertRaises(ValueError, sht.default_spin, (4, 10))

@@ -554,7 +554,8 @@ class CGWiener(cg.CG):
 
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
-                    b_ell=None, mask_pix=None, draw_constr=False, prec=None, **kwargs):
+                    b_ell=None, mask_pix=None, draw_constr=False, prec=None, spin=None,
+                    **kwargs):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -586,6 +587,9 @@ class CGWiener(cg.CG):
             pinv
                 Use Pseudo-inverse method from Seljebotn et al.
 
+        spin : int, array-like, optional
+            Spin values for transform, should be compatible with npol. If not provided,
+            value will be derived from npol: 1->0, 2->2, 3->[0, 2].
         **kwargs
             Keyword arguments for enlib.cg.CG.
         '''
@@ -593,10 +597,12 @@ class CGWiener(cg.CG):
         if kwargs.get('M') and prec:
             raise ValueError('Pick only one preconditioner')
 
-        icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
+        if spin is None:
+            spin = sht.default_spin(alm_data.shape)
 
+        icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
         icov_noise = operators.PixMatVecAlm(
-            ainfo, icov_pix, minfo, [0, 2])
+            ainfo, icov_pix, minfo, spin)
 
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)
@@ -605,14 +611,14 @@ class CGWiener(cg.CG):
 
         if mask_pix is not None:
             mask =  operators.PixMatVecAlm(
-                ainfo, mask_pix, minfo, [0, 2], use_weights=True)
+                ainfo, mask_pix, minfo, spin, use_weights=True)
         else:
             mask=None
 
         if draw_constr:
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
             rand_inoise = alm_utils.rand_alm_pix(
-                icov_pix, ainfo, minfo, dtype=alm_data.dtype)
+                icov_pix, ainfo, minfo, spin)
 
         else:
             rand_isignal = None
@@ -628,7 +634,7 @@ class CGWiener(cg.CG):
          
             itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
             preconditioner = preconditioners.PseudoInvPreconditioner(
-                ainfo, icov_ell, itau, icov_pix, minfo, b_ell=b_ell)
+                ainfo, icov_ell, itau, icov_pix, minfo, spin, b_ell=b_ell)
 
         elif prec is None:
             preconditioner = None
@@ -646,7 +652,8 @@ class CGWiener(cg.CG):
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                        icov_pix=None, minfo_icov_pix=None, prec=None, **kwargs):
+                        icov_pix=None, minfo_icov_pix=None, prec=None, spin=None, 
+                        **kwargs):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -688,14 +695,22 @@ class CGWiener(cg.CG):
                 Use Pseudo-inverse method from Seljebotn et al. Requires 
                 a covariance matrix to be passed though the `icov_pix` kwarg.
 
+        spin : int, array-like, optional
+            Spin values for transform, should be compatible with npol. If not provided,
+            value will be derived from npol: 1->0, 2->2, 3->[0, 2].
         **kwargs
             Keyword arguments for enlib.cg.CG.
         '''
 
-        icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
+        if kwargs.get('M') and prec:
+            raise ValueError('Pick only one preconditioner')
 
+        if spin is None:
+            spin = sht.default_spin(alm_data.shape)
+
+        icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
         icov_noise = operators.WavMatVecAlm(
-            ainfo, icov_wav, w_ell, [0, 2])        
+            ainfo, icov_wav, w_ell, spin)
 
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)
@@ -704,7 +719,7 @@ class CGWiener(cg.CG):
 
         if mask_pix is not None:
             mask = operators.PixMatVecAlm(
-                ainfo, mask_pix, minfo_mask, [0, 2], use_weights=True)
+                ainfo, mask_pix, minfo_mask, spin, use_weights=True)
         else:
             mask = None
 
@@ -723,13 +738,13 @@ class CGWiener(cg.CG):
 
             itau = map_utils.get_isotropic_ivar(icov_pix, minfo_icov_pix)
             preconditioner = preconditioners.PseudoInvPreconditioner(
-                ainfo, icov_ell, itau, icov_pix, minfo_icov_pix, b_ell=b_ell)
+                ainfo, icov_ell, itau, icov_pix, minfo_icov_pix, spin, b_ell=b_ell)
 
         elif prec == 'pinv_wav':
          
             itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
             preconditioner = preconditioners.PseudoInvPreconditionerWav(
-                ainfo, icov_ell, itau_ell, icov_wav, w_ell, mask_pix=mask_pix, 
+                ainfo, icov_ell, itau_ell, icov_wav, w_ell, spin, mask_pix=mask_pix, 
                 minfo_mask=minfo_mask, b_ell=b_ell)
 
         elif prec is None:
@@ -881,11 +896,11 @@ class CGWienerScaled(CGWiener):
 
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo,
-                    b_ell=None, draw_constr=False, prec=None, **kwargs):
+                    b_ell=None, draw_constr=False, prec=None, spin=None, **kwargs):
         '''Initialize solver with arrays instead of callables.'''
 
         sqrt_cov_signal = operators.EllMatVecAlm(ainfo, icov_ell, power=-0.5)
 
         return super(CGWienerScaled, cls).from_arrays(
             alm_data, ainfo, icov_ell, icov_pix, minfo, sqrt_cov_signal, b_ell=b_ell,
-            draw_constr=draw_constr, prec=prec, **kwargs)
+            draw_constr=draw_constr, prec=prec, spin=spin, **kwargs)

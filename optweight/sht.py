@@ -112,3 +112,37 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     for s, i1, i2 in enmap.spin_helper(spin, npol):    
         sharp.execute(job_type, ainfo, alm[i1:i2,:], minfo, omap[i1:i2,:], spin=s)
         
+def default_spin(shape):
+    '''
+    Infer spin from alm/map shape.
+
+    shape : tuple
+        Shape of map or alm array.
+
+    Returns
+    -------
+    spin : int, list
+        Spin argument for SH transforms. 
+
+    Raises
+    ------
+    ValueError
+        If spin cannot be determined (npol > 3 or len(shape) > 2).
+
+    Notes
+    -----
+    Shape is assumed to be (npol, nelem) or (npol, npix). For npol=0, 2 and 3
+    we default to spin=0, 2, [0, 2], respectively.
+    '''
+
+    if len(shape) > 2:
+        raise ValueError(f'Cannot determine default spin for alm/map with more than '
+                         'one leading dimension. Got shape : {shape}')
+    if len(shape) == 1 or shape[0] == 1:
+        return 0
+    elif shape[0] == 2:
+        return 2
+    elif shape[0] == 3:
+        return [0, 2]
+    else:
+        raise ValueError(f'Cannot determine default spin value for shape : {shape}')
