@@ -2,7 +2,7 @@ import numpy as np
 
 from pixell import utils
 
-from optweight import operators
+from optweight import operators, mat_utils
 
 class HarmonicPreconditioner(operators.MatVecAlm):
     '''
@@ -92,7 +92,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
             b_ell = np.ones((icov_ell.shape[0], icov_ell.shape[-1]))
 
         if cov_pix is None:
-            cov_pix = operators._matpow(icov_pix, -1)
+            cov_pix = mat_utils.matpow(icov_pix, -1)
 
         self.harmonic_prec = operators.EllMatVecAlm(
             ainfo, icov_ell + itau * b_ell ** 2, -1, inplace=True)

@@ -1,9 +1,9 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-from pixell import utils, sharp
+from pixell import sharp
 
-from optweight import sht, wavtrans, alm_utils, type_utils, alm_c_utils
+from optweight import sht, wavtrans, alm_utils, type_utils, alm_c_utils, mat_utils
 
 class MatVecAlm(ABC):
     '''Template for all matrix-vector operators working on alm-input.'''
@@ -39,10 +39,10 @@ class EllMatVecAlm(MatVecAlm):
 
     def __init__(self, ainfo, m_ell, power=1, inplace=False):
 
-        m_ell = _full_matrix(m_ell)
+        m_ell = mat_utils.full_matrix(m_ell)
 
         if power != 1:
-            m_ell = _matpow(m_ell, power)
+            m_ell = mat_utils.matpow(m_ell, power)
 
         self.m_ell = m_ell
         self.ainfo = ainfo
@@ -102,9 +102,9 @@ class PixMatVecAlm(MatVecAlm):
     def __init__(self, ainfo, m_pix, minfo, spin, power=1, inplace=False,
                  adjoint=False, use_weights=False):
 
-        m_pix = _full_matrix(m_pix)
+        m_pix = mat_utils.full_matrix(m_pix)
         if power != 1:
-            m_pix = _matpow(m_pix, power)
+            m_pix = mat_utils.matpow(m_pix, power)
 
         self.m_pix = m_pix
         self.ainfo = ainfo
@@ -184,7 +184,7 @@ class WavMatVecAlm(MatVecAlm):
         self.adjoint = adjoint
 
         if power != 1:
-            self.m_wav = _wavmat_pow(m_wav, power)
+            self.m_wav = mat_utils.wavmatpow(m_wav, power)
         else:
             self.m_wav = m_wav
 
@@ -263,111 +263,3 @@ class WavMatVecAlm(MatVecAlm):
                                          alm=alm_out, ainfo=self.ainfo)
 
         return alm_out
-
-def _full_matrix(mat):
-    '''
-    If needed, expand matrix diagonal to full-sized matrix.
-
-    Parameters
-    ----------
-    mat : (npol, npol, N) array or (npol, N) array
-        Matrix, dense or diagonal in first two axes.
-
-    Returns
-    -------
-    mat_full : (npol, npol, N) array
-        Full-sized matrix.
-
-    Raises
-    ------
-    ValueError
-        If input array dimensions are not understood.
-    '''
-
-    if mat.ndim not in (2, 3):
-        raise ValueError(
-            'Matrix dimension : {} not supported. Requires dim = 2 or 3.'.
-            format(mat.ndim))
-
-    if mat.ndim == 2:
-        # Diagonal of matrix, expand to full matrix.
-        npol = mat.shape[0]
-        mat = np.eye(npol, dtype=mat.dtype)[:,:,np.newaxis] * mat
-
-    return mat
-
-def _matpow(mat, power):
-    '''
-    Raise matrix to a given power.
-
-    Parameters
-    ----------
-    mat : (npol, npol, N) array or (npol, N) array
-        Matrix, either symmetric but dense in first two axes or diagonal,
-        in which case only the diagonal elements are needed.
-    power : int, float
-        Power of matrix.
-
-    Returns
-    -------
-    mat_out : (npol, npol, N) array
-        Output matrix.
-    '''
-
-    mat = _full_matrix(mat)
-
-    if power == 1:
-        return mat
-        
-    # 64 bit to avoid truncation of small values in eigpow.
-    dtype_in = mat.dtype
-    if dtype_in == np.float32:
-        dtype = np.float64
-    elif dtype_in == np.complex64:
-        dtype = np.complex128
-    else:
-        dtype = dtype_in
-
-    mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
-    mat = utils.eigpow(mat, power)
-    mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
-
-    return mat
-
-def _wavmat_pow(m_wav, power):
-    '''
-    Raise wavelet block matrix to a given power.
-
-    Parameters
-    ----------
-    m_wav : wavtrans.Wav object
-        Wavelet block matrix.
-    power : int, float
-        Power of matrix.
-    
-    Returns
-    -------
-    m_wav_power : wavtrans.Wav object
-        Wavelet block matrix raised to power.
-
-    Raises
-    ------
-    NotImplementedErrror
-        If matrix power is computed for non-diagonal block matrix.
-    '''
-
-    if not np.array_equal(m_wav.indices[:,0], m_wav.indices[:,1]):
-        raise NotImplementedError(
-            'Can only raise diagonal block matrix to a power')
-
-    m_wav_power = wavtrans.Wav(2)
-
-    for jidx in range(m_wav.shape[0]):
-
-        minfo = m_wav.minfos[jidx,jidx]
-        map_mat = m_wav.maps[jidx,jidx]
-
-        map_mat = _matpow(map_mat, power)
-        m_wav_power.add((jidx,jidx), map_mat, minfo)
-
-    return m_wav_power
