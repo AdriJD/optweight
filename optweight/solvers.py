@@ -176,7 +176,7 @@ class CGWiener(cg.CG):
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
                     b_ell=None, mask_pix=None, draw_constr=False, prec=None, spin=None,
-                    icov_noise_ell=None, **kwargs):
+                    icov_noise_flat_ell=None, **kwargs):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -212,7 +212,7 @@ class CGWiener(cg.CG):
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
         icov_noise_flat_ell (npol, npol, nell) or (npol, nell) array, optional.
-            Inverse noise covariance of flattened (inverse noise covariance-weighted) data.
+            Inverse noise covariance of flattened (icov_pix weighted) data.
             If diagonal, only the diagonal suffices. If provided, updates noise model to 
             icnf_ell^0.5 icov_pix icnf_ell^0.5.
         **kwargs
@@ -246,6 +246,10 @@ class CGWiener(cg.CG):
             mask = None
 
         if draw_constr:
+            if icov_noise_flat_ell is not None:
+                raise NotImplementedError('icov_noise_flat_ell not implemented for '
+                                          'constrained realizations for now.')
+
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
             rand_inoise = alm_utils.rand_alm_pix(
                 icov_pix, ainfo, minfo, spin)
@@ -260,8 +264,8 @@ class CGWiener(cg.CG):
 
             if icov_noise_flat_ell is not None:
                 nell = icov_noise_flat_ell.shape[-1]
-                sqrt_icnf_ell = mat_utils.matpow(icov_noise_flat_ell, 0.5)
-                itau = itau * np.ones(itau.shape + (nell,))
+                sqrt_icnf = mat_utils.matpow(icov_noise_flat_ell, 0.5)
+                itau = itau[:,:,np.newaxis] * np.ones(itau.shape + (nell,))
                 itau = np.einsum('ijl, jkl, kol -> iol', sqrt_icnf, itau, sqrt_icnf) 
 
             preconditioner = preconditioners.HarmonicPreconditioner(
@@ -270,6 +274,11 @@ class CGWiener(cg.CG):
         elif prec == 'pinv':
          
             itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
+
+            if icov_noise_flat_ell is not None:
+                raise NotImplementedError('icov_noise_flat_ell not implemented for '
+                                          'pinv, use harmonic preconditioner for now.')
+
             preconditioner = preconditioners.PseudoInvPreconditioner(
                 ainfo, icov_ell, itau, icov_pix, minfo, spin, b_ell=b_ell)
 

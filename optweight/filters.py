@@ -4,13 +4,12 @@ import warnings
 from enlib import cg
 from pixell import curvedsky,sharp
 
-from optweight import map_utils
+from optweight import map_utils, mat_utils
 
 class CGPixFilter(object):
-    def __init__(self,ncomp,theory_cls,b_ell,lmax,
-                 icov=None,icov_pix=None,minfo=None,
-                 include_te=False,
-                 rtol_icov=1e-2,order=1):
+    def __init__(self, ncomp, theory_cls, b_ell, lmax, icov=None,
+                 icov_pix=None, cov_noise_ell=None, minfo=None,
+                 include_te=False, rtol_icov=1e-2, order=1):
         """
         Prepare to filter maps using a pixel-space instrument noise model
         and a harmonic space signal model. The initialization does a slow
@@ -50,6 +49,11 @@ class CGPixFilter(object):
             the alms and theory_cls in Gauss-Legendre
             pixelization. If this is not provided, the provided icov
             map will be reprojected.
+        cov_noise_ell : (ncomp,ncomp,nells) or (ncomp,nells) array
+            Power spectrum of flattened (ivar_pix-weighted) noise in units
+            (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
+            noise that deviates from the white noise described by the icov_pix maps
+            as function of multipole.
         minfo : sharp.map_info object
             Metainfo for inverse noise covariance icov_pix.
         include_te : bool
@@ -67,7 +71,6 @@ class CGPixFilter(object):
         if np.any(np.logical_not(np.isfinite(b_ell))): raise Exception
 
         if ncomp!=1 and ncomp!=3: raise Exception
-
 
         if icov_pix is None:
             if icov.ndim==2:
@@ -111,6 +114,11 @@ class CGPixFilter(object):
             else:
                 icov_ell[:,:,lidx] = np.linalg.inv(cov_ell[:,:,lidx])
 
+        if cov_noise_ell is not None:
+            icov_noise_ell = mat_utils.matpow(cov_noise_ell, -1)
+        else:
+            icov_noise_ell is None
+                
         if b_ell.ndim==1:
             b_ell = b_ell[None] * np.asarray((1,1,1)[:ncomp])[:,None]
         elif b_ell.ndim==2:
@@ -120,6 +128,7 @@ class CGPixFilter(object):
 
         self.icov_ell = icov_ell
         self.icov_pix = icov_pix
+        self.icov_noise_ell = icov_noise_ell
         self.minfo = minfo
         self.b_ell = b_ell
         self.ncomp = ncomp
@@ -206,9 +215,10 @@ class CGPixFilter(object):
                                                         prec=None, x0=x0)
         else:
             solver = CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
-                                                  self.icov_pix, self.minfo, b_ell=self.b_ell,
-                                                  draw_constr=False, 
-                                                  prec=prec, x0=x0)
+                                          self.icov_pix, self.minfo, b_ell=self.b_ell,
+                                          draw_constr=False, 
+                                          icov_noise_flat_ell=self.icov_noise_ell,
+                                          prec=prec, x0=x0)
         errors = []
         errors.append( np.nan)
         if benchmark:
@@ -256,13 +266,11 @@ class CGPixFilter(object):
             output['itnums'] = itnums
         return output
 
-def cg_pix_filter(alm,theory_cls,b_ell,lmax,
-                  icov=None,icov_pix=None,minfo=None,
-                  include_te=False,
-                  niter=None,stype='pcg_pinv',ainfo=None,
-                  benchmark=None,verbose=True,
-                  err_tol=1e-15,
-                  rtol_icov=1e-2,order=1):
+def cg_pix_filter(alm,theory_cls, b_ell, lmax,
+                  icov=None,icov_pix=None, cov_noise_ell=None, minfo=None,
+                  include_te=False, niter=None, stype='pcg_pinv', ainfo=None,
+                  benchmark=None, verbose=True, err_tol=1e-15, rtol_icov=1e-2,
+                  order=1):
     """
     Filter a map using a pixel-space instrument noise model
     and a harmonic space signal model.
@@ -308,6 +316,11 @@ def cg_pix_filter(alm,theory_cls,b_ell,lmax,
         the alms and theory_cls in Gauss-Legendre
         pixelization. If this is not provided, the provided icov
         map will be reprojected.
+    cov_noise_ell : (ncomp,ncomp,nells) or (ncomp,nells) array
+        Power spectrum of flattened (ivar_pix-weighted) noise in units
+        (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
+        noise that deviates from the white noise described by the icov_pix maps
+        as function of multipole.
     minfo : sharp.map_info object
         Metainfo for inverse noise covariance icov_pix.
     rtol_icov: float, optional
@@ -365,11 +378,8 @@ def cg_pix_filter(alm,theory_cls,b_ell,lmax,
     else:
         raise ValueError
 
-    cgobj = CGPixFilter(ncomp,theory_cls=theory_cls,b_ell=b_ell,lmax=lmax,
-                        icov=icov,icov_pix=icov_pix,minfo=minfo,
-                        include_te=include_te,
-                        rtol_icov=rtol_icov,order=order)
-    return cgobj.filter(alm,benchmark=benchmark,
-                        verbose=verbose,ainfo=ainfo,
-                        niter=niter,stype=stype,
-                        err_tol=err_tol)
+    cgobj = CGPixFilter(ncomp,theory_cls=theory_cls, b_ell=b_ell, lmax=lmax,
+                        icov=icov, icov_pix=icov_pix, cov_noise_ell=cov_noise_ell,
+                        minfo=minfo, include_te=include_te, rtol_icov=rtol_icov,order=order)
+    return cgobj.filter(alm,benchmark=benchmark, verbose=verbose, ainfo=ainfo,
+                        niter=niter,stype=stype, err_tol=err_tol)

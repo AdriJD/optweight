@@ -93,6 +93,8 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
     def __init__(self, ainfo, icov_ell, itau, icov_pix, minfo, spin,
                  b_ell=None, cov_pix=None):
 
+        npol, nell = icov_ell.shape[-2:]
+
         if itau.ndim == 2:
             itau = itau[:,:,np.newaxis]
 
