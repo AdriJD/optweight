@@ -234,7 +234,7 @@ class CGWiener(cg.CG):
             mask =  operators.PixMatVecAlm(
                 ainfo, mask_pix, minfo, spin, use_weights=True)
         else:
-            mask=None
+            mask = None
 
         if draw_constr:
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)

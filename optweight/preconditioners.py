@@ -27,14 +27,22 @@ class HarmonicPreconditioner(operators.MatVecAlm):
 
     def __init__(self, ainfo, icov_ell, itau, b_ell=None):
 
+        npol, nell = icov_ell.shape[-2:]
+
         if itau.ndim == 2:
             itau = itau[:,:,np.newaxis]
 
         if b_ell is None:
-            b_ell = np.ones((icov_ell.shape[0], icov_ell.shape[-1]))
+            b_ell = np.ones((npol, nell))
 
-        self.preconditioner = operators.EllMatVecAlm(
-            ainfo, icov_ell + itau * b_ell ** 2, -1, inplace=False)
+        if np.count_nonzero(itau - itau * np.eye(npol)[:,:,np.newaxis]):
+            # itau != symmetric, so b_ell and itau will not necessarily commute.
+            b_ell = b_ell * np.eye(npol)[:,:,np.newaxis]
+            op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)        
+        else:
+            op = icov_ell + itau * b_ell ** 2
+
+        self.preconditioner = operators.EllMatVecAlm(ainfo, op, -1, inplace=False)
             
     def call(self, alm):
         '''
@@ -87,6 +95,10 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
 
         if itau.ndim == 2:
             itau = itau[:,:,np.newaxis]
+
+        if np.count_nonzero(itau - itau * np.eye(npol)[:,:,np.newaxis]):
+            raise NotImplementedError(
+                'Pinv precondition cannot handle off-diagonal itau elements for now.')
 
         if b_ell is None:
             b_ell = np.ones((icov_ell.shape[0], icov_ell.shape[-1]))
