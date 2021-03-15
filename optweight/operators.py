@@ -27,7 +27,7 @@ class EllMatVecAlm(MatVecAlm):
     m_ell : (npol, npol, nell) array or (npol, nell) array
         M matrix, either symmetric but dense in first two axes or diagonal,
         in which case only the diagonal elements are needed.
-    power : int, float
+    power : int, float, optional
         Power of matrix.
     inplace : bool, optional
         Perform operation in place.
@@ -85,7 +85,7 @@ class PixMatVecAlm(MatVecAlm):
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
         compatible with npol.
-    power : int, float
+    power : int, float, optional
         Power of matrix.
     inplace : bool, optional
         Perform operation in place.
@@ -166,7 +166,7 @@ class WavMatVecAlm(MatVecAlm):
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
         compatible with npol.
-    power : int, float
+    power : int, float, optional
         Power of matrix.
     adjoint : bool, optional
         If set, calculate Kt Yt W M W Y K instead of Kt Yt M Y K.
@@ -263,3 +263,100 @@ class WavMatVecAlm(MatVecAlm):
                                          alm=alm_out, ainfo=self.ainfo)
 
         return alm_out
+
+class EllPixEllMatVecAlm(MatVecAlm):
+    '''
+    Calculate X_ell^q M_pix^p X_ell^q alm for X an M diagonal in the multipole and 
+    pixel domain, respectively. Both matrices should be positive semi-definite symmetric
+    in other axes.
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    m_pix : (npol, npol, npix) array or (npol, npix) array
+        Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    x_ell : (npol, npol, nell) array or (npol, nell) array
+        A matrix, either symmetric but dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    minfo : sharp.map_info object
+        Metainfo for pixelization of the M matrix.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    power_m : int, float, optional
+        Power of M matrix.
+    power_x : int, float, optional
+        Power of X matrix.
+    inplace : bool, optional
+        Perform operation in place.
+    adjoint : bool, optional
+        If set, calculate X Yt W M W Y X instead of X Yt M Y X.
+    use_weights : bool, optional
+        If set, use integration weights: X Yt W M Y X or X Yt M W Y X for adjoint.
+
+    Methods
+    -------
+    call(alm) : Apply the operator to a set of alms.
+    '''
+
+    def __init__(self, ainfo, m_pix, x_ell, minfo, spin, power_m=1, power_x=1,
+                 inplace=False, adjoint=False, use_weights=False):
+
+        m_pix = mat_utils.full_matrix(m_pix)
+        x_ell = mat_utils.full_matrix(x_ell)
+        if power_m != 1:
+            m_pix = mat_utils.matpow(m_pix, power_m)
+        if power_x != 1:
+            x_ell = mat_utils.matpow(x_ell, power_x)
+
+        self.m_pix = m_pix
+        self.x_ell = x_ell
+        self.ainfo = ainfo
+        self.minfo = minfo
+        self.spin = spin
+        self.inplace = inplace
+        self.adjoint = adjoint
+        self.use_weights = use_weights
+
+    def call(self, alm):
+        '''
+        Apply the operator to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+
+        if self.inplace:
+            out = alm
+        else:
+            out = alm.copy()
+
+        npol = alm.shape[0]
+        omap = np.zeros((npol, self.m_pix.shape[-1]),
+                        dtype=type_utils.to_real(alm.dtype))
+
+        alm_c_utils.lmul(alm, self.x_ell, self.ainfo, inplace=True)
+
+        sht.alm2map(alm, omap, self.ainfo, self.minfo, self.spin,
+                    adjoint=self.adjoint)
+        imap = np.einsum('ijk, jk -> ik', self.m_pix, omap, optimize=True)
+
+        if self.use_weights:
+            adjoint = self.adjoint
+        else:
+            adjoint = not self.adjoint
+        sht.map2alm(imap, out, self.minfo, self.ainfo, self.spin,
+                    adjoint=adjoint)
+
+        alm_c_utils.lmul(out, self.x_ell, self.ainfo, inplace=True)
+
+        return out

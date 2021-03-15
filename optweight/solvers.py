@@ -3,7 +3,7 @@ import numpy as np
 from enlib import cg
 from pixell import curvedsky,sharp
 
-from optweight import operators, alm_utils, map_utils, preconditioners, sht
+from optweight import operators, alm_utils, map_utils, preconditioners, sht, mat_utils
 
 class CGWiener(cg.CG):
     '''
@@ -176,7 +176,7 @@ class CGWiener(cg.CG):
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
                     b_ell=None, mask_pix=None, draw_constr=False, prec=None, spin=None,
-                    **kwargs):
+                    icov_noise_ell=None, **kwargs):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -211,6 +211,10 @@ class CGWiener(cg.CG):
         spin : int, array-like, optional
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
+        icov_noise_flat_ell (npol, npol, nell) or (npol, nell) array, optional.
+            Inverse noise covariance of flattened (inverse noise covariance-weighted) data.
+            If diagonal, only the diagonal suffices. If provided, updates noise model to 
+            icnf_ell^0.5 icov_pix icnf_ell^0.5.
         **kwargs
             Keyword arguments for enlib.cg.CG.
         '''
@@ -222,8 +226,13 @@ class CGWiener(cg.CG):
             spin = sht.default_spin(alm_data.shape)
 
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
-        icov_noise = operators.PixMatVecAlm(
-            ainfo, icov_pix, minfo, spin)
+
+        if icov_noise_flat_ell is None:
+            icov_noise = operators.PixMatVecAlm(
+                ainfo, icov_pix, minfo, spin)
+        else:
+            icov_noise = operators.EllPixEllMatVecAlm(
+                ainfo, icov_pix, icov_noise_flat_ell, minfo, spin, power_x=0.5)
 
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)
@@ -248,6 +257,13 @@ class CGWiener(cg.CG):
         if prec == 'harmonic':
 
             itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
+
+            if icov_noise_flat_ell is not None:
+                nell = icov_noise_flat_ell.shape[-1]
+                sqrt_icnf_ell = mat_utils.matpow(icov_noise_flat_ell, 0.5)
+                itau = itau * np.ones(itau.shape + (nell,))
+                itau = np.einsum('ijl, jkl, kol -> iol', sqrt_icnf, itau, sqrt_icnf) 
+
             preconditioner = preconditioners.HarmonicPreconditioner(
                 ainfo, icov_ell, itau, b_ell=b_ell)
 
