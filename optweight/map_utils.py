@@ -536,4 +536,5 @@ def get_enmap_minfo(shape,wcs,lmax):
     theta_max = max(theta_range)
     minfo = get_gauss_minfo(
         lmax, theta_min=theta_min, theta_max=theta_max)
+
     return minfo

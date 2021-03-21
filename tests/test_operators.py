@@ -7,7 +7,7 @@ from optweight import operators
 from optweight import wavtrans
 from optweight import sht
 from optweight import alm_utils
-from optweight import noisebox_utils
+from optweight import noise_utils
 
 class TestOperators(unittest.TestCase):
     
@@ -320,7 +320,7 @@ class TestOperators(unittest.TestCase):
         noisebox = enmap.zeros((1, lmax + 1) + shape, wcs)
         noisebox[:] = icov_ell[:,:,np.newaxis,np.newaxis]
 
-        icov_wav = noisebox_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
+        icov_wav = noise_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
 
         ainfo = sharp.alm_info(lmax=lmax)
         spin = 0
@@ -364,7 +364,7 @@ class TestOperators(unittest.TestCase):
         noisebox = enmap.zeros((1, lmax + 1) + shape, wcs)
         noisebox[:] = icov_ell[:,:,np.newaxis,np.newaxis]
 
-        icov_wav = noisebox_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
+        icov_wav = noise_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
 
         ainfo = sharp.alm_info(lmax=lmax)
         spin = 0

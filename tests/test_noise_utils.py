@@ -3,7 +3,7 @@ import numpy as np
 
 from pixell import enmap, wcsutils
 
-from optweight import noisebox_utils
+from optweight import noise_utils
 
 class TestNoiseBoxUtils(unittest.TestCase):
 
@@ -23,7 +23,7 @@ class TestNoiseBoxUtils(unittest.TestCase):
         w_ell[1,2:5] = 1
         w_ell[2,5:] = 1
 
-        icov_wav = noisebox_utils.noisebox2wavmat(
+        icov_wav = noise_utils.noisebox2wavmat(
             noisebox, bins, w_ell, offsets=[-1, 0, 1])
 
         # Check if I get the right amount of maps.
@@ -91,7 +91,7 @@ class TestNoiseBoxUtils(unittest.TestCase):
         noisebox = enmap.ones((npol, nbins, ny, nx))
         bins = np.asarray([10, 20, 30, 40])
         lmax = 25
-        noisebox_out = noisebox_utils.prepare_noisebox(
+        noisebox_out = noise_utils.prepare_noisebox(
             noisebox, bins, lmax)
         
         noisebox_exp = enmap.ones(
@@ -114,7 +114,7 @@ class TestNoiseBoxUtils(unittest.TestCase):
         noisebox = enmap.ones((npol, narray, nbins, ny, nx))
         bins = np.asarray([10, 20, 30, 40])
         lmax = 25
-        self.assertRaises(ValueError, noisebox_utils.prepare_noisebox,
+        self.assertRaises(ValueError, noise_utils.prepare_noisebox,
             noisebox, bins, lmax)
 
 
