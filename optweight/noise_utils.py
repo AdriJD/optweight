@@ -5,6 +5,40 @@ from pixell import enmap
 
 from optweight import wavtrans, map_utils
 
+def noisemap2wavmat():
+
+    # map2alm
+    
+    # call noisealm2wavmat()
+    
+    pass
+
+def noisealm2wavmat():
+    
+    # call alm2wav
+
+    # Call noisemap2var
+
+    pass
+
+def noisemap2var():
+    
+    # Determine mask
+
+    # Get index map
+
+    # Get distance to mask
+
+    # setelect pixels inside radius
+
+    # interpolate
+
+    # smooth
+
+    # find closest psd matrix
+    
+    pass
+
 def noisebox2wavmat(noisebox, bins, w_ell, offsets=[-1, 0, 1],
                     rtol_icov=0.1):
     '''

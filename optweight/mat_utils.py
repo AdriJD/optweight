@@ -112,3 +112,38 @@ def wavmatpow(m_wav, power):
 
     return m_wav_power
 
+def get_near_psd(mat):
+    '''
+    Get close positive semi-definite matrix by zeroing negative eigenvalues.
+
+    Arguments
+    ---------
+    mat : (npol, npol, N) array or (npol, N) array
+        Matrix, either symmetric but dense in first two axes or diagonal,
+    
+    Returns
+    -------
+    out : (npol, npol, N)
+        Positive semi-definite matrix that is "close" to input matrix.
+    '''
+
+    mat = full_matrix(mat)
+
+    # 64 bit for more accuracy.
+    dtype_in = mat.dtype
+    if dtype_in == np.float32:
+        dtype = np.float64
+    else:
+        dtype = dtype_in
+
+    eigvals, eigvecs = np.linalg.eigh(np.transpose(mat, (2, 0, 1)).astype(dtype=dtype))
+
+    mask = eigvals < 0
+    if np.sum(mask) == 0:
+        return mat.astype(dtype_in)
+
+    eigvals[mask] = 0
+    out = np.einsum('ijk, ikm -> ijm',
+            eigvecs, eigvals[:,:,np.newaxis] * np.transpose(eigvecs, (0, 2, 1)))
+    
+    return np.ascontiguousarray(np.transpose(out, (1, 2, 0)), dtype=dtype_in)
