@@ -411,3 +411,57 @@ class TestMapUtils(unittest.TestCase):
 
         icov_pix = np.ones((npix))
         self.assertRaises(ValueError, map_utils.round_icov_matrix, icov_pix)
+
+    def test_select_mask_edge(self):
+
+        lmax = 6
+        minfo = map_utils.get_gauss_minfo(lmax)
+        mask = np.asarray([[0, 1, 1, 0, 1, 1, 0],
+                           [1, 1, 1, 0, 1, 1, 1],
+                           [0, 0, 0, 0, 1, 1, 1],
+                           [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+        mask = mask.reshape(-1)
+
+        edges = map_utils.select_mask_edge(mask, minfo)
+
+        edges_exp = np.asarray([[0, 1, 1, 0, 1, 1, 0],
+                                [0, 0, 1, 0, 1, 0, 0],
+                                [0, 0, 0, 0, 1, 0, 1],
+                                [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+        edges_exp = edges_exp.reshape(-1)        
+        np.testing.assert_array_equal(edges, edges_exp)
+
+    def test_select_mask_edge_2d(self):
+
+        lmax = 6
+        minfo = map_utils.get_gauss_minfo(lmax)
+        mask1 = np.asarray([[0, 1, 1, 0, 1, 1, 0],
+                            [1, 1, 1, 0, 1, 1, 1],
+                            [0, 0, 0, 0, 1, 1, 1],
+                            [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+        mask2 = np.asarray([[1, 1, 1, 0, 1, 1, 0],
+                            [0, 1, 1, 0, 1, 1, 1],
+                            [0, 0, 1, 0, 1, 1, 1],
+                            [1, 0, 0, 0, 0, 0, 0]], dtype=bool)
+
+        mask = np.zeros((2, minfo.npix), dtype=bool)
+        mask[0] = mask1.ravel()
+        mask[1] = mask2.ravel()
+
+        edges = map_utils.select_mask_edge(mask, minfo)
+
+        edges_exp1 = np.asarray([[0, 1, 1, 0, 1, 1, 0],
+                                 [0, 0, 1, 0, 1, 0, 0],
+                                 [0, 0, 0, 0, 1, 0, 1],
+                                 [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+        edges_exp2 = np.asarray([[1, 0, 1, 0, 1, 1, 0],
+                                 [0, 1, 1, 0, 1, 0, 1],
+                                 [0, 0, 1, 0, 1, 0, 1],
+                                 [1, 0, 0, 0, 0, 0, 0]], dtype=bool)
+
+        edges_exp = np.zeros((2, minfo.npix), dtype=bool)
+        edges_exp[0] = edges_exp1.ravel()
+        edges_exp[1] = edges_exp2.ravel()
+
+        np.testing.assert_array_equal(edges, edges_exp)
+

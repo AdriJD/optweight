@@ -5,6 +5,8 @@ from pixell import enmap
 
 from optweight import wavtrans, map_utils
 
+# Perhaps estimate_wavmat_pix ...
+
 def noisemap2wavmat():
 
     # map2alm
@@ -12,6 +14,8 @@ def noisemap2wavmat():
     # call noisealm2wavmat()
     
     pass
+
+# estimate_wavmat_alm
 
 def noisealm2wavmat():
     
@@ -21,17 +25,13 @@ def noisealm2wavmat():
 
     pass
 
+# estimate var
+
 def noisemap2var():
     
     # Determine mask
 
-    # Get index map
-
-    # Get distance to mask
-
-    # setelect pixels inside radius
-
-    # interpolate
+    # inpaint
 
     # smooth
 

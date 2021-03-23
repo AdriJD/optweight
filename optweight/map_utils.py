@@ -41,7 +41,7 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
         If enmap is not cylindrical.
     '''
     
-    minfo = get_enmap_minfo(imap.shape,imap.wcs,lmax)
+    minfo = get_enmap_minfo(imap.shape, imap.wcs, lmax)
 
     if order > 1:
         imap = utils.interpol_prefilter(
@@ -497,7 +497,7 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
 
     return icov_pix
 
-def get_enmap_minfo(shape,wcs,lmax):
+def get_enmap_minfo(shape, wcs, lmax):
     '''
     Compute map_info metadata for a Gauss-Legendre grid
     given a cylindrical enmap shape and wcs.
@@ -538,3 +538,67 @@ def get_enmap_minfo(shape,wcs,lmax):
         lmax, theta_min=theta_min, theta_max=theta_max)
 
     return minfo
+
+def select_mask_edge(mask, minfo):
+    '''
+    Return boolean mask that is True for all pixels that are on the edge of
+    the mask.
+
+    Parameters
+    ----------
+    mask : (..., npix) bool array
+        False underneath the mask, True otherwise.
+    minfo : sharp.map_info object
+        Metainfo for pixelization of input maps.
+
+    Returns
+    -------
+    mask_edge : (..., npix) bool array
+        True for pixels closer or equal than radius away from mask edge.
+
+    Raises
+    ------
+    ValueError
+        If map is not cylindrical.
+    '''
+
+    mask = mask.astype(bool)
+    mask_2d = mask.reshape(mask.shape[:-1] + (minfo.nrow, minfo.nphi[0]))
+    
+    # Detect edge by convolution.
+    edges = mask_2d ^ np.roll(mask_2d, -1, axis=-1)
+    edges |= mask_2d ^ np.roll(mask_2d, 1, axis=-1)
+    edges &= mask_2d
+    
+    return edges.reshape(mask.shape[:-1] + (minfo.npix,))    
+
+def inpaint_nearest(imap, mask, minfo):
+    '''
+
+    imap : (npol, npix)
+    mask : (npol, npix) or (npix) bool array
+
+    '''
+    
+
+    pix = np.mgrid[:minfo.nrow,:minfo.nphi[0]]
+    pix = pixmap.reshape(2, minfo.nrow * minfo.nphi[0])
+
+    edges = select_mask_edge(mask, minfo)
+
+    # fix case where mask is 1d and map is 2d
+    
+    #pix[:,]
+    
+    # get points : (edges == 1, 2)
+    # get values : (imap == edges)
+
+    # ndi(x, y), x = xvals of interion
+
+    pass
+
+def gauss2gauss():
+    '''
+    Interpolate one Gauss-Legendre map to another at different resolution.
+    '''
+    pass
