@@ -599,9 +599,9 @@ def inpaint_nearest(imap, mask, minfo):
 
     Arguments
     ---------    
-    imap : (npol, npix)
+    imap : (..., npix)
         Input map.
-    mask : (npol, npix) or (npix) bool array
+    mask : (..., npix) or (npix) bool array
         Mask, False for bad areas.
     minfo : sharp.map_info object
         Metainfo for map and mask.
@@ -629,10 +629,15 @@ def inpaint_nearest(imap, mask, minfo):
     if mask.ndim == 1:
         mask = mask[np.newaxis,:]
     
+    preshape = imap.shape[:-1]
+    if not (mask.shape[:-1] == preshape or mask.shape[:-1] == (1,)):
+        raise ValueError(f'Leading dimensions mask should be (1,) or match '
+                         f'those of imap : {preshape}, got {mask.shape[:-1]}')
+
+    # Flatten all leading dimensions and call them npol.
+    imap = imap.reshape(np.prod(imap.shape[:-1]), imap.shape[-1])
+    mask = mask.reshape(np.prod(mask.shape[:-1]), mask.shape[-1])
     npol = imap.shape[0]
-    if not (mask.shape[0] == npol or mask.shape[0] == 1):
-        raise ValueError(
-            f'First dimension mask should be 1 or npol : {npol}, got {mask.shape[0]}')
 
     omap = imap.copy()
 
