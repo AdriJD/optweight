@@ -53,7 +53,13 @@ class TestMatUtils(unittest.TestCase):
         # Test if minus square root is symmetric. Required, see astro-ph/0608007.
         np.testing.assert_array_almost_equal(
             mat_out, np.transpose(mat_out, (1, 0, 2)))
-        
+
+        # Test if return_diag does not nothing in this case
+        # (like it should because input is dense).
+        mat_out2 = mat_utils.matpow(mat, -0.5, return_diag=True)        
+
+        np.testing.assert_allclose(mat_out, mat_out2)
+
     def test_matpow_diag(self):
 
         mat = np.zeros((2, 3))
@@ -64,7 +70,12 @@ class TestMatUtils(unittest.TestCase):
         mat_out = mat_utils.matpow(mat, 0.5)
 
         mat_out_exp = np.eye(2)[:,:,np.newaxis] * np.sqrt(mat)
+        np.testing.assert_array_almost_equal(mat_out, mat_out_exp)
 
+        # Test return_diag.
+        mat_out = mat_utils.matpow(mat, 0.5, return_diag=True)
+
+        mat_out_exp = np.sqrt(mat)
         np.testing.assert_array_almost_equal(mat_out, mat_out_exp)
 
     def test_full_matrix(self):
@@ -126,15 +137,20 @@ class TestMatUtils(unittest.TestCase):
 
         m_wav_sqrt = mat_utils.wavmatpow(m_wav, power)
                 
-        np.testing.assert_array_almost_equal(
+        np.testing.assert_allclose(
             np.einsum('ijk, jlk -> ilk',
                       m_wav_sqrt.maps[0,0], m_wav_sqrt.maps[0,0]),
             m_wav.maps[0,0])
 
-        np.testing.assert_array_almost_equal(
+        np.testing.assert_allclose(
             np.einsum('ijk, jlk -> ilk',
                       m_wav_sqrt.maps[1,1], m_wav_sqrt.maps[1,1]),
             m_wav.maps[1,1])
+
+        # Test if matpow kwarg does nothing in this case.
+        m_wav_sqrt2 = mat_utils.wavmatpow(m_wav, power, return_diag=True)
+        np.testing.assert_allclose(m_wav_sqrt.maps[0,0], m_wav_sqrt2.maps[0,0])
+        np.testing.assert_allclose(m_wav_sqrt.maps[1,1], m_wav_sqrt2.maps[1,1])
 
     def test_get_near_psd(self):
 

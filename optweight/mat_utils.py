@@ -36,7 +36,7 @@ def full_matrix(mat):
 
     return mat
 
-def matpow(mat, power):
+def matpow(mat, power, return_diag=False):
     '''
     Raise matrix to a given power.
 
@@ -47,34 +47,40 @@ def matpow(mat, power):
         in which case only the diagonal elements are needed.
     power : int, float
         Power of matrix.
+    return_diag : bool, optional
+        If set, only return diagonal if input matrix was diagonal.
 
     Returns
     -------
-    mat_out : (npol, npol, N) array
-        Output matrix.
+    mat_out : (npol, npol, N) array or (npol, N) array
+        Output matrix, dense by default, but (npol, N) if return_diag is 
+        set and input was diagonal.
     '''
 
+    ndim_in = mat.ndim
     mat = full_matrix(mat)
+    npol = mat.shape[0]
 
-    if power == 1:
-        return mat
-        
-    # 64 bit to avoid truncation of small values in eigpow.
-    dtype_in = mat.dtype
-    if dtype_in == np.float32:
-        dtype = np.float64
-    elif dtype_in == np.complex64:
-        dtype = np.complex128
+    if power != 1:
+        # 64 bit to avoid truncation of small values in eigpow.
+        dtype_in = mat.dtype
+        if dtype_in == np.float32:
+            dtype = np.float64
+        elif dtype_in == np.complex64:
+            dtype = np.complex128
+        else:
+            dtype = dtype_in
+
+        mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
+        mat = utils.eigpow(mat, power)
+        mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
+
+    if return_diag and ndim_in == 2:
+        return np.ascontiguousarray(mat[np.diag_indices(npol, ndim=2)])
     else:
-        dtype = dtype_in
+        return mat
 
-    mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
-    mat = utils.eigpow(mat, power)
-    mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
-
-    return mat
-
-def wavmatpow(m_wav, power):
+def wavmatpow(m_wav, power, **matpow_kwargs):
     '''
     Raise wavelet block matrix to a given power.
 
@@ -84,6 +90,8 @@ def wavmatpow(m_wav, power):
         Wavelet block matrix.
     power : int, float
         Power of matrix.
+    matpow_kwargs : dict, optional
+        Keyword arguments to matpow.
     
     Returns
     -------
@@ -107,7 +115,7 @@ def wavmatpow(m_wav, power):
         minfo = m_wav.minfos[jidx,jidx]
         map_mat = m_wav.maps[jidx,jidx]
 
-        map_mat = matpow(map_mat, power)
+        map_mat = matpow(map_mat, power, **matpow_kwargs)
         m_wav_power.add((jidx,jidx), map_mat, minfo)
 
     return m_wav_power

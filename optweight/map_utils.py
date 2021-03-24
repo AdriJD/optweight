@@ -130,6 +130,14 @@ def healpix2gauss(imap, lmax, nest=False, area_pow=0):
 
     return omap, minfo
 
+def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0,
+                destroy_input=False, mode='constant'):
+    '''
+    Interpolate one Gauss-Legendre map to another at different resolution.
+    '''
+    pass
+
+
 def _get_gauss_coords(map_info):
     '''
     Return coordinate arrays for map_info.
@@ -565,8 +573,6 @@ def select_mask_edge(mask, minfo):
 
     mask = mask.astype(bool)
     mask_2d = mask.reshape(mask.shape[:-1] + (minfo.nrow, minfo.nphi[0]))
-
-    # Add masks above and below, we don't want wrapping in y direction.
     
     # Detect edge by convolution.
     # First left and right, we wrap around the phi direction.
@@ -609,6 +615,10 @@ def inpaint_nearest(imap, mask, minfo):
     ------
     ValueError
         If mask shape is not supported.
+
+    Notes
+    -----
+    Does not wrap around in phi direction.
     '''
 
     shape_in = imap.shape
@@ -647,9 +657,3 @@ def inpaint_nearest(imap, mask, minfo):
         omap[pidx,~mask[midx]] = ndi(pix_masked[midx][0], pix_masked[midx][1])
 
     return omap.reshape(shape_in)
-
-def gauss2gauss():
-    '''
-    Interpolate one Gauss-Legendre map to another at different resolution.
-    '''
-    pass
