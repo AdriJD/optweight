@@ -425,9 +425,10 @@ class TestMapUtils(unittest.TestCase):
         edges = map_utils.select_mask_edge(mask, minfo)
 
         edges_exp = np.asarray([[0, 1, 1, 0, 1, 1, 0],
-                                [0, 0, 1, 0, 1, 0, 0],
-                                [0, 0, 0, 0, 1, 0, 1],
+                                [1, 1, 1, 0, 1, 0, 1],
+                                [0, 0, 0, 0, 1, 1, 1],
                                 [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+
         edges_exp = edges_exp.reshape(-1)        
         np.testing.assert_array_equal(edges, edges_exp)
 
@@ -451,12 +452,12 @@ class TestMapUtils(unittest.TestCase):
         edges = map_utils.select_mask_edge(mask, minfo)
 
         edges_exp1 = np.asarray([[0, 1, 1, 0, 1, 1, 0],
-                                 [0, 0, 1, 0, 1, 0, 0],
-                                 [0, 0, 0, 0, 1, 0, 1],
+                                 [1, 1, 1, 0, 1, 0, 1],
+                                 [0, 0, 0, 0, 1, 1, 1],
                                  [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
         edges_exp2 = np.asarray([[1, 0, 1, 0, 1, 1, 0],
                                  [0, 1, 1, 0, 1, 0, 1],
-                                 [0, 0, 1, 0, 1, 0, 1],
+                                 [0, 0, 1, 0, 1, 1, 1],
                                  [1, 0, 0, 0, 0, 0, 0]], dtype=bool)
 
         edges_exp = np.zeros((2, minfo.npix), dtype=bool)
@@ -465,3 +466,75 @@ class TestMapUtils(unittest.TestCase):
 
         np.testing.assert_array_equal(edges, edges_exp)
 
+    def test_inpaint_nearest(self):
+        
+        lmax = 6
+        minfo = map_utils.get_gauss_minfo(lmax)
+        mask = np.asarray([[0, 1, 1, 0, 1, 1, 0],
+                           [1, 1, 1, 0, 1, 1, 1],
+                           [0, 0, 0, 0, 1, 1, 1],
+                           [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+        mask = mask.reshape(-1)
+
+        imap = np.asarray([[0, 2, 3, 0, 4, 5, 0],
+                           [10, 1, 3, 0, 1, 1, 1],
+                           [0, 0, 0, 0, 1, 1, 1],
+                           [0, 0, 0, 0, 0, 0, 0]])
+        imap = imap.reshape(-1)
+
+        omap = map_utils.inpaint_nearest(imap, mask, minfo)
+
+        omap_exp = np.asarray([[2, 2, 3, 3, 4, 5, 5],
+                               [10, 1, 3, 3, 1, 1, 1],
+                               [10, 1, 3, 1, 1, 1, 1],
+                               [10, 1, 3, 1, 1, 1, 1]])
+        omap_exp = omap_exp.reshape(-1)
+
+        np.testing.assert_array_equal(omap, omap_exp)
+
+    def test_inpaint_nearest_2d(self):
+        
+        lmax = 6
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        mask1 = np.asarray([[0, 1, 1, 0, 1, 1, 0],
+                            [1, 1, 1, 0, 1, 1, 1],
+                            [0, 0, 0, 0, 1, 1, 1],
+                            [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+        mask2 = np.asarray([[1, 1, 1, 0, 1, 1, 0],
+                            [0, 1, 1, 0, 1, 1, 1],
+                            [0, 0, 1, 0, 1, 1, 1],
+                            [1, 0, 0, 0, 0, 0, 0]], dtype=bool)
+
+        mask = np.zeros((2, minfo.npix), dtype=bool)
+        mask[0] = mask1.ravel()
+        mask[1] = mask2.ravel()
+
+        imap1 = np.asarray([[0, 2, 3, 0, 4, 5, 0],
+                            [10, 1, 3, 0, 1, 1, 1],
+                            [0, 0, 0, 0, 1, 1, 1],
+                            [0, 0, 0, 0, 0, 0, 0]])
+        imap2 = np.asarray([[2, 2, 3, 0, 4, 5, 0],
+                            [0, 1, 3, 0, 1, 1, 1],
+                            [0, 0, 6, 0, 1, 1, 1],
+                            [5, 0, 0, 0, 0, 0, 0]])
+
+        imap = np.zeros((2, minfo.npix))
+        imap[0] = imap1.reshape(-1)
+        imap[1] = imap2.reshape(-1)
+
+        omap = map_utils.inpaint_nearest(imap, mask, minfo)
+
+        omap_exp1 = np.asarray([[2, 2, 3, 3, 4, 5, 5],
+                               [10, 1, 3, 3, 1, 1, 1],
+                               [10, 1, 3, 1, 1, 1, 1],
+                               [10, 1, 3, 1, 1, 1, 1]])
+        omap_exp2 = np.asarray([[2, 2, 3, 3, 4, 5, 5],
+                               [2, 1, 3, 3, 1, 1, 1],
+                               [5, 1, 6, 6, 1, 1, 1],
+                               [5, 5, 6, 6, 1, 1, 1]])
+        omap_exp = np.zeros((2, minfo.npix))
+        omap_exp[0] = omap_exp1.reshape(-1)
+        omap_exp[1] = omap_exp2.reshape(-1)
+
+        np.testing.assert_array_equal(omap, omap_exp)

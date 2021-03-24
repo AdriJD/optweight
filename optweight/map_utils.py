@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.interpolate import NearestNDInterpolator
 
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
@@ -564,38 +565,88 @@ def select_mask_edge(mask, minfo):
 
     mask = mask.astype(bool)
     mask_2d = mask.reshape(mask.shape[:-1] + (minfo.nrow, minfo.nphi[0]))
+
+    # Add masks above and below, we don't want wrapping in y direction.
     
     # Detect edge by convolution.
-    edges = mask_2d ^ np.roll(mask_2d, -1, axis=-1)
-    edges |= mask_2d ^ np.roll(mask_2d, 1, axis=-1)
-    edges &= mask_2d
+    # First left and right, we wrap around the phi direction.
+    edges_lr = mask_2d ^ np.roll(mask_2d, -1, axis=-1)
+    edges_lr |= mask_2d ^ np.roll(mask_2d, 1, axis=-1)
+
+    # Then up and down. Complication: we don't want to wrap around theta.
+    mask_shift_up = np.roll(mask_2d, -1, axis=-2)
+    mask_shift_up[...,-1,:] = mask_2d[...,-1,:]
+
+    mask_shift_down = np.roll(mask_2d, 1, axis=-2)
+    mask_shift_down[...,0,:] = mask_2d[...,0,:]
+
+    edges_ud = mask_2d ^ mask_shift_up
+    edges_ud |= mask_2d ^ mask_shift_down
+
+    edges = (edges_lr | edges_ud) & mask_2d
     
     return edges.reshape(mask.shape[:-1] + (minfo.npix,))    
 
 def inpaint_nearest(imap, mask, minfo):
     '''
+    Inpaint regions under mask using nearest neighbour.
 
+    Arguments
+    ---------    
     imap : (npol, npix)
+        Input map.
     mask : (npol, npix) or (npix) bool array
+        Mask, False for bad areas.
+    minfo : sharp.map_info object
+        Metainfo for map and mask.
 
+    Returns
+    -------
+    omap : (npol, npix)
+        Inpainted map.
+
+    Raises
+    ------
+    ValueError
+        If mask shape is not supported.
     '''
-    
 
-    pix = np.mgrid[:minfo.nrow,:minfo.nphi[0]]
-    pix = pixmap.reshape(2, minfo.nrow * minfo.nphi[0])
+    shape_in = imap.shape
+
+    if imap.ndim == 1:
+        imap = imap[np.newaxis,:]
+
+    if mask.ndim == 1:
+        mask = mask[np.newaxis,:]
+    
+    npol = imap.shape[0]
+    if not (mask.shape[0] == npol or mask.shape[0] == 1):
+        raise ValueError(
+            f'First dimension mask should be 1 or npol : {npol}, got {mask.shape[0]}')
+
+    omap = imap.copy()
 
     edges = select_mask_edge(mask, minfo)
 
-    # fix case where mask is 1d and map is 2d
+    pix = np.mgrid[:minfo.nrow,:minfo.nphi[0]]
+    pix = pix.reshape(2, minfo.nrow * minfo.nphi[0])
     
-    #pix[:,]
-    
-    # get points : (edges == 1, 2)
-    # get values : (imap == edges)
+    pix_edge = [pix[:,edges[midx]] for midx in range(mask.shape[0])]
+    pix_masked = [pix[:,~mask[midx]] for midx in range(mask.shape[0])]
 
-    # ndi(x, y), x = xvals of interion
+    for pidx in range(npol):
 
-    pass
+        if mask.shape[0] == npol:
+            midx = pidx
+        else:
+            midx = 0
+            
+        map_edge = imap[pidx][edges[midx]]
+        ndi = NearestNDInterpolator(pix_edge[midx].T, map_edge)
+        
+        omap[pidx,~mask[midx]] = ndi(pix_masked[midx][0], pix_masked[midx][1])
+
+    return omap.reshape(shape_in)
 
 def gauss2gauss():
     '''
