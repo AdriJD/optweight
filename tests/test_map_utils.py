@@ -538,3 +538,50 @@ class TestMapUtils(unittest.TestCase):
         omap_exp[1] = omap_exp2.reshape(-1)
 
         np.testing.assert_array_equal(omap, omap_exp)
+
+    def test_view_2d(self):
+
+        lmax = 6
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        imap = np.zeros((2, 1, 2, minfo.npix))
+
+        omap = map_utils.view_2d(imap, minfo)
+        self.assertTrue(omap.shape == (2, 1, 2, minfo.nrow, minfo.nphi[0]))
+        self.assertTrue(np.shares_memory(omap, imap))
+
+    def test_view_1d(self):
+
+        lmax = 6
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        imap = np.zeros((2, 1, 2, minfo.nrow, minfo.nphi[0]))
+
+        omap = map_utils.view_1d(imap, minfo)
+        self.assertTrue(omap.shape == (2, 1, 2, minfo.npix))
+        self.assertTrue(np.shares_memory(omap, imap))
+
+        # Transposed input cannot be flattened without copy.
+        imap = np.zeros((minfo.nrow, minfo.nphi[0], 2))
+        imap.reshape(2, minfo.nrow, minfo.nphi[0])
+        self.assertRaises(ValueError, map_utils.view_1d, imap, minfo)
+        
+    def test_gauss2gauss(self):
+        
+        lmax = 20
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        imap = np.ones((2, minfo.nrow, minfo.nphi[0]))
+        imap *= np.cos(minfo.theta[:,np.newaxis])
+        imap = imap.reshape(2, minfo.npix)
+
+        lmax_out = 15
+        minfo_out = map_utils.get_gauss_minfo(lmax_out)
+
+        omap = map_utils.gauss2gauss(imap, minfo, minfo_out, order=3)
+
+        omap_exp = np.ones((2, minfo_out.nrow, minfo_out.nphi[0]))
+        omap_exp *= np.cos(minfo_out.theta[:,np.newaxis])
+        omap_exp = omap_exp.reshape(2, minfo_out.npix)
+
+        np.testing.assert_allclose(omap, omap_exp, rtol=1e-3)

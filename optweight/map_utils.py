@@ -1,10 +1,76 @@
+'''
+A collection of functions for dealing with Gauss-Legendre pixelated maps.
+'''
 import numpy as np
-from scipy.interpolate import NearestNDInterpolator
+from scipy.interpolate import NearestNDInterpolator, RectBivariateSpline
 
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 
 from optweight import wavtrans
+
+def view_2d(imap, minfo):
+    '''
+    Expand last dimension to 2D, return view.
+
+    Parameters
+    ----------
+    imap : (..., npix) array
+        Input map.
+    minfo : sharp.map_info object
+        Metainfo for map.
+
+    Returns
+    -------
+    omap : (..., nx, nx) array
+        View of input map.
+
+    Raises
+    ------
+    ValueError
+        If view cannot be return without making a copy.
+    '''
+
+    omap = imap.view()
+
+    try:
+        omap.shape = (imap.shape[:-1] + (minfo.nrow, minfo.nphi[0]))
+    except AttributeError:
+        raise ValueError("Cannot return (..., ny, nx) view without copy.")
+        
+    return omap
+
+def view_1d(imap, minfo):
+    '''
+    Return 1D view of map with last dimension expanded to 2D.
+
+    Parameters
+    ----------
+    imap : (..., ny, nx) array
+        Input map.
+    minfo : sharp.map_info object
+        Metainfo for map.
+
+    Returns
+    -------
+    omap : (..., npix) array
+        View of input map.
+
+    Raises
+    ------
+    ValueError
+        If view cannot be return without making a copy.
+    '''
+
+    omap = imap.view()
+
+    try:
+        omap.shape = (imap.shape[:-2] + (minfo.npix,))
+    except AttributeError:
+        raise ValueError("Cannot return (..., npix) view without copy.")
+        
+    return omap
+
 #@profile
 def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
                 mode='constant'):
@@ -22,7 +88,8 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
     area_pow : float, optional
         How the quantity in the map scales with area, i.e.
         (area_pix_out / area_pix_in)^area_power. Useful for e.g. variance maps
-        that need a correction for pixel area difference (area_pow = -1).
+        that need a correction for pixel area difference use area_pow = -1 and
+        for inverse variance maps use area_pow = 1.
     destroy_input : bool, optional
         If set, input is filtered inplace.
     mode : {‘reflect’, ‘constant’, ‘nearest’, ‘mirror’, ‘wrap’}, optional
@@ -70,8 +137,9 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
         if area_pow != 0:
             area_gauss = minfo.weight[tidx]
             omap[...,start:end] *= area_gauss ** area_pow
+            # Linear interpolation should be good enough for pixel areas.
             omap[...,start:end] *= area_in.at(
-                pos, order=order, mask_nan=False, prefilter=False, 
+                pos, order=1, mask_nan=False, prefilter=False, 
                 mode='nearest') ** -area_pow
 
     return omap, minfo
@@ -130,13 +198,51 @@ def healpix2gauss(imap, lmax, nest=False, area_pow=0):
 
     return omap, minfo
 
-def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0,
-                destroy_input=False, mode='constant'):
+def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0):
     '''
     Interpolate one Gauss-Legendre map to another at different resolution.
-    '''
-    pass
 
+    imap : (..., npix) array
+        Input map.
+    minfo_in : sharp.map_info object
+        Metainfo input map.
+    minfo_out : sharp.map_info object
+        Metainfo output map.
+    order : int
+        Order of the spline used for interpolation.
+    area_pow : float, optional
+        How the quantity in the map scales with area, i.e.
+        (area_pix_out / area_pix_in)^area_power. Useful for e.g. variance maps
+        that need a correction for pixel area difference use area_pow = -1 and
+        for inverse variance maps use area_pow = 1.
+    
+    Returns
+    -------
+    omap : (..., npix_out) array
+        Interpolated output map.
+    '''
+
+    omap = np.zeros(imap.shape[:-1] + (minfo_out.npix,), dtype=imap.dtype)
+
+    thetas_in, phis_in = _get_gauss_coords(minfo_in)
+    thetas_out, phis_out = _get_gauss_coords(minfo_out)
+
+    imap = view_2d(imap, minfo_in)
+    omap = view_2d(omap, minfo_out)
+
+    if area_pow != 0:
+        imap = imap * (minfo_in.weight ** -area_pow)[:,np.newaxis]
+    
+    # Loop over flattened leading dims.
+    for idx in np.ndindex(imap.shape[:-2]):
+        
+        rbs = RectBivariateSpline(thetas_in, phis_in, imap[idx], kx=order, ky=order)
+        omap[idx] = rbs(thetas_out, phis_out)
+
+    if area_pow != 0:
+        omap *= (minfo_out.weight ** area_pow)[:,np.newaxis]
+    
+    return view_1d(omap, minfo_out)
 
 def _get_gauss_coords(map_info):
     '''
