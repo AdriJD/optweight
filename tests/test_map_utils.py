@@ -584,4 +584,27 @@ class TestMapUtils(unittest.TestCase):
         omap_exp *= np.cos(minfo_out.theta[:,np.newaxis])
         omap_exp = omap_exp.reshape(2, minfo_out.npix)
 
-        np.testing.assert_allclose(omap, omap_exp, rtol=1e-3)
+        np.testing.assert_allclose(omap, omap_exp, rtol=1e-3)        
+
+    def test_gauss2gauss_area_pow(self):
+        
+        area_pow = 1
+        lmax = 6
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        # Scale input by area, should cancel in output.
+        imap = np.ones((2, minfo.nrow, minfo.nphi[0]))
+        imap *= minfo.weight[:,np.newaxis]
+        imap = imap.reshape(2, minfo.npix)
+
+        lmax_out = 12
+        minfo_out = map_utils.get_gauss_minfo(lmax_out)
+
+        omap = map_utils.gauss2gauss(
+            imap, minfo, minfo_out, order=3, area_pow=area_pow)
+
+        omap_exp = np.ones((2, minfo_out.nrow, minfo_out.nphi[0]))
+        omap_exp *= minfo_out.weight[:,np.newaxis]
+        omap_exp = omap_exp.reshape(2, minfo_out.npix)
+
+        np.testing.assert_allclose(omap, omap_exp)        
