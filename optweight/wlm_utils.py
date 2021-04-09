@@ -48,7 +48,7 @@ def get_sd_kernels(lamb, lmax, j0=None, lmin=None, jmax=None, lmax_j=None,
     -----
     Wavelet numbers J run from 0 to jmax if j0 or lmin is not specified.
     The lowest wavelet number corresponds to Phi (i.e. the scaling kernel that
-    that starts as a constant of 1 at ell = 0. This differs from the s2let code.
+    starts as a constant of 1 at ell = 0. This differs from the s2let code.
     Optionally, the last wavelet scale can be "omega", i.e. a kernel that is 1
     for all ell above lambda.
     '''
@@ -161,7 +161,15 @@ def lmax_to_j_scale(lmax, lamb):
     -------
     j_scale : int
         Wavelet number.
+    
+    Raises
+    ------
+    ValueError
+        If lambda <= 1.
     '''
+
+    if lamb <= 1:
+        raise ValueError(f'lambda needs to be > 1, got {lamb}')
 
     return int(np.ceil(np.log10(lmax) / np.log10(lamb)))
 

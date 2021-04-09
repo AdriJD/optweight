@@ -291,34 +291,75 @@ class TestAlmCUtils(unittest.TestCase):
     def test_wlm2alm_dp(self):
         
         alm = np.ones((3, 10), dtype=np.complex128)
+        alm[1] *= 2
+        alm[2] *= 3
         wlm = np.ones((3, 6), dtype=np.complex128) * 1j
+        wlm[1] *= 10
+        wlm[2] *= 100
         wlm *= np.arange(6)
         w_ell = np.arange(4, dtype=np.float64)
         w_ell[-1] = 0
         alm_exp = np.zeros_like(alm)
-        alm_exp[:] = np.asarray(
+        alm_exp[0] = np.asarray(
             [1, 1 + 1j, 1 + 4j, 1, 1 + 3j, 1 + 8j, 1, 1 + 10j, 1, 1],
+            dtype=np.complex128)[np.newaxis,:]
+
+        alm_exp[1] = np.asarray(
+            [2, 2 + 10j, 2 + 40j, 2, 2 + 30j, 2 + 80j, 2, 2 + 100j, 2, 2],
+            dtype=np.complex128)[np.newaxis,:]
+
+        alm_exp[2] = np.asarray(
+            [3, 3 + 100j, 3 + 400j, 3, 3 + 300j, 3 + 800j, 3, 3 + 1000j, 3, 3],
             dtype=np.complex128)[np.newaxis,:]
 
         alm_c_utils.wlm2alm(w_ell, wlm, alm, 2, 3)
         
-        np.testing.assert_array_almost_equal(alm, alm_exp)
+        np.testing.assert_allclose(alm, alm_exp)
 
     def test_wlm2alm_sp(self):
         
+        # alm = np.ones((3, 10), dtype=np.complex64)
+        # wlm = np.ones((3, 6), dtype=np.complex64) * 1j
+        # wlm *= np.arange(6)
+        # w_ell = np.arange(4, dtype=np.float32)
+        # w_ell[-1] = 0
+        # alm_exp = np.zeros_like(alm)
+        # alm_exp[:] = np.asarray(
+        #     [1, 1 + 1j, 1 + 4j, 1, 1 + 3j, 1 + 8j, 1, 1 + 10j, 1, 1],
+        #     dtype=np.complex64)[np.newaxis,:]
+
+        # alm_c_utils.wlm2alm(w_ell, wlm, alm, 2, 3)
+        
+        # np.testing.assert_array_almost_equal(alm, alm_exp)
+
         alm = np.ones((3, 10), dtype=np.complex64)
+        alm[1] *= 2
+        alm[2] *= 3
         wlm = np.ones((3, 6), dtype=np.complex64) * 1j
+        wlm[1] *= 10
+        wlm[2] *= 100
         wlm *= np.arange(6)
         w_ell = np.arange(4, dtype=np.float32)
         w_ell[-1] = 0
         alm_exp = np.zeros_like(alm)
-        alm_exp[:] = np.asarray(
+        alm_exp[0] = np.asarray(
             [1, 1 + 1j, 1 + 4j, 1, 1 + 3j, 1 + 8j, 1, 1 + 10j, 1, 1],
+            dtype=np.complex64)[np.newaxis,:]
+
+        alm_exp[1] = np.asarray(
+            [2, 2 + 10j, 2 + 40j, 2, 2 + 30j, 2 + 80j, 2, 2 + 100j, 2, 2],
+            dtype=np.complex64)[np.newaxis,:]
+
+        alm_exp[2] = np.asarray(
+            [3, 3 + 100j, 3 + 400j, 3, 3 + 300j, 3 + 800j, 3, 3 + 1000j, 3, 3],
             dtype=np.complex64)[np.newaxis,:]
 
         alm_c_utils.wlm2alm(w_ell, wlm, alm, 2, 3)
         
-        np.testing.assert_array_almost_equal(alm, alm_exp)
+        print(alm)
+        print(alm_exp)
+
+        np.testing.assert_allclose(alm, alm_exp)
 
     def test_wlm2alm_err(self):
         

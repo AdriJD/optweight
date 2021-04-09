@@ -209,6 +209,16 @@ class TestMapUtils(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(draw1, draw2)
 
+    def test_rand_map_dtype(self):
+        
+        cov_pix = np.ones((2, 2, 3), dtype=np.float32)
+        draw = map_utils.rand_map_pix(cov_pix)
+        self.assertEqual(draw.dtype, cov_pix.dtype)
+        
+        cov_pix = np.zeros((2, 2, 3), dtype=np.float32)
+        draw = map_utils.rand_map_pix(cov_pix)
+        self.assertEqual(draw.dtype, cov_pix.dtype)
+
     def test_get_isotropic_ivar(self):
 
         lmax = 3

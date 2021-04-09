@@ -7,7 +7,7 @@ from scipy.interpolate import NearestNDInterpolator, RectBivariateSpline
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 
-from optweight import wavtrans
+from optweight import wavtrans, sht, mat_utils
 
 def view_2d(imap, minfo):
     '''
@@ -393,7 +393,7 @@ def rand_map_pix(cov_pix):
     npol, npix = cov_pix.shape[-2:]
 
     # Draw (npol, npix) unit variates for map.
-    uv = np.random.randn(npol * npix).reshape(npol, npix)
+    uv = np.random.randn(npol, npix).astype(cov_pix.dtype)
 
     if cov_pix.ndim == 2:
         cov_pix_sqrt = np.sqrt(cov_pix)
@@ -403,9 +403,7 @@ def rand_map_pix(cov_pix):
         # We use SVD (=eigenvalue decomposition for positive-semi-definite matrices)
         # because some pixels are zero and (i)cov is positive *semi*-definite
         # instead of *definite*, so Cholesky won't work.    
-        cov_pix_t = np.transpose(cov_pix, (2, 0, 1))
-        cov_pix_sqrt_t = utils.eigpow(cov_pix_t, 0.5)
-        cov_pix_sqrt = np.ascontiguousarray(np.transpose(cov_pix_sqrt_t, (1, 2, 0)))    
+        cov_pix_sqrt = mat_utils.matpow(cov_pix, 0.5)
         uv = np.einsum('ijk, jk -> ik', cov_pix_sqrt, uv, optimize=True)
 
     return uv
@@ -768,3 +766,46 @@ def inpaint_nearest(imap, mask, minfo):
         omap[pidx,~mask[midx]] = ndi(pix_masked[midx][0], pix_masked[midx][1])
 
     return omap.reshape(shape_in)
+
+def lmul_pix(imap, lmat, minfo, spin, inplace=False):
+    '''
+    Convert map to spherical harmonic domain, apply matrix and convert back.
+
+    Arguments
+    ---------
+    imap : (npol, npix)
+        Input map.
+    lmat : (npol, npol, nell) or (npol, nell) array
+        Matrix in multipole domain, if diagonal only the diaganal suffices.
+    minfo : sharp.map_info object
+        Metainfo input map.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.    
+    inplace : bool, optional
+        If set, use input map array for output.
+
+    Returns
+    -------
+    omap : (npol, npix)
+        Output map.
+    '''
+
+    if imap.ndim == 1:
+        imap = imap[np.newaxis,:]
+    npol = imap.shape[0]
+
+    lmax = nell.shape[-1] - 1
+    ainfo = sharp.alm_info(lmax)
+    alm = np.zeros((npol, ainfo.nelem))
+
+    sht.map2alm(imap, alm, minfo, ainfo, spin, adjoint=False)
+    alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+
+    if inplace:
+        omap = imap
+    else:
+        omap = np.zeros_like(imap)
+
+    sht.alm2map(alm, omap, ainfo, minfo, spin, adjoint=False)
+    
+    return omap

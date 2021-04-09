@@ -359,6 +359,7 @@ void wlm2alm_sp(const float *restrict w_ell,
 		int ncomp){
 
   int nelem_a = get_nelem(lmax_a);
+  int nelem_w = get_nelem(lmax_w);
 
   #pragma omp parallel
   {
@@ -373,9 +374,10 @@ void wlm2alm_sp(const float *restrict w_ell,
 	for (int idx=0; idx<ncomp; idx++){
 
 	  int astart_i = idx * nelem_a;
+	  int wstart_i = idx * nelem_w;
 
 	  alm[astart_i + mstart_a + ell] += w_ell[ell] 
-	    * wlm[mstart_w + ell];  
+	    * wlm[wstart_i + mstart_w + ell];  
         }
       }
     }

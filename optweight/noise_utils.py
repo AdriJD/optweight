@@ -27,15 +27,94 @@ def noisealm2wavmat():
 
 # estimate var
 
-def noisemap2var():
+def estimate_cov_pix(imap, minfo, mask=None, diag=False, cov_pix_template=None):
+    '''
+    Estimate noise covariance (uncorelated between pixels, possible correlated 
+    between components).
+
+    Arguments
+    ---------
+    imap : (npol, npix)
+        Input noise map.
+    minfo : sharp.map_info object
+        Metainfo input mask.
+    mask : (npol, npix) or (npix) bool array, optional
+        Mask, True for unmasked (good) data.
+    diag : bool, optional
+        If set, only estimate elements diagonal in pol.
+    cov_pix_template : (npol, npol, npix) or (npol, npix), optional
+        Template covariance matrix used to flatten noise before smoothing
+        to avoid biases around sharp transitions.
+
+    Returns
+    -------
+    cov_pix : (npol, npol, npix) or (npol, npix)
+        Estimated covariance matrix, only diagonal if diag is set.
+    '''
     
-    # Determine mask
+    if imap.ndim == 1:
+        imap = imap[np.newaxis,:]
+
+    if mask is None:
+        mask = imap == 0
+    elif mask.ndim == 1:
+        mask = mask[np.newaxis,:]
+
+    if diag:
+        cov_pix = imap ** 2
+    else:
+        cov_pix_est = np.einsum('il, kl -> ikl', imap, imap,
+                                optimize=True)
+
+    if cov_pix_template:
+
+        #if diag:
+            
+
+        # if 2d and cov_pix is 3d...
+        # create cross of icov_pix?? NO just do array multiplation.
+
+        # if 3d and cov_pix is 2d: select diagonal template
+
+        # array mul
+
+        # if both 3d
+
+        #icov_pix_template = mat_utils.matpow(cov_pix_template, -1)
+        #cov_pix_est = np.einsum('ijk, jlk -> ilk', icov_pix_template,
+        #                        cov_pix_est, optimze=True)
+        
+        pass
+
+    # Presmooth with small beam.
+    
+    # DETERMINE SMALL BEAM...
+    b_ell = hp.gauss_beam(np.radians(1), lmax=lmax)
+
+    # DETERMINE BEAM..
+
+    # ONLY KEEP UPPER_TRIANGLE??? YES saves a bunch of SHTs.
+    # LOOP OVER UPPER TRIANGLE.
+    map_utils.lmul_pix(cov_pix_est.reshape(), b_ell, minfo, np.zeros(), inplace=False)
+
+    #for pidx in range(3):
+    #    for pjdx in range(3):
+        
+    #        # Only use spin 0 transforms..
+    #        alm = alm_noise[0].copy()
+    #        sht.map2alm(cov_pix_est[pidx,pjdx], alm, minfo, ainfo, 0, adjoint=False)
+    #        alm_c_utils.lmul(alm, b_ell, ainfo, inplace=True)
+    #        sht.alm2map(alm, cov_pix_est_presm[pidx,pjdx], ainfo, minfo, 0, adjoint=False)
 
     # inpaint
 
     # smooth
 
-    # find closest psd matrix
+    # end loop over upper triangle
+
+    # fill lower triangle.
+
+    # find closest psd matrix <<-- probbaly skip this for now.
     
     pass
 
