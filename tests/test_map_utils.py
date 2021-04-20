@@ -618,3 +618,10 @@ class TestMapUtils(unittest.TestCase):
         omap_exp = omap_exp.reshape(2, minfo_out.npix)
 
         np.testing.assert_allclose(omap, omap_exp)        
+
+    def test_minfo2lmax(self):
+
+        lmax = 5
+        minfo = map_utils.get_gauss_minfo(2 * lmax)
+        
+        self.assertEqual(map_utils.minfo2lmax(minfo), lmax)

@@ -2,32 +2,15 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 
 from pixell import enmap
+import healpy as hp
 
-from optweight import wavtrans, map_utils
+from optweight import wavtrans, map_utils, mat_utils
 
-# Perhaps estimate_wavmat_pix ...
-
-def noisemap2wavmat():
-
-    # map2alm
-    
-    # call noisealm2wavmat()
-    
+def estimate_cov_wav():
     pass
 
-# estimate_wavmat_alm
-
-def noisealm2wavmat():
-    
-    # call alm2wav
-
-    # Call noisemap2var
-
-    pass
-
-# estimate var
-
-def estimate_cov_pix(imap, minfo, mask=None, diag=False, cov_pix_template=None):
+def estimate_cov_pix(imap, minfo, mask=None, diag=False, fwhm=None, 
+                     lmax=None, kernel_ell=None):
     '''
     Estimate noise covariance (uncorelated between pixels, possible correlated 
     between components).
@@ -42,9 +25,13 @@ def estimate_cov_pix(imap, minfo, mask=None, diag=False, cov_pix_template=None):
         Mask, True for unmasked (good) data.
     diag : bool, optional
         If set, only estimate elements diagonal in pol.
-    cov_pix_template : (npol, npol, npix) or (npol, npix), optional
-        Template covariance matrix used to flatten noise before smoothing
-        to avoid biases around sharp transitions.
+    fwhm : float, optional
+        Specify the FWHM (in radians) of the Gaussian used for smoothing,
+        default is 2 * pi / lmax. If mask is given, this parameter is ignored.
+    lmax : int, optional
+        If set, assume that input noise map has this harmonic band limit.
+    kernel_ell : (nell) array, optional
+        Assume that this ell-based filter has been applied to the input noise map.
 
     Returns
     -------
@@ -55,68 +42,78 @@ def estimate_cov_pix(imap, minfo, mask=None, diag=False, cov_pix_template=None):
     if imap.ndim == 1:
         imap = imap[np.newaxis,:]
 
-    if mask is None:
-        mask = imap == 0
-    elif mask.ndim == 1:
-        mask = mask[np.newaxis,:]
-
+    if mask:
+        if mask.ndim == 1:
+            mask = mask[np.newaxis,:]
+        raise NotImplementedError
+        
     if diag:
         cov_pix = imap ** 2
     else:
-        cov_pix_est = np.einsum('il, kl -> ikl', imap, imap,
-                                optimize=True)
+        cov_pix = np.einsum('il, kl -> ikl', imap, imap, optimize=True)
 
-    if cov_pix_template:
-
-        #if diag:
-            
-
-        # if 2d and cov_pix is 3d...
-        # create cross of icov_pix?? NO just do array multiplation.
-
-        # if 3d and cov_pix is 2d: select diagonal template
-
-        # array mul
-
-        # if both 3d
-
-        #icov_pix_template = mat_utils.matpow(cov_pix_template, -1)
-        #cov_pix_est = np.einsum('ijk, jlk -> ilk', icov_pix_template,
-        #                        cov_pix_est, optimze=True)
-        
+    if mask:
+        # Determine w_ell.
         pass
+        b_ell = None
+    else: 
+        b_ell = _band_limit_gauss_beam(map_utils.minfo2lmax(minfo), fwhm=fwhm)
 
-    # Presmooth with small beam.
+    # Loop over upper triangle or diagonal.
+    npol = cov_pix.shape[0]
+    elements = range(npol) if diag else zip(*np.triu_indices(npol))
+
+    for idx in elements:
+        # Only using spin 0 is an approximation, cov elements are not all spin-0.
+        if mask:
+            pass
+        else:
+            map_utils.lmul_pix(cov_pix[idx], b_ell, minfo, 0, inplace=True)
+
+    if not diag:
+        # Fill lower triangle.
+        for idx, jdx in zip(*np.tril_indices(npol, k=-1)):
+            cov_pix[idx,jdx] = cov_pix[jdx,idx]
+                    
+    if lmax or kernel_ell is not None:
+        if kernel_ell is None:
+            # Assume flat kernel in this case.
+            kernel_ell = np.ones(lmax + 1)
+        cov_pix = norm_cov_est(cov_pix, minfo, kernel_ell=kernel_ell, inplace=True)
+
+    cov_pix = mat_utils.get_near_psd(cov_pix)
     
-    # DETERMINE SMALL BEAM...
-    b_ell = hp.gauss_beam(np.radians(1), lmax=lmax)
+    return cov_pix
 
-    # DETERMINE BEAM..
+def norm_cov_est(cov_est, minfo, kernel_ell, inplace=False):
+    '''
+    Scale covariance map such that draws convolved with provided filter
+    have the correct amplitude, see estimate_cov_pix.
 
-    # ONLY KEEP UPPER_TRIANGLE??? YES saves a bunch of SHTs.
-    # LOOP OVER UPPER TRIANGLE.
-    map_utils.lmul_pix(cov_pix_est.reshape(), b_ell, minfo, np.zeros(), inplace=False)
+    Arguments
+    ---------
+    cov_est : (npol, npol, npix) or (npol, npix) array
+        Input map, if diagonal only diagonal suffices.
+    minfo : sharp.map_info object
+        Metainfo input map
+    kernel_ell : (nell) array
+        The support in multipole of the noise map from which input covariance 
+        was derived.
+    inplace : bool, optional
+        If set, normailze input map inplace.
 
-    #for pidx in range(3):
-    #    for pjdx in range(3):
-        
-    #        # Only use spin 0 transforms..
-    #        alm = alm_noise[0].copy()
-    #        sht.map2alm(cov_pix_est[pidx,pjdx], alm, minfo, ainfo, 0, adjoint=False)
-    #        alm_c_utils.lmul(alm, b_ell, ainfo, inplace=True)
-    #        sht.alm2map(alm, cov_pix_est_presm[pidx,pjdx], ainfo, minfo, 0, adjoint=False)
+    Returns
+    -------
+    omap : (npol, npol, npix) or (npol, npix) array
+        Covariance map.
+    '''
 
-    # inpaint
+    ells = np.arange(kernel_ell.size)
 
-    # smooth
+    omap = map_utils.inv_qweight_map(cov_est, minfo, inplace=inplace)    
+    omap /= np.sum(kernel_ell ** 2 * (2 * ells + 1)) / 4 / np.pi 
 
-    # end loop over upper triangle
-
-    # fill lower triangle.
-
-    # find closest psd matrix <<-- probbaly skip this for now.
-    
-    pass
+    return omap
 
 def noisebox2wavmat(noisebox, bins, w_ell, offsets=[-1, 0, 1],
                     rtol_icov=0.1):
@@ -255,3 +252,25 @@ def prepare_noisebox(noisebox, bins, lmax):
     noisebox_full = enmap.enmap(noisebox_full, wcs=wcs, copy=False)
 
     return noisebox_full
+
+def _band_limit_gauss_beam(lmax, fwhm=None):
+    '''
+    Return Gaussian beam window function with band limit roughly at lmax.
+
+    Arguments
+    ---------
+    lmax : int
+        Bandlimit
+    fwhm : float, optional
+        FWHM in radians to overwrite default.
+    
+    Returns
+    -------
+    b_ell : (lmax+1) array
+        Gaussian beam window function
+    '''
+    
+    if fwhm is None:
+        fwhm = 2 * np.pi / lmax 
+
+    return hp.gauss_beam(fwhm, lmax=lmax)

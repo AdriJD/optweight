@@ -131,13 +131,19 @@ def get_near_psd(mat):
     
     Returns
     -------
-    out : (npol, npol, N)
+    out : (npol, npol, N) or (npol, N) array
         Positive semi-definite matrix that is "close" to input matrix.
     '''
 
-    mat = full_matrix(mat)
+    if mat.ndim == 1:
+        mat = mat[np.newaxis,:]
 
-    # 64 bit for more accuracy.
+    if mat.ndim == 2:
+        out = mat.copy()
+        out[out<0] = 0
+        return out
+
+    # Handle 3d case, we use 64 bit for more accuracy.
     dtype_in = mat.dtype
     if dtype_in == np.float32:
         dtype = np.float64

@@ -7,7 +7,7 @@ from scipy.interpolate import NearestNDInterpolator, RectBivariateSpline
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 
-from optweight import wavtrans, sht, mat_utils
+from optweight import wavtrans, sht, mat_utils, type_utils, alm_c_utils
 
 def view_2d(imap, minfo):
     '''
@@ -767,7 +767,7 @@ def inpaint_nearest(imap, mask, minfo):
 
     return omap.reshape(shape_in)
 
-def lmul_pix(imap, lmat, minfo, spin, inplace=False):
+def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
     '''
     Convert map to spherical harmonic domain, apply matrix and convert back.
 
@@ -794,9 +794,9 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False):
         imap = imap[np.newaxis,:]
     npol = imap.shape[0]
 
-    lmax = nell.shape[-1] - 1
+    lmax = lmat.shape[-1] - 1
     ainfo = sharp.alm_info(lmax)
-    alm = np.zeros((npol, ainfo.nelem))
+    alm = np.zeros((npol, ainfo.nelem), dtype=type_utils.to_complex(imap.dtype))
 
     sht.map2alm(imap, alm, minfo, ainfo, spin, adjoint=False)
     alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
@@ -809,3 +809,20 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False):
     sht.alm2map(alm, omap, ainfo, minfo, spin, adjoint=False)
     
     return omap
+
+def minfo2lmax(minfo):
+    '''
+    Determine lmax from map info assuming GL pixelization.
+
+    Arguments
+    ---------
+    minfo : sharp.map_info object
+        Metainfo of map
+
+    Returns
+    -------
+    lmax : int
+        Max multipole supported by pixelization.
+    '''
+    
+    return int(0.5 * (minfo.nphi[0] - 1))

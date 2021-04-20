@@ -58,9 +58,9 @@ class TestNoiseBoxUtils(unittest.TestCase):
         pix_area_enmap = enmap.pixsizemap(shape, wcs)
 
         icov_exp = np.ones_like(pix_area_enmap)
-        # To go to uK ^ -2:
+        # To go to uK^-2:
         icov_exp = 1 * (10800) ** 2 / 4 / np.pi 
-        # To go to uK ^ -2 per pixel:
+        # To go to uK^-2 per pixel:
         # Since the icov power spectrum in this test is flat,
         # the multiplication with the wavelet kernel and the 
         # normalization cancel and thus we only have to scale
@@ -117,5 +117,19 @@ class TestNoiseBoxUtils(unittest.TestCase):
         self.assertRaises(ValueError, noise_utils.prepare_noisebox,
             noisebox, bins, lmax)
 
+    def test_band_limit_gauss_beam(self):
 
+        lmax = 10
+        b_ell = noise_utils._band_limit_gauss_beam(lmax)
 
+        self.assertTrue(b_ell.shape == (lmax + 1,))
+        self.assertAlmostEqual(b_ell[-1] / 0.019927032253073726, 1)
+
+    def test_band_limit_gauss_beam_fwhm(self):
+
+        lmax = 10
+        fwhm = np.radians(10)
+        b_ell = noise_utils._band_limit_gauss_beam(lmax, fwhm=fwhm)
+
+        self.assertTrue(b_ell.shape == (lmax + 1,))
+        self.assertAlmostEqual(b_ell[-1] / 0.73923778, 1)
