@@ -3,7 +3,7 @@ import numpy as np
 
 from pixell import enmap, wcsutils
 
-from optweight import noise_utils
+from optweight import noise_utils, map_utils
 
 class TestNoiseBoxUtils(unittest.TestCase):
 
@@ -133,3 +133,49 @@ class TestNoiseBoxUtils(unittest.TestCase):
 
         self.assertTrue(b_ell.shape == (lmax + 1,))
         self.assertAlmostEqual(b_ell[-1] / 0.73923778, 1)
+
+    def test_norm_cov_est(self):
+
+        lmax = 3
+        ells = np.arange(lmax + 1)
+        npol = 3
+        minfo = map_utils.get_gauss_minfo(2 * lmax) 
+
+        kernel_ell = np.ones(lmax + 1)
+        kernel_ell[0] = 0
+
+        cov_pix_in = np.ones((npol, npol, minfo.npix))
+        cov_pix = noise_utils.norm_cov_est(cov_pix_in, minfo, kernel_ell)
+
+        self.assertFalse(np.shares_memory(cov_pix_in, cov_pix))
+
+        cov_pix_exp = cov_pix_in.reshape((npol, npol, minfo.theta.size, minfo.nphi[0]))
+        cov_pix_exp /= minfo.weight[np.newaxis,np.newaxis,:,np.newaxis]
+        cov_pix_exp /= np.sum(kernel_ell ** 2 * (2 * ells + 1))
+        cov_pix_exp *= 4 * np.pi
+        cov_pix_exp = cov_pix_exp.reshape((npol, npol, minfo.npix))
+
+        np.testing.assert_allclose(cov_pix, cov_pix_exp)        
+
+    def test_norm_cov_est_inplace(self):
+
+        lmax = 3
+        ells = np.arange(lmax + 1)
+        npol = 3
+        minfo = map_utils.get_gauss_minfo(2 * lmax) 
+
+        kernel_ell = np.ones(lmax + 1)
+        kernel_ell[0] = 0
+
+        cov_pix_in = np.ones((npol, npol, minfo.npix))
+
+        cov_pix_exp = cov_pix_in.copy().reshape((npol, npol, minfo.theta.size, minfo.nphi[0]))
+        cov_pix_exp /= minfo.weight[np.newaxis,np.newaxis,:,np.newaxis]
+        cov_pix_exp /= np.sum(kernel_ell ** 2 * (2 * ells + 1))
+        cov_pix_exp *= 4 * np.pi
+        cov_pix_exp = cov_pix_exp.reshape((npol, npol, minfo.npix))
+
+        cov_pix = noise_utils.norm_cov_est(cov_pix_in, minfo, kernel_ell, inplace=True)
+
+        self.assertTrue(np.shares_memory(cov_pix_in, cov_pix))
+        np.testing.assert_allclose(cov_pix_in, cov_pix_exp)        

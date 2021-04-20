@@ -6,8 +6,47 @@ import healpy as hp
 
 from optweight import wavtrans, map_utils, mat_utils
 
-def estimate_cov_wav():
-    pass
+def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False):
+    '''
+    Estimate wavelet-based covariance matrix given noise alms.
+    
+    Parameters
+    ----------
+    alm : (npol, nelem) complex array
+        Noise alms.
+    ainfo : sharp.alm_info object
+        Metainfo input alms.
+    w_ell : (nwav, nell) array
+        Wavelet kernels.    
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
+    diag : bool, optional
+        If set, only estimate elements diagonal in pol.
+
+    Returns
+    -------
+    cov_wav : wavtrans.Wav object
+        (nwav, nwav) diagonal block covariance matrix.
+    '''
+
+    if w_ell.ndim == 1:
+        w_ell = w_ell[np.newaxis,:]
+
+    noise_wav = wavtrans.alm2wav(alm, ainfo, spin, w_ell)
+    cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(alm.dtype))
+
+    for jidx in range(w_ell.shape[0]):
+            
+        # No off-diagonal elements for now.
+        index = (jidx, jidx)
+        minfo = noise_wav.minfos[jidx]
+        
+        cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo,
+                                   kernel_ell=w_ell[jidx], diag=diag)
+        
+        cov_wav.add(index, cov_pix, minfo)
+
+    return cov_wav
 
 def estimate_cov_pix(imap, minfo, mask=None, diag=False, fwhm=None, 
                      lmax=None, kernel_ell=None):
