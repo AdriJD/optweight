@@ -269,13 +269,6 @@ class TestAlmCUtils(unittest.TestCase):
         self.assertRaises(ValueError, alm_c_utils.lmul, alm, lmat, ainfo,
                           alm_out=alm_out_wrong)
 
-        # Wrong dtype.
-        lmat = np.arange(ncomp * ncomp * (lmax + 1), dtype=np.float32)
-        lmat = lmat.reshape(ncomp, ncomp, lmax + 1)
-
-        self.assertRaises(ValueError, alm_c_utils.lmul, alm, lmat, ainfo,
-                          alm_out=alm_out)
-
         # Wrong alm layout.
         ainfo = sharp.alm_info(4, layout='rect')
         alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
@@ -318,20 +311,6 @@ class TestAlmCUtils(unittest.TestCase):
 
     def test_wlm2alm_sp(self):
         
-        # alm = np.ones((3, 10), dtype=np.complex64)
-        # wlm = np.ones((3, 6), dtype=np.complex64) * 1j
-        # wlm *= np.arange(6)
-        # w_ell = np.arange(4, dtype=np.float32)
-        # w_ell[-1] = 0
-        # alm_exp = np.zeros_like(alm)
-        # alm_exp[:] = np.asarray(
-        #     [1, 1 + 1j, 1 + 4j, 1, 1 + 3j, 1 + 8j, 1, 1 + 10j, 1, 1],
-        #     dtype=np.complex64)[np.newaxis,:]
-
-        # alm_c_utils.wlm2alm(w_ell, wlm, alm, 2, 3)
-        
-        # np.testing.assert_array_almost_equal(alm, alm_exp)
-
         alm = np.ones((3, 10), dtype=np.complex64)
         alm[1] *= 2
         alm[2] *= 3
@@ -356,9 +335,6 @@ class TestAlmCUtils(unittest.TestCase):
 
         alm_c_utils.wlm2alm(w_ell, wlm, alm, 2, 3)
         
-        print(alm)
-        print(alm_exp)
-
         np.testing.assert_allclose(alm, alm_exp)
 
     def test_wlm2alm_err(self):
@@ -385,9 +361,3 @@ class TestAlmCUtils(unittest.TestCase):
         wlm_wrong = np.ones((3, 6), dtype=np.complex64) 
         self.assertRaises(ValueError,
             alm_c_utils.wlm2alm, w_ell, wlm_wrong, alm, 2, 3)
-
-        # Wrong dtype 2.
-        w_ell_wrong = np.arange(4, dtype=np.float32)        
-        self.assertRaises(ValueError,
-            alm_c_utils.wlm2alm, w_ell_wrong, wlm, alm, 2, 3)
-

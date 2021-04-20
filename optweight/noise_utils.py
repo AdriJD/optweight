@@ -4,7 +4,7 @@ from scipy.interpolate import CubicSpline
 from pixell import enmap
 import healpy as hp
 
-from optweight import wavtrans, map_utils, mat_utils
+from optweight import wavtrans, map_utils, mat_utils, type_utils
 
 def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False):
     '''
@@ -127,7 +127,7 @@ def estimate_cov_pix(imap, minfo, mask=None, diag=False, fwhm=None,
 def norm_cov_est(cov_est, minfo, kernel_ell, inplace=False):
     '''
     Scale covariance map such that draws convolved with provided filter
-    have the correct amplitude, see estimate_cov_pix.
+    have the correct power, see estimate_cov_pix.
 
     Arguments
     ---------
@@ -139,7 +139,7 @@ def norm_cov_est(cov_est, minfo, kernel_ell, inplace=False):
         The support in multipole of the noise map from which input covariance 
         was derived.
     inplace : bool, optional
-        If set, normailze input map inplace.
+        If set, normalize input map inplace.
 
     Returns
     -------

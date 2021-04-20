@@ -27,7 +27,7 @@ def wlm2alm(w_ell, wlm, alm, lmax_w, lmax_a):
     ------
     ValueError
         If lmax_w > lmax_a.
-	If input shapes are inconsistent.
+	If input shapes or dtypes are inconsistent.
 	If dtype alms is not np.complex64 or np.complex128.
     '''
 
@@ -48,11 +48,13 @@ def wlm2alm(w_ell, wlm, alm, lmax_w, lmax_a):
     if wlm.size != ncomp * nelem_w_exp:
         raise ValueError('Wrong wlm size, expected : {}, got : {}'.format(
                                           ncomp * nelem_w_exp, wlm.size))
+    if wlm.dtype != alm.dtype:
+        raise ValueError(f"dtype wlm : {wlm.dtype} != alm dtype : {alm.dtype}")
 
     if wlm.dtype == np.complex128:
-        _wlm2alm_dp(w_ell, wlm, alm, lmax_w, lmax_a, ncomp)
+        _wlm2alm_dp(w_ell.astype(np.float64), wlm, alm, lmax_w, lmax_a, ncomp)
     elif wlm.dtype == np.complex64:
-        _wlm2alm_sp(w_ell, wlm, alm, lmax_w, lmax_a, ncomp)
+        _wlm2alm_sp(w_ell.astype(np.float32), wlm, alm, lmax_w, lmax_a, ncomp)
     else:
         raise ValueError('dtype wlm : {} not supported'.format(
                                                    wlm.dtype))
@@ -222,10 +224,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
 
     if dtype == np.complex128:
 
-        if lmat.dtype != np.float64:
-            raise ValueError('Expected float64 got lmat.dtype : {}'.format(
-                lmat.dtype))
-
+        lmat = lmat.astype(np.float64)
         if inplace:
             _lmul_inplace_dp(lmat, alm, lmax, ncomp)
         else:
@@ -233,10 +232,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     
     elif dtype == np.complex64:
 
-        if lmat.dtype != np.float32:
-            raise ValueError('Expected float32 got lmat.dtype : {}'.format(
-                lmat.dtype))
-
+        lmat = lmat.astype(np.float32)
         if inplace:
             _lmul_inplace_sp(lmat, alm, lmax, ncomp)
         else:
