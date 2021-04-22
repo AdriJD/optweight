@@ -826,3 +826,23 @@ def minfo2lmax(minfo):
     '''
     
     return int(0.5 * (minfo.nphi[0] - 1))
+
+def copy_minfo(minfo):
+    '''
+    Return copy (new instance) of map info object.
+
+    Arguments
+    ---------
+    minfo : sharp.map_info object
+        Object to be copied.
+
+    Returns
+    -------
+    minfo_copy : sharp.map_info object
+        Copy.
+    '''
+
+    return sharp.map_info(theta=minfo.theta, nphi=minfo.nphi,
+                          phi0=minfo.phi0, offsets=minfo.offsets,
+                          stride=minfo.stride, weight=minfo.weight)
+

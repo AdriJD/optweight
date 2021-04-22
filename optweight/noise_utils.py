@@ -313,3 +313,35 @@ def _band_limit_gauss_beam(lmax, fwhm=None):
         fwhm = 2 * np.pi / lmax 
 
     return hp.gauss_beam(fwhm, lmax=lmax)
+
+def univariate_wav(minfos, preshape, dtype):
+    '''
+    Create wavelet block vector with maps filled with univariate Gaussian
+    noise 
+    
+    Arguments
+    ---------
+    minfos : (ndiag) array-like of sharp.map_info objects
+        Map info objects describing each wavelet map.
+    preshape : tuple
+        First dimensions of the maps, i.e. map.shape = preshape + (npix,)
+    dtype : type
+        Dtype of maps.
+
+    Returns
+    -------
+    wav_uni : wavtrans.Wav object
+        Block vector with univariate noise maps.
+    '''
+
+    indices = np.arange(len(minfos))
+    wav_uni = Wav(1, preshape=preshape, dtype=dtype)
+
+    for widx in indices:
+        
+        minfo = minfos[widx]
+        m_arr = np.random.randn(preshape + (minfo.npix,)).astype(dtype)
+        
+        wav_uni.add(index, m_arr, minfo)
+
+    return wav_uni

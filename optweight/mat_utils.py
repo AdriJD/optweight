@@ -58,27 +58,38 @@ def matpow(mat, power, return_diag=False):
     '''
 
     ndim_in = mat.ndim
-    mat = full_matrix(mat)
-    npol = mat.shape[0]
+
+    if ndim_in == 1:
+        mat = mat[np.newaxis,:]
 
     if power != 1:
-        # 64 bit to avoid truncation of small values in eigpow.
-        dtype_in = mat.dtype
-        if dtype_in == np.float32:
-            dtype = np.float64
-        elif dtype_in == np.complex64:
-            dtype = np.complex128
+
+        if ndim_in == 2:
+            mat = mat.copy()
+            mat **= power 
+
         else:
-            dtype = dtype_in
+            # 64 bit to avoid truncation of small values in eigpow.
+            dtype_in = mat.dtype
+            if dtype_in == np.float32:
+                dtype = np.float64
+            elif dtype_in == np.complex64:
+                dtype = np.complex128
+            else:
+                dtype = dtype_in
 
-        mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
-        mat = utils.eigpow(mat, power)
-        mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
+            mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
+            mat = utils.eigpow(mat, power)
+            mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
 
-    if return_diag and ndim_in == 2:
-        return np.ascontiguousarray(mat[np.diag_indices(npol, ndim=2)])
-    else:
-        return mat
+    if not return_diag:
+        mat = full_matrix(mat)
+
+    if not mat.flags['OWNDATA']:
+        # Copy so that output always points to new array regardless of power.
+        mat = mat.copy()
+
+    return mat
 
 def wavmatpow(m_wav, power, **matpow_kwargs):
     '''
@@ -108,7 +119,7 @@ def wavmatpow(m_wav, power, **matpow_kwargs):
         raise NotImplementedError(
             'Can only raise diagonal block matrix to a power')
 
-    m_wav_power = wavtrans.Wav(2)
+    m_wav_power = wavtrans.Wav(2, dtype=m_wav.dtype)
 
     for jidx in range(m_wav.shape[0]):
 

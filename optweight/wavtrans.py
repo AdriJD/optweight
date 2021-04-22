@@ -2,7 +2,7 @@ import numpy as np
 
 from pixell import sharp
 
-from optweight import alm_utils, sht, type_utils, type_utils
+from optweight import alm_utils, sht, type_utils, type_utils, map_utils
 
 class Wav():
     '''
@@ -120,7 +120,7 @@ class Wav():
                     raise e
 
         return shape
-
+        
     def add(self, index, m_arr, minfo):
         '''
         Add map to the block vector/matrix.
@@ -189,20 +189,12 @@ class Wav():
         or just a copy if block vector.
         '''
 
-        if self.ndim == 1:
-            indices = self.indices[:,0]
-
-        elif self.ndim == 2:
-            indices = [tuple(idx) for idx in self.indices if idx[0] == idx[1]]
-
+        indices = self.get_indices_diag()
         wav_new = Wav(1, preshape=self.preshape, dtype=self.dtype)
 
         for index in indices:
-            # I can't directly copy minfo objects.
-            minfo = self.minfos[index]
-            minfo = sharp.map_info(theta=minfo.theta, nphi=minfo.nphi,
-                                   phi0=minfo.phi0, offsets=minfo.offsets,
-                                   stride=minfo.stride, weight=minfo.weight)
+
+            minfo = map_utils.copy_minfo(self.minfos[index])
             m_arr = self.maps[index].copy()
         
             if self.ndim == 1:
@@ -211,7 +203,44 @@ class Wav():
                 wav_new.add(index[0], m_arr, minfo)
 
         return wav_new
-#@profile
+
+    def get_minfos_diag(self, copy=True):
+        '''
+        Get map_info objects corresponding to diagonal if block matrix.
+
+        Arguments
+        ---------
+        copy : bool, optional
+            If set, return copies of map info objects.
+
+        Returns
+        -------
+        minfos : (ndiag) list of sharp.map_info objects
+        '''
+
+        indices = self.get_indices_diag()
+        minfos = []
+
+        for index in indices:
+            minfo = self.minfos[index]
+            if copy():
+                minfos.append(minfo)
+            else:
+                minfos.append(map_info.copy_minfo(minfo))
+
+        return minfos
+
+    def get_indices_diag(self):
+        '''Return list of indices of diagonal if block matrix.'''
+
+        if self.ndim == 1:
+            indices = self.indices[:,0]
+
+        elif self.ndim == 2:
+            indices = [tuple(idx) for idx in self.indices if idx[0] == idx[1]]
+        
+        return indices
+
 def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     '''
     Convert wavelet maps to SH coefficients.
@@ -266,7 +295,7 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
                                  alm=alm, ainfo=ainfo)  
 
     return alm, ainfo
-#@profile
+
 def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
     '''
     Convert SH coefficients to wavelet maps. Defaults to Gauss-Legendre maps.

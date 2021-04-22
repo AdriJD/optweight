@@ -6,13 +6,23 @@ from pixell import sharp
 from optweight import sht, wavtrans, alm_utils, type_utils, alm_c_utils, mat_utils
 
 class MatVecAlm(ABC):
-    '''Template for all matrix-vector operators working on alm-input.'''
+    '''Template for all matrix-vector operators working on alm input.'''
 
     def __call__(self, alm):
         return self.call(alm)
 
     @abstractmethod
     def call(self, alm):
+        pass
+
+class MatVecWav(ABC):
+    '''Template for all matrix-vector operators working on wavelet input.'''
+
+    def __call__(self, wav):
+        return self.call(wav)
+
+    @abstractmethod
+    def call(self, wav):
         pass
 
 class EllMatVecAlm(MatVecAlm):
@@ -360,3 +370,72 @@ class EllPixEllMatVecAlm(MatVecAlm):
         alm_c_utils.lmul(out, self.x_ell, self.ainfo, inplace=True)
 
         return out
+
+class WavMatVecWav(MatVecWav):
+    '''
+    Apply wavelet block matrix to input wavelet vector.
+
+    Parameters
+    ----------
+    m_wav : wavtrans.Wav object
+        Wavelet block matrix.
+    power : int, float, optional
+        Power of matrix.
+    inplace : bool, optional
+        Perform operation in place.
+
+    Methods
+    -------
+    call(wav) : Apply the operator to a wavelet vector.
+    '''
+
+    def __init__(self, m_wav, power=1, inplace=False):
+
+        if m_wav.ndim != 2:
+            raise ValueError(f'Expected m_wav.ndim = 2, got : {w_wav.ndim}')
+
+        if power != 1:
+            self.m_wav = mat_utils.wavmatpow(m_wav, power, return_diag=True)
+        else:
+            self.m_wav = m_wav
+        self.inplace = inplace
+
+        if not self.inplace:
+            raise NotImplementedError()
+
+    def call(self, wav):
+        '''
+        Apply the operator to a vector of wavelet maps.
+
+        Parameters
+        ----------
+        wav : wavtrans.Wav object
+            Input wavelet maps
+
+        Returns
+        -------
+        out : wavtrans.Wav object
+            Output from matrix-vector operation.
+        '''
+
+        if wav.ndim != 1:
+            raise ValueError(f'Expected wav.ndim = 1, got : {wav.ndim}')
+        
+        for jidx in range(self.m_wav.shape[0]):
+            for jpidx in range(self.m_wav.shape[1]):
+
+                try:
+                    map_mat = self.m_wav.maps[jidx,jpidx]
+                except KeyError:
+                    continue
+
+                map_vec = wav.maps[jpidx]
+
+                if map_mat.ndim == 3:
+                    map_prod = np.einsum(
+                        'ijk, jk -> ik', map_mat, map_vec, out=map_vec, 
+                        optimize=True)
+                elif map_mat.ndim == 2:
+                    map_vec *= map_mat
+
+        return wav
