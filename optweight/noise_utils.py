@@ -335,13 +335,14 @@ def univariate_wav(minfos, preshape, dtype):
     '''
 
     indices = np.arange(len(minfos))
-    wav_uni = Wav(1, preshape=preshape, dtype=dtype)
+    wav_uni = wavtrans.Wav(1, preshape=preshape, dtype=dtype)
 
     for widx in indices:
         
         minfo = minfos[widx]
-        m_arr = np.random.randn(preshape + (minfo.npix,)).astype(dtype)
+        shape = preshape + (minfo.npix,)
+        m_arr = np.random.randn(*shape).astype(dtype)
         
-        wav_uni.add(index, m_arr, minfo)
+        wav_uni.add(widx, m_arr, minfo)
 
     return wav_uni

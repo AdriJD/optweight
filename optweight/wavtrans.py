@@ -223,7 +223,7 @@ class Wav():
 
         for index in indices:
             minfo = self.minfos[index]
-            if copy():
+            if copy:
                 minfos.append(minfo)
             else:
                 minfos.append(map_info.copy_minfo(minfo))
@@ -261,6 +261,13 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
         If set, compute adjoint synthesis: Yt, so map2alm without
         theta integration weights.
 
+    Returns
+    -------
+    alm : (npol, nelem) array
+        Output SH coefficients. 
+    ainfo : sharp.alm_info object
+        Metainfo output alms.
+    
     Raises
     ------
     ValueError
