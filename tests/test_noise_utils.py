@@ -3,7 +3,7 @@ import numpy as np
 
 from pixell import enmap, wcsutils
 
-from optweight import noise_utils, map_utils
+from optweight import noise_utils, map_utils, wlm_utils
 
 class TestNoiseBoxUtils(unittest.TestCase):
 
@@ -179,3 +179,25 @@ class TestNoiseBoxUtils(unittest.TestCase):
 
         self.assertTrue(np.shares_memory(cov_pix_in, cov_pix))
         np.testing.assert_allclose(cov_pix_in, cov_pix_exp)        
+
+    def test_minimum_w_ell_lambda(self):
+
+        lmax = 100
+        lmin = 50
+        lmax_j = 75
+
+        lamb = noise_utils.minimum_w_ell_lambda(lmax, lmin, lmax_j)
+
+        _, _, js = wlm_utils.get_sd_kernels(lamb, lmax, lmin=lmin,
+                                            lmax_j=lmax_j, return_j=True) 
+
+        self.assertTrue(len(js) == 3)
+            
+    def test_minimum_w_ell_lambda_err(self):
+
+        lmax = 100
+        lmin = 50
+        lmax_j = 51
+
+        self.assertRaises(ValueError, noise_utils.minimum_w_ell_lambda, lmax, lmin, lmax_j)        
+    

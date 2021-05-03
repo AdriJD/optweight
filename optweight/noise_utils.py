@@ -1,12 +1,13 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from pixell import enmap
+from pixell import enmap, sharp
 import healpy as hp
 
-from optweight import wavtrans, map_utils, mat_utils, type_utils
+from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht
 
-def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False):
+def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
+                     minfo_features=None):
     '''
     Estimate wavelet-based covariance matrix given noise alms.
     
@@ -22,6 +23,11 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False):
         Spin values for transform, should be compatible with npol.
     diag : bool, optional
         If set, only estimate elements diagonal in pol.
+    features : (npix) array, optional
+        Feature map with edges etc. that need to be smoothed less 
+        when estimating variance.
+    minfo_features : sharp.map_info object, optional
+        Metainfo for features map.
 
     Returns
     -------
@@ -41,14 +47,21 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False):
         index = (jidx, jidx)
         minfo = noise_wav.minfos[jidx]
         
+        if features is not None:
+            features_j = map_utils.gauss2gauss(features, minfo_features,
+                                              minfo, order=1)
+        else:
+            features_j = None
+
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo,
-                                   kernel_ell=w_ell[jidx], diag=diag)
+                                   kernel_ell=w_ell[jidx], diag=diag,
+                                   features=features_j)
         
         cov_wav.add(index, cov_pix, minfo)
 
     return cov_wav
 
-def estimate_cov_pix(imap, minfo, mask=None, diag=False, fwhm=None, 
+def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None, 
                      lmax=None, kernel_ell=None):
     '''
     Estimate noise covariance (uncorelated between pixels, possible correlated 
@@ -59,14 +72,14 @@ def estimate_cov_pix(imap, minfo, mask=None, diag=False, fwhm=None,
     imap : (npol, npix)
         Input noise map.
     minfo : sharp.map_info object
-        Metainfo input mask.
-    mask : (npol, npix) or (npix) bool array, optional
-        Mask, True for unmasked (good) data.
+        Metainfo input map.
+    features : (npix) array, optional
+        Feature map with edges etc. that need to be smoothed less.
     diag : bool, optional
         If set, only estimate elements diagonal in pol.
     fwhm : float, optional
         Specify the FWHM (in radians) of the Gaussian used for smoothing,
-        default is 2 * pi / lmax. If mask is given, this parameter is ignored.
+        default is 2 * pi / lmax. If features is given, this parameter is ignored.
     lmax : int, optional
         If set, assume that input noise map has this harmonic band limit.
     kernel_ell : (nell) array, optional
@@ -81,22 +94,24 @@ def estimate_cov_pix(imap, minfo, mask=None, diag=False, fwhm=None,
     if imap.ndim == 1:
         imap = imap[np.newaxis,:]
 
-    if mask:
-        if mask.ndim == 1:
-            mask = mask[np.newaxis,:]
-        raise NotImplementedError
+    if features is not None:
+        if features.ndim == 1:
+            features = features[np.newaxis,:]
         
     if diag:
         cov_pix = imap ** 2
     else:
         cov_pix = np.einsum('il, kl -> ikl', imap, imap, optimize=True)
 
-    if mask:
-        # Determine w_ell.
-        pass
+    if features is not None:
+        lmax_w = map_utils.minfo2lmax(minfo)        
+        _, w_ell = minimum_w_ell_lambda(lmax_w, lmax_w // 2, (4 * lmax_w) // 5,
+                                        return_w_ell=True)
         b_ell = None
     else: 
         b_ell = _band_limit_gauss_beam(map_utils.minfo2lmax(minfo), fwhm=fwhm)
+        lmax_w = None
+        w_ell = None
 
     # Loop over upper triangle or diagonal.
     npol = cov_pix.shape[0]
@@ -104,8 +119,8 @@ def estimate_cov_pix(imap, minfo, mask=None, diag=False, fwhm=None,
 
     for idx in elements:
         # Only using spin 0 is an approximation, cov elements are not all spin-0.
-        if mask:
-            pass
+        if features is not None:
+            smooth_locally(cov_pix[idx], minfo, w_ell, features, 0, inplace=True)
         else:
             map_utils.lmul_pix(cov_pix[idx], b_ell, minfo, 0, inplace=True)
 
@@ -346,3 +361,120 @@ def univariate_wav(minfos, preshape, dtype):
         wav_uni.add(widx, m_arr, minfo)
 
     return wav_uni
+
+def minimum_w_ell_lambda(lmax, lmin, lmax_j, delta_lamb=0.04, return_w_ell=False):
+    '''
+    Find the minimum lambda parameter (see wlm_utils) that will result in 
+    only a single wavelet between lmin and lmax_j.
+
+    Parameters
+    ----------
+    lmax : int
+        Maximum mulltipole for wavelet kernels.
+    lmin : int, optional
+        Multipole after which the first kernel (phi) ends.
+    lmax_j : int, optional
+        Multipole after which the second to last multipole ends.
+    delta_lamb : float, optional
+        Search for lambda using these intervals.
+    return_w_ell : bool, optional
+        If set, return wavelet kernels corresponding to lambda.
+
+    Returns
+    -------
+    lamb : float
+        Minumum lambda value.
+    w_ell : (nwav, nell) array
+        Wavelet kernels, if return_w_ell is set.
+
+    Raises
+    ------
+    ValueError
+        If no value can be found.
+    '''
+
+    lamb = 1.01
+    w_ell, _, js = wlm_utils.get_sd_kernels(lamb, lmax, lmin=lmin,
+                                        lmax_j=lmax_j, return_j=True) 
+    while len(js) > 3 and lamb < 10.:
+        lamb += delta_lamb
+        w_ell, _, js = wlm_utils.get_sd_kernels(lamb, lmax, lmin=lmin,
+                                            lmax_j=lmax_j, return_j=True) 
+
+    if len(js) != 3:
+        raise ValueError(f'Did not found suitable lambda, terminated at '
+                         f'lambda = {lamb} giving len(js) = {len(js)}')
+
+    if return_w_ell:
+        return lamb, w_ell
+    else:
+        return lamb
+
+def smooth_locally(imap, minfo, w_ell, features, spin, inplace=False):
+    '''
+    Perform smoothing that varies in strength accross the map.
+
+    Arguments
+    ---------
+    imap : (1, npix)
+        Input map.
+    minfo : sharp.map_info object
+        Metainfo input map.
+    features : (1, npix) array
+        Feature map with edges etc. that need to be smoothed less.
+    w_ell : (nwav, nell) array
+        Wavelet kernels.    
+    spin : int
+        Spin value for SH transforms.
+    inplace : bool
+        Perform computation inplace.
+
+    returns
+    -------
+    omap : npol, npix)
+        Smooth output map.
+
+    Raises
+    ------
+    ValueError
+        If nwav != 3.
+        If input maps are not 1d.
+    '''
+
+    nwav = w_ell.shape[0]
+    if nwav != 3:
+        raise ValueError(f'Expected nwav = 3, got {nwav}')
+
+    if imap.ndim == 1:
+        imap = imap[np.newaxis,:]
+
+    if features.ndim == 1:
+        features = features[np.newaxis,:]
+    
+    if imap.ndim != 2 or imap.shape[0] != 1:
+        raise ValueError(f'Input map shape : {imap.shape} not supported')
+
+    if features.ndim != 2 or features.shape[0] != 1:
+        raise ValueError(f'Features map shape : {features.shape} not supported')
+
+    if not inplace:
+        omap = np.empty(imap.shape, imap.dtype)
+    else:
+        omap = imap
+
+    lmax = map_utils.minfo2lmax(minfo)        
+    ainfo = sharp.alm_info(lmax)
+    alm = np.empty((1, ainfo.nelem), dtype=type_utils.to_complex(imap.dtype))
+
+    sht.map2alm(imap, alm, minfo, ainfo, spin)
+    wav = wavtrans.alm2wav(alm, ainfo, spin, w_ell)
+    wav.maps[1] *= map_utils.gauss2gauss(features, minfo, wav.minfos[1], order=1)
+    wav.maps[2] *= 0
+    wavtrans.wav2alm(wav, alm, ainfo, spin, w_ell)
+    sht.alm2map(alm, omap, ainfo, minfo, spin)
+
+    return omap
+
+
+
+    
