@@ -1,6 +1,9 @@
 import unittest
 import numpy as np
 from scipy.special import roots_legendre
+import os
+import tempfile
+import pathlib
 
 from pixell import sharp, enmap, curvedsky
 
@@ -625,3 +628,61 @@ class TestMapUtils(unittest.TestCase):
         minfo = map_utils.get_gauss_minfo(2 * lmax)
         
         self.assertEqual(map_utils.minfo2lmax(minfo), lmax)
+
+    def test_minfo_is_equiv(self):
+
+        lmax_1 = 5
+        minfo_1 = map_utils.get_gauss_minfo(2 * lmax_1)
+
+        minfo_2 = map_utils.get_gauss_minfo(2 * lmax_1)
+
+        lmax_3 = 4
+        minfo_3 = map_utils.get_gauss_minfo(2 * lmax_3)
+        
+        self.assertTrue(map_utils.minfo_is_equiv(minfo_1, minfo_1))
+        self.assertTrue(map_utils.minfo_is_equiv(minfo_1, minfo_2))
+        self.assertFalse(map_utils.minfo_is_equiv(minfo_1, minfo_3))
+
+class TestMapUtilsIO(unittest.TestCase):
+
+    def setUp(self):
+
+        # Get location of this script.
+        self.path = pathlib.Path(__file__).parent.absolute()
+
+    def test_read_write_minfo(self):
+
+        lmax = 5
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        with tempfile.TemporaryDirectory(dir=self.path) as tmpdirname:
+
+            filename = os.path.join(tmpdirname, 'minfo')
+
+            map_utils.write_minfo(filename, minfo)
+
+            self.assertTrue(os.path.isfile(filename + '.hdf5'))
+
+            minfo_read = map_utils.read_minfo(filename + '.hdf5')
+
+            self.assertTrue(map_utils.minfo_is_equiv(minfo, minfo_read))
+
+    def test_read_write_map(self):
+
+        lmax = 5
+        npol = 2
+        minfo = map_utils.get_gauss_minfo(lmax)
+        imap = np.ones((npol, minfo.npix), dtype=np.float32)
+
+        with tempfile.TemporaryDirectory(dir=self.path) as tmpdirname:
+
+            filename = os.path.join(tmpdirname, 'testmap')
+
+            map_utils.write_map(filename, imap, minfo)
+
+            self.assertTrue(os.path.isfile(filename + '.hdf5'))
+
+            omap, minfo_read = map_utils.read_map(filename + '.hdf5')
+
+            self.assertTrue(map_utils.minfo_is_equiv(minfo, minfo_read))
+            np.testing.assert_allclose(omap, imap)

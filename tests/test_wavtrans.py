@@ -1,9 +1,12 @@
 import unittest
 import numpy as np
+import os
+import tempfile
+import pathlib
 
 from pixell import sharp
 
-from optweight import wavtrans, sht
+from optweight import wavtrans, sht, map_utils
 
 class TestWavTrans(unittest.TestCase):
 
@@ -593,3 +596,170 @@ class TestWavTrans(unittest.TestCase):
         self.assertRaises(ValueError, wavtrans.preshape2npol, (2, 1))
 
         self.assertRaises(ValueError, wavtrans.preshape2npol, (2, 2, 2))
+
+class TestWavTransIO(unittest.TestCase):
+
+    def setUp(self):
+
+        # Get location of this script.
+        self.path = pathlib.Path(__file__).parent.absolute()
+
+    def test_read_write_wav_vec(self):
+                
+        wavvec = wavtrans.Wav(1)
+
+        # Add first map.
+        minfo_1 = sharp.map_info_gauss_legendre(3)
+        m_arr_1 = np.ones((3, minfo_1.npix))
+        index_1 = 10
+
+        wavvec.add(index_1, m_arr_1, minfo_1)
+
+        # Add second map.
+        minfo_2 = sharp.map_info_gauss_legendre(4)
+        m_arr_2 = np.ones((3, minfo_2.npix))
+        index_2 = 5
+
+        wavvec.add(index_2, m_arr_2, minfo_2)
+
+        with tempfile.TemporaryDirectory(dir=self.path) as tmpdirname:
+
+            filename = os.path.join(tmpdirname, 'testwav')
+
+            wavtrans.write_wav(filename, wavvec)
+        
+            wav_read = wavtrans.read_wav(filename + '.hdf5')
+
+        self.assertEqual(wav_read.ndim, wavvec.ndim)
+        self.assertEqual(wav_read.preshape, wavvec.preshape)
+        self.assertEqual(wav_read.dtype, wavvec.dtype)
+        np.testing.assert_equal(wav_read.indices, wavvec.indices)
+        np.testing.assert_allclose(wav_read.maps[5], wavvec.maps[5])
+        np.testing.assert_allclose(wav_read.maps[10], wavvec.maps[10])
+        self.assertTrue(map_utils.minfo_is_equiv(
+            wav_read.minfos[5], wavvec.minfos[5]))
+        self.assertTrue(map_utils.minfo_is_equiv(
+            wav_read.minfos[10], wavvec.minfos[10]))
+        
+    def test_read_write_wav_vec_w_ell(self):
+                
+        wavvec = wavtrans.Wav(1)
+
+        # Add first map.
+        minfo_1 = sharp.map_info_gauss_legendre(3)
+        m_arr_1 = np.ones((3, minfo_1.npix))
+        index_1 = 10
+
+        wavvec.add(index_1, m_arr_1, minfo_1)
+
+        # Add second map.
+        minfo_2 = sharp.map_info_gauss_legendre(4)
+        m_arr_2 = np.ones((3, minfo_2.npix))
+        index_2 = 5
+
+        wavvec.add(index_2, m_arr_2, minfo_2)
+
+        # Shape should not matter.
+        w_ell = np.ones((2, 10))
+        extra = {'w_ell': w_ell}
+
+        with tempfile.TemporaryDirectory(dir=self.path) as tmpdirname:
+
+            filename = os.path.join(tmpdirname, 'testwav')
+
+            wavtrans.write_wav(filename, wavvec)
+        
+            wav_read = wavtrans.read_wav(filename + '.hdf5')
+
+            self.assertRaises(KeyError, wavtrans.read_wav, 
+                              filename + '.hdf5', **dict(extra=extra))
+
+            wavtrans.write_wav(filename, wavvec, extra=extra)
+
+            # Should not give error.
+            wav_read = wavtrans.read_wav(filename + '.hdf5')
+
+            wav_read, extra_dict = wavtrans.read_wav(
+                filename + '.hdf5', extra=extra)
+
+        np.testing.assert_allclose(extra_dict['w_ell'], w_ell)
+        
+    def test_read_write_wav_mat(self):
+                
+        wavmat = wavtrans.Wav(2)
+
+        # Add first map.
+        minfo_1 = sharp.map_info_gauss_legendre(3)
+        m_arr_1 = np.ones((1, minfo_1.npix))
+        index_1 = (10, 10)
+
+        wavmat.add(index_1, m_arr_1, minfo_1)
+
+        # Add second map.
+        minfo_2 = sharp.map_info_gauss_legendre(4)
+        m_arr_2 = np.ones((1, minfo_2.npix))
+        index_2 = (5, 5)
+
+        wavmat.add(index_2, m_arr_2, minfo_2)
+
+        with tempfile.TemporaryDirectory(dir=self.path) as tmpdirname:
+
+            filename = os.path.join(tmpdirname, 'testwav')
+
+            wavtrans.write_wav(filename, wavmat)
+        
+            wav_read = wavtrans.read_wav(filename + '.hdf5')
+
+        self.assertEqual(wav_read.ndim, wavmat.ndim)
+        self.assertEqual(wav_read.preshape, wavmat.preshape)
+        self.assertEqual(wav_read.dtype, wavmat.dtype)
+        np.testing.assert_equal(wav_read.indices, wavmat.indices)
+        np.testing.assert_allclose(wav_read.maps[5,5], wavmat.maps[5,5])
+        np.testing.assert_allclose(wav_read.maps[10,10], wavmat.maps[10,10])
+        self.assertTrue(map_utils.minfo_is_equiv(
+            wav_read.minfos[5,5], wavmat.minfos[5,5]))
+        self.assertTrue(map_utils.minfo_is_equiv(
+            wav_read.minfos[10,10], wavmat.minfos[10,10]))        
+
+    def test_read_write_wav_mat_w_ell(self):
+                
+        wavmat = wavtrans.Wav(2)
+
+        # Add first map.
+        minfo_1 = sharp.map_info_gauss_legendre(3)
+        m_arr_1 = np.ones((1, minfo_1.npix))
+        index_1 = (10, 10)
+
+        wavmat.add(index_1, m_arr_1, minfo_1)
+
+        # Add second map.
+        minfo_2 = sharp.map_info_gauss_legendre(4)
+        m_arr_2 = np.ones((1, minfo_2.npix))
+        index_2 = (5, 5)
+
+        wavmat.add(index_2, m_arr_2, minfo_2)
+
+        # Shape should not matter.
+        w_ell = np.ones((2, 10))
+        extra = {'w_ell': w_ell}
+
+        with tempfile.TemporaryDirectory(dir=self.path) as tmpdirname:
+
+            filename = os.path.join(tmpdirname, 'testwav')
+
+            wavtrans.write_wav(filename, wavmat)
+        
+            wav_read = wavtrans.read_wav(filename + '.hdf5')
+
+            self.assertRaises(KeyError, wavtrans.read_wav, 
+                              filename + '.hdf5', **dict(extra=extra))
+
+            wavtrans.write_wav(filename, wavmat, extra=extra)
+
+            # Should not give error.
+            wav_read = wavtrans.read_wav(filename + '.hdf5')
+
+            wav_read, extra_dict = wavtrans.read_wav(
+                filename + '.hdf5', extra=extra)
+
+        np.testing.assert_allclose(extra_dict['w_ell'], w_ell)

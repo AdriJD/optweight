@@ -474,7 +474,3 @@ def smooth_locally(imap, minfo, w_ell, features, spin, inplace=False):
     sht.alm2map(alm, omap, ainfo, minfo, spin)
 
     return omap
-
-
-
-    

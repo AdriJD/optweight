@@ -1,6 +1,8 @@
 import numpy as np
+import os
 
 from pixell import sharp
+import h5py
 
 from optweight import alm_utils, sht, type_utils, type_utils, map_utils
 
@@ -384,3 +386,106 @@ def preshape2npol(preshape):
         npol = preshape[0]
 
     return npol
+
+def write_wav(fname, wav, extra=None):
+    '''
+    Write wavelet object to an hdf file.
+
+    Arguments
+    ---------
+    fname : str
+        Path to file. Will append .hdf5 if no file extension is found.
+    wav : wavtrans.Wav object
+        Wavelet object to be stored.
+    extra : dict, optional
+        Extra key-object pairs to store as datasets in the hdf file.
+    '''
+
+    if not os.path.splitext(fname)[1]:
+        fname = fname + '.hdf5'
+
+    with h5py.File(fname, 'w') as hfile:
+        
+        hfile.attrs['ndim'] = wav.ndim
+        hfile.attrs['indices'] = wav.indices
+        hfile.attrs['preshape'] = wav.preshape
+        hfile.attrs['dtype'] = np.dtype(wav.dtype).char
+
+        if extra is not None:
+            for key in extra.keys():
+                hfile.create_dataset(key, data=extra[key])                
+
+        for idx in wav.indices:
+            
+            idx_arr = np.asarray(idx)
+            if idx_arr.size == 1:
+                dname = f'm_{idx_arr[0]}'
+                idx2dict = idx_arr[0]
+            else:
+                dname = f'm_{idx_arr[0]}_{idx_arr[1]}'
+                idx2dict = tuple(idx_arr)
+
+            mgroup = hfile.create_group(dname)
+            map_utils.append_map_to_hdf(mgroup, wav.maps[idx2dict],
+                                        wav.minfos[idx2dict])
+
+def read_wav(fname, extra=None):
+    '''
+    Read wavelet object from an hdf file.
+
+    Arguments
+    ---------
+    fname : str
+        Path to file.
+    extra : list of strings
+        Look for these extra datasets in hdf file.
+
+    Returns
+    -------
+    wav : : wavtrans.Wav object
+        Wavelet object.
+    extra_dict : dict
+        Dictionary with extra objects extracted. Only
+        if extra is given.
+
+    Raises
+    ------
+    KeyError
+        If extra keys requested but no extra datasets found.
+    '''
+
+    with h5py.File(fname, 'r') as hfile:
+
+        if extra is not None:
+            extra_dict = {}
+            for key in extra:
+                
+                extra_dict[key] = hfile[key][()]
+        
+        ndim = hfile.attrs['ndim']
+        indices = hfile.attrs['indices']
+        preshape = tuple(hfile.attrs['preshape'])
+        dtype = np.dtype(hfile.attrs['dtype'])
+
+        wav = Wav(ndim, preshape=preshape, dtype=dtype)
+        
+        for idx in indices:
+            
+            idx_arr = np.asarray(idx)
+            if idx_arr.size == 1:
+                dname = f'm_{idx_arr[0]}'
+                idx2dict = idx_arr[0]
+            else:
+                dname = f'm_{idx_arr[0]}_{idx_arr[1]}'
+                idx2dict = tuple(idx_arr)
+
+            mgroup = hfile[dname]
+            m_arr, minfo = map_utils.map_from_hdf(mgroup)
+
+            wav.add(idx2dict, m_arr, minfo)
+        
+    if extra is not None:
+        return wav, extra_dict
+    else:
+        return wav
+        

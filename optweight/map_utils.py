@@ -3,9 +3,11 @@ A collection of functions for dealing with Gauss-Legendre pixelated maps.
 '''
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator, RectBivariateSpline
+import os
 
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
+import h5py
 
 from optweight import wavtrans, sht, mat_utils, type_utils, alm_c_utils
 
@@ -846,3 +848,202 @@ def copy_minfo(minfo):
                           phi0=minfo.phi0, offsets=minfo.offsets,
                           stride=minfo.stride, weight=minfo.weight)
 
+def minfo_is_equiv(minfo_1, minfo_2):
+    '''
+    Test whether two map info objects are equivalent.
+
+    Arguments
+    ---------
+    minfo_1 : sharp.map_info object
+        First map info object.
+    minfo_2 : sharp.map_info object
+        Second map info object.
+
+    Returns
+    -------
+    is_equiv : bool
+        True if equivalent, False if not.
+    '''
+
+    is_equiv = True
+    attributes = ['theta', 'nphi', 'phi0', 'offsets', 'stride', 'weight']
+
+    for attr in attributes:
+        try:
+            np.testing.assert_allclose(getattr(minfo_1, attr), getattr(minfo_2, attr))
+        except AssertionError:
+            is_equiv = False
+            break
+
+    return is_equiv
+
+def write_minfo(fname, minfo):
+    '''
+    Write map info object to an hdf file.
+
+    Arguments
+    ---------
+    fname : str
+        Path to file. Will append .hdf5 if no file extension is found.
+    minfo : sharp.map_info object
+        Map info object to be stored.    
+    '''
+
+    if not os.path.splitext(fname)[1]:
+        fname = fname + '.hdf5'
+
+    with h5py.File(fname, 'w') as hfile:
+        
+        append_minfo_to_hdf(hfile, minfo)
+    
+def append_minfo_to_hdf(hfile, minfo):
+    '''
+    Add map info object datasets to provided hdf file.
+
+    Arguments
+    ---------
+    hfile : HDF5 file or group
+        Writeable hdf file or group.
+    minfo : sharp.map_info object
+        Map info object to be stored.        
+    '''
+    
+    hfile.create_dataset('theta', data=minfo.theta)
+    hfile.create_dataset('nphi', data=minfo.nphi)
+    hfile.create_dataset('phi0', data=minfo.phi0)
+    hfile.create_dataset('offsets', data=minfo.offsets)
+    hfile.create_dataset('stride', data=minfo.stride)
+    hfile.create_dataset('weight', data=minfo.weight)
+
+def read_minfo(fname):
+    '''
+    Read map info object from hdf file.
+
+    Arguments
+    ---------
+    fname : str
+        Path to file.
+
+    Returns
+    -------
+    minfo : sharp.map_info object
+        Map info object.
+    '''
+
+    with h5py.File(fname, 'r') as hfile:
+        
+        minfo = minfo_from_hdf(hfile)
+
+    return minfo
+
+def minfo_from_hdf(hfile):
+    '''
+    Extract map info object from hdf datasets.
+
+    Arguments
+    ---------
+    hfile : HDF5 file or group
+        Hdf file or group.
+    
+    Returns
+    -------
+    minfo : sharp.map_info object
+        Map info object.
+    '''
+    
+    theta = hfile['theta'][()]
+    nphi = hfile['nphi'][()]
+    phi0 = hfile['phi0'][()]
+    offsets = hfile['offsets'][()]
+    stride = hfile['stride'][()]
+    weight = hfile['weight'][()]
+
+    return sharp.map_info(theta=theta, nphi=nphi,
+                          phi0=phi0, offsets=offsets,
+                          stride=stride, weight=weight)
+
+def write_map(fname, imap, minfo):
+    '''
+    Write map and accompanying map info object to an hdf file.
+
+    Arguments
+    ---------
+    fname : str
+        Path to file.  Will append .hdf5 if no file extension is found.
+    imap : (..., npix) array
+        Map to be stored.
+    minfo : sharp.map_info object
+        Map info object to be stored.    
+    '''
+
+    if not os.path.splitext(fname)[1]:
+        fname = fname + '.hdf5'
+
+    with h5py.File(fname, 'w') as hfile:
+        
+        append_map_to_hdf(hfile, imap, minfo)
+
+def append_map_to_hdf(hfile, imap, minfo):
+    '''
+    Add map dataset to provided hdf file.
+
+    Arguments
+    ---------
+    hfile : HDF5 file or group
+        Writeable hdf file or group.
+    imap : (..., npix) array
+        Map to be stored.        
+    minfo : sharp.map_info object
+        Map info object to be stored.
+    '''
+    
+    hfile.create_dataset('map', data=imap)
+
+    minfo_group = hfile.create_group('minfo')
+    append_minfo_to_hdf(minfo_group, minfo)        
+
+
+def read_map(fname):
+    '''
+    Read map and map info object from hdf file.
+
+    Arguments
+    ---------
+    fname : str
+        Path to file.
+
+    Returns
+    -------
+    omap : (..., npix) array
+        Map array.        
+    minfo : sharp.map_info object
+        Map info object.
+    '''
+
+    with h5py.File(fname, 'r') as hfile:
+        
+        omap, minfo = map_from_hdf(hfile)
+
+    return omap, minfo
+
+def map_from_hdf(hfile):
+    '''
+    Extract map array from hdf datasets.
+
+    Arguments
+    ---------
+    hfile : HDF5 file or group
+        Hdf file or group.
+    
+    Returns
+    -------
+    omap : (..., npix) array
+        Map array.        
+    minfo : sharp.map_info object
+        Map info object.
+    '''
+    
+    omap = hfile['map'][()]
+    minfo = minfo_from_hdf(hfile['minfo'])
+
+    return omap, minfo
