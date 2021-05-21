@@ -428,7 +428,7 @@ class CGWienerScaled(CGWiener):
 
     where:
 
-        w_s : draw from univariate distribution,
+        w_s : draw from unit-variance gaussian distribution,
         w_n : draw from inverse noise covariance.
 
     Parameters
