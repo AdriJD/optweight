@@ -12,7 +12,7 @@ Filter 2D data (e.g. CMB or weak lensing data) on the curved sky in a statically
 - a C compiler (tested with gcc and icc)
 - [pytest](https://pypi.org/project/pytest/)
 - [pixell](https://pypi.org/project/pixell/)
-
+- [enlib](https://github.com/amaurea/enlib/)
 
 ### Installation
 

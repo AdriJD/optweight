@@ -1,6 +1,6 @@
 import numpy as np
 
-from pixell import utils
+from enlib import array_ops
 
 from optweight import wavtrans
 
@@ -198,7 +198,8 @@ def matpow(mat, power, return_diag=False):
                 dtype = dtype_in
 
             mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
-            mat = utils.eigpow(mat, power)
+            #mat = utils.eigpow(mat, power)
+            mat = array_ops.eigpow(mat, power)
             mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
 
     if not return_diag:
