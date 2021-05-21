@@ -4,6 +4,115 @@ from pixell import utils
 
 from optweight import wavtrans
 
+def symm2triu(mat, axes):
+    '''
+    Return copy with only the upper-triangular elements of matrix.
+
+    Parameters
+    ----------
+    mat : (..., N, N, ...) array
+        Matrix that is symmetric in two of it's axes.
+    axes : array-like
+        Matrix is symmetric in these adjacent axes, e.g. [0, 1].
+
+    Returns
+    -------
+    mat_triu : (..., N * (N + 1) / 2, ...) array
+        Matrix with upper triangular elements (row-major order).
+
+    Raises
+    ------
+    ValueError
+        If axes are not adjacent.
+        If input matrix is not N x N in specified axes.
+    '''
+    
+    if len(axes) != 2:
+        raise ValueError(f'Need two axes, got {len(axes)} ({axes})')
+
+    shape_in = mat.shape
+    ndim_in = mat.ndim
+
+    # Convert negative axes to positive and sort them.
+    axes = np.asarray(axes)
+    axes[axes < 0] = axes[axes < 0] + ndim_in
+    axes = np.sort(axes)
+
+    if shape_in[axes[0]] != shape_in[axes[1]]:
+        raise ValueError(
+        f'Matrix (shape : {shape_in}) is not N x N in specified axes : {axes}.')
+    
+    if np.abs(axes[0] - axes[1]) != 1:
+        raise ValueError(f"Axes are not adjacent: {axes}")
+
+    # Create boolean index array.
+    n_side = shape_in[axes[0]]
+    mask = np.triu(np.ones((n_side, n_side), dtype=bool))
+    
+    # Create tuple of slices into upper triangular part.
+    idx_tup = (np.s_[:],) * axes[0] + (mask,) + (np.s_[:],) * (ndim_in - axes[1] - 1)
+    mat_triu = mat[idx_tup]
+
+    return np.ascontiguousarray(mat_triu)
+
+def triu2symm(mat, axis):
+    '''
+    Return copy with upper-triangular elements expanded into symmmetric matrix.
+
+    Parameters
+    ----------
+    mat: (..., N * (N + 1) / 2, ...) array
+        Matrix with upper triangular elements (row-major order).
+    axis : array-like
+        Upper=triangular elements are stored in this axis.
+
+    Returns
+    -------
+    mat_symm : (..., N, N, ...) array
+        Matrix that is symmetric in two of it's axes.
+
+    Raises
+    ------
+    ValueError
+        If N * (N + 1) / 2 is not an integer.
+    '''
+    
+    shape_in = mat.shape
+    ndim_in = mat.ndim
+
+    # Convert negative axes to positive.
+    if axis < 0:
+        axis = axis + ndim_in
+
+    # Determine output shape with quadratic formula.
+    n_side = (-1 + np.sqrt(1 + 8 * shape_in[axis])) / 2
+    if np.floor(n_side) != n_side:
+        raise ValueError(f'Cannot intepret axis : {axis} of shape {shape_in} '
+                         f'as upper triangular elements')
+    else:
+        n_side = int(n_side)
+    
+    mat_symm = np.zeros(shape_in[:axis] + (n_side, n_side) + shape_in[axis+1:],
+                        dtype=mat.dtype)
+
+    lead_tup = (np.s_[:],) * axis
+    trail_tup = (np.s_[:],) * (ndim_in - axis - 1)
+
+    for idx_in, (idx_out, jdx_out) in enumerate(zip(*np.triu_indices(n_side))):
+
+        # Create index tuples for input and output array.
+        idx_tup_in = lead_tup + (np.s_[idx_in],) + trail_tup
+        idx_tup_out = lead_tup + np.s_[idx_out,jdx_out] + trail_tup
+
+        mat_symm[idx_tup_out] = mat[idx_tup_in]
+
+        # Also fill lower triangular part by flipping i and j.
+        if idx_out != jdx_out:
+            idx_tup_out = lead_tup + np.s_[jdx_out,idx_out] + trail_tup            
+            mat_symm[idx_tup_out] = mat[idx_tup_in]
+        
+    return mat_symm
+
 def full_matrix(mat):
     '''
     If needed, expand matrix diagonal to full-sized matrix.

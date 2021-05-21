@@ -194,3 +194,104 @@ class TestMatUtils(unittest.TestCase):
         np.testing.assert_allclose(out, out_exp)
 
         self.assertEqual(out.dtype, np.float32)
+
+    def test_symm2triu(self):
+        
+        # Use a non-symmetric matrix for testing.
+        mat = np.arange(9, dtype=np.float32).reshape(3, 3)
+        
+        mat_triu = mat_utils.symm2triu(mat, [0, 1])
+
+        mat_triu_exp = np.asarray([0, 1, 2, 4, 5, 8], dtype=np.float32)
+
+        np.testing.assert_allclose(mat_triu, mat_triu_exp)
+        self.assertEqual(mat_triu.dtype, mat.dtype)
+        self.assertTrue(mat_triu.flags['C_CONTIGUOUS'])
+        self.assertFalse(np.shares_memory(mat_triu, mat))
+
+    def test_symm2triu_nd(self):
+        
+        # Use a non-symmetric matrix for testing.
+        mat = np.ones((3, 2, 2, 4), dtype=np.float32)
+        mat[:] = np.arange(4, dtype=np.float32).reshape(2, 2)[np.newaxis,:,:,np.newaxis]
+                
+        mat_triu = mat_utils.symm2triu(mat, [1, 2])
+
+        mat_triu_exp = np.ones((3, 3, 4), dtype=np.float32)
+        mat_triu_exp *= np.asarray([0, 1, 3], dtype=np.float32)[np.newaxis,:,np.newaxis]
+
+        np.testing.assert_allclose(mat_triu, mat_triu_exp)
+        self.assertEqual(mat_triu.dtype, mat.dtype)
+        self.assertTrue(mat_triu.flags['C_CONTIGUOUS'])
+        self.assertFalse(np.shares_memory(mat_triu, mat))
+
+        # Another with negative indices.
+        mat_triu = mat_utils.symm2triu(mat, [-2, -3])
+        np.testing.assert_allclose(mat_triu, mat_triu_exp)
+        self.assertEqual(mat_triu.dtype, mat.dtype)
+        self.assertTrue(mat_triu.flags['C_CONTIGUOUS'])
+        self.assertFalse(np.shares_memory(mat_triu, mat))
+
+        mat_triu = mat_utils.symm2triu(mat, [-3, -2])
+        np.testing.assert_allclose(mat_triu, mat_triu_exp)
+        self.assertEqual(mat_triu.dtype, mat.dtype)
+        self.assertTrue(mat_triu.flags['C_CONTIGUOUS'])
+        self.assertFalse(np.shares_memory(mat_triu, mat))
+        
+        # Another with mixed indices.
+        mat_triu = mat_utils.symm2triu(mat, [-3, 2])
+        np.testing.assert_allclose(mat_triu, mat_triu_exp)
+        self.assertEqual(mat_triu.dtype, mat.dtype)
+        self.assertTrue(mat_triu.flags['C_CONTIGUOUS'])
+        self.assertFalse(np.shares_memory(mat_triu, mat))
+
+    def test_symm2triu_err(self):
+        
+        # Use a non-symmetric matrix for testing.
+        mat = np.ones((3, 2, 2, 4), dtype=np.float32)
+        mat[:] = np.arange(4, dtype=np.float32).reshape(2, 2)[np.newaxis,:,:,np.newaxis]
+
+        # Non adjacent.
+        self.assertRaises(ValueError, mat_utils.symm2triu, mat, [0, 2])
+
+        # Not NxN.
+        mat = np.ones((3, 2, 1, 4), dtype=np.float32)
+        self.assertRaises(ValueError, mat_utils.symm2triu, mat, [0, 2])
+
+    def test_triu2symm(self):
+
+        mat_triu = np.asarray([0, 1, 2, 4, 5, 8], dtype=np.float32)        
+
+        mat_symm = mat_utils.triu2symm(mat_triu, axis=0)
+        mat_symm_exp = np.asarray([[0, 1, 2], [1, 4, 5], [2, 5, 8]],
+                                  dtype=np.float32)
+
+        np.testing.assert_allclose(mat_symm, mat_symm_exp)
+        self.assertEqual(mat_symm.dtype, mat_triu.dtype)
+        self.assertTrue(mat_symm.flags['C_CONTIGUOUS'])
+        self.assertFalse(np.shares_memory(mat_symm, mat_triu))
+
+    def test_triu2symm_nd(self):
+
+        mat_triu = np.ones((3, 3, 4), dtype=np.float32)
+        mat_triu[:] = np.asarray([0, 1, 2])[np.newaxis,:,np.newaxis]
+
+        mat_symm = mat_utils.triu2symm(mat_triu, axis=1)
+
+        mat_symm_exp = np.ones((3, 2, 2, 4), dtype=np.float32)
+        mat_symm_exp *= np.asarray([[0, 1], [1, 2]], 
+                                   dtype=np.float32)[np.newaxis,:,:,np.newaxis]
+
+        np.testing.assert_allclose(mat_symm, mat_symm_exp)
+        self.assertEqual(mat_symm.dtype, mat_triu.dtype)
+        self.assertTrue(mat_symm.flags['C_CONTIGUOUS'])
+        self.assertFalse(np.shares_memory(mat_symm, mat_triu))
+
+    def test_triu2symm_err(self):
+
+        # Wrong number of elements.
+        mat_triu = np.asarray([0, 1, 2, 4, 5], dtype=np.float32)        
+
+        self.assertRaises(ValueError, mat_utils.triu2symm, mat_triu, axis=0)
+
+
