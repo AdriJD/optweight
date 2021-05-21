@@ -387,7 +387,7 @@ def preshape2npol(preshape):
 
     return npol
 
-def write_wav(fname, wav, extra=None):
+def write_wav(fname, wav, extra=None, **kwargs):
     '''
     Write wavelet object to an hdf file.
 
@@ -399,6 +399,8 @@ def write_wav(fname, wav, extra=None):
         Wavelet object to be stored.
     extra : dict, optional
         Extra key-object pairs to store as datasets in the hdf file.
+    kwargs : dict, optonal
+        Extra keyword arguments to map_utils.append_map_to_hdf.
     '''
 
     if not os.path.splitext(fname)[1]:
@@ -427,7 +429,7 @@ def write_wav(fname, wav, extra=None):
 
             mgroup = hfile.create_group(dname)
             map_utils.append_map_to_hdf(mgroup, wav.maps[idx2dict],
-                                        wav.minfos[idx2dict])
+                                        wav.minfos[idx2dict], **kwargs)
 
 def read_wav(fname, extra=None):
     '''

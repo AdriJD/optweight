@@ -6,6 +6,7 @@ import tempfile
 import pathlib
 
 from pixell import sharp, enmap, curvedsky
+import h5py
 
 from optweight import map_utils, sht, wavtrans
 
@@ -681,6 +682,33 @@ class TestMapUtilsIO(unittest.TestCase):
             map_utils.write_map(filename, imap, minfo)
 
             self.assertTrue(os.path.isfile(filename + '.hdf5'))
+
+            omap, minfo_read = map_utils.read_map(filename + '.hdf5')
+
+            self.assertTrue(map_utils.minfo_is_equiv(minfo, minfo_read))
+            np.testing.assert_allclose(omap, imap)
+
+    def test_read_write_map_symm(self):
+
+        lmax = 5
+        npol = 2        
+        minfo = map_utils.get_gauss_minfo(lmax)
+        imap = np.ones((npol, npol, minfo.npix), dtype=np.float32)
+
+        with tempfile.TemporaryDirectory(dir=self.path) as tmpdirname:
+
+            filename = os.path.join(tmpdirname, 'testmap')
+
+            map_utils.write_map(filename, imap, minfo, symm_axes=[0,1])
+
+            self.assertTrue(os.path.isfile(filename + '.hdf5'))
+
+            # Check if only upper-triangular elements were stored.
+            with h5py.File(filename + '.hdf5', 'r') as hfile:
+        
+                omap_on_disk = hfile['map'][()]
+                self.assertEqual(omap_on_disk.shape, (3, minfo.npix))
+                self.assertEqual(hfile.attrs['symm_axis'], 0)
 
             omap, minfo_read = map_utils.read_map(filename + '.hdf5')
 

@@ -4,7 +4,7 @@ from pixell import utils
 
 from optweight import wavtrans
 
-def symm2triu(mat, axes):
+def symm2triu(mat, axes, return_axis=False):
     '''
     Return copy with only the upper-triangular elements of matrix.
 
@@ -14,11 +14,18 @@ def symm2triu(mat, axes):
         Matrix that is symmetric in two of it's axes.
     axes : array-like
         Matrix is symmetric in these adjacent axes, e.g. [0, 1].
+    return_axis : bool, optional
+        If set, return the axis index that contains the 
+        upper-tringular elements in output matrix.
 
     Returns
     -------
     mat_triu : (..., N * (N + 1) / 2, ...) array
         Matrix with upper triangular elements (row-major order).
+    triu_axis : int
+        Only if return_axis is set. The axis index that contains the 
+        upper-tringular elements in output matrix.
+        
 
     Raises
     ------
@@ -53,7 +60,10 @@ def symm2triu(mat, axes):
     idx_tup = (np.s_[:],) * axes[0] + (mask,) + (np.s_[:],) * (ndim_in - axes[1] - 1)
     mat_triu = mat[idx_tup]
 
-    return np.ascontiguousarray(mat_triu)
+    if return_axis:        
+        return np.ascontiguousarray(mat_triu), axes[0]
+    else:
+        return np.ascontiguousarray(mat_triu)
 
 def triu2symm(mat, axis):
     '''

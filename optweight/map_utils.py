@@ -962,7 +962,7 @@ def minfo_from_hdf(hfile):
                           phi0=phi0, offsets=offsets,
                           stride=stride, weight=weight)
 
-def write_map(fname, imap, minfo):
+def write_map(fname, imap, minfo, symm_axes=None):
     '''
     Write map and accompanying map info object to an hdf file.
 
@@ -973,7 +973,10 @@ def write_map(fname, imap, minfo):
     imap : (..., npix) array
         Map to be stored.
     minfo : sharp.map_info object
-        Map info object to be stored.    
+        Map info object to be stored.
+    symm_axes : array-like, optional
+        Map is symmetric in these adjacent axes, only store upper 
+        triangular part.
     '''
 
     if not os.path.splitext(fname)[1]:
@@ -981,9 +984,9 @@ def write_map(fname, imap, minfo):
 
     with h5py.File(fname, 'w') as hfile:
         
-        append_map_to_hdf(hfile, imap, minfo)
+        append_map_to_hdf(hfile, imap, minfo, symm_axes=symm_axes)
 
-def append_map_to_hdf(hfile, imap, minfo):
+def append_map_to_hdf(hfile, imap, minfo, symm_axes=None):
     '''
     Add map dataset to provided hdf file.
 
@@ -995,13 +998,19 @@ def append_map_to_hdf(hfile, imap, minfo):
         Map to be stored.        
     minfo : sharp.map_info object
         Map info object to be stored.
+    symm_axes : array-like, optional
+        Map is symmetric in these adjacent axes, only store upper 
+        triangular part.
     '''
-    
+
+    if symm_axes is not None:
+        imap = mat_utils.symm2triu(imap, axes=symm_axes)
+        hfile.attrs['symm_axis'] = symm_axes[0]
+
     hfile.create_dataset('map', data=imap)
 
     minfo_group = hfile.create_group('minfo')
     append_minfo_to_hdf(minfo_group, minfo)        
-
 
 def read_map(fname):
     '''
@@ -1028,7 +1037,8 @@ def read_map(fname):
 
 def map_from_hdf(hfile):
     '''
-    Extract map array from hdf datasets.
+    Extract map array from hdf datasets. If needed, expands 
+    upper-triangular elemets to full symmetric matrix.
 
     Arguments
     ---------
@@ -1044,6 +1054,11 @@ def map_from_hdf(hfile):
     '''
     
     omap = hfile['map'][()]
+
+    symm_axis = hfile.attrs.get('symm_axis', None)
+    if symm_axis is not None:
+        omap = mat_utils.triu2symm(omap, symm_axis)
+
     minfo = minfo_from_hdf(hfile['minfo'])
 
     return omap, minfo
