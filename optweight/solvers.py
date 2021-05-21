@@ -1,11 +1,10 @@
 import numpy as np
 
-from enlib import cg
-from pixell import curvedsky,sharp
+from pixell import curvedsky, sharp, utils
 
 from optweight import operators, alm_utils, map_utils, preconditioners, sht, mat_utils
 
-class CGWiener(cg.CG):
+class CGWiener(utils.CG):
     '''
     Construct a CG solver for x in the equation system A x = b where:
 
@@ -53,7 +52,7 @@ class CGWiener(cg.CG):
     rand_inoise : array, optional
         Draw from inverse noise covariance as SH coefficients in alm_data shape.
     **kwargs
-        Keyword arguments for enlib.cg.CG.
+        Keyword arguments for pixell.utils.CG.
     '''
 
     def __init__(self, alm_data, icov_signal, icov_noise, beam=None,
@@ -78,7 +77,7 @@ class CGWiener(cg.CG):
         self.b0 = b.copy()
 
         kwargs.setdefault('dot', alm_utils.contract_almxblm)
-        cg.CG.__init__(self, self.a_matrix, b, **kwargs)
+        utils.CG.__init__(self, self.a_matrix, b, **kwargs)
 
     def a_matrix(self, alm):
         '''
@@ -216,7 +215,7 @@ class CGWiener(cg.CG):
             If diagonal, only the diagonal suffices. If provided, updates noise model to 
             icnf_ell^0.5 icov_pix icnf_ell^0.5.
         **kwargs
-            Keyword arguments for enlib.cg.CG.
+            Keyword arguments for pixell.utils.CG.
         '''
 
         if kwargs.get('M') and prec:
@@ -345,7 +344,7 @@ class CGWiener(cg.CG):
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
         **kwargs
-            Keyword arguments for enlib.cg.CG.
+            Keyword arguments for pixell.utils.CG.
         '''
 
         if kwargs.get('M') and prec:
@@ -453,7 +452,7 @@ class CGWienerScaled(CGWiener):
     rand_inoise : array, optional
         Draw from inverse noise covariance as SH coefficients in alm_data shape.
     **kwargs
-        Keyword arguments for enlib.cg.CG.
+        Keyword arguments for pixell.utils.CG.
     '''
 
     def __init__(self, alm_data, icov_signal, icov_noise, sqrt_cov_signal, beam=None,

@@ -1,8 +1,7 @@
 import numpy as np
 import warnings
 
-from enlib import cg
-from pixell import curvedsky,sharp
+from pixell import curvedsky, sharp, utils
 
 from optweight import map_utils, mat_utils
 
