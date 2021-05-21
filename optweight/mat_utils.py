@@ -155,7 +155,7 @@ def full_matrix(mat):
 
     return mat
 
-def matpow(mat, power, return_diag=False):
+def matpow(mat, power, return_diag=False, skip_unit_pow=True):
     '''
     Raise matrix to a given power.
 
@@ -168,6 +168,8 @@ def matpow(mat, power, return_diag=False):
         Power of matrix.
     return_diag : bool, optional
         If set, only return diagonal if input matrix was diagonal.
+    skip_unit_pow : bool, optional
+        If False, evalute even if power = 1, useful for non-psd matrices.
 
     Returns
     -------
@@ -181,7 +183,7 @@ def matpow(mat, power, return_diag=False):
     if ndim_in == 1:
         mat = mat[np.newaxis,:]
 
-    if power != 1:
+    if power != 1 or not skip_unit_pow:
 
         if ndim_in == 2:
             mat = mat.copy()
@@ -198,7 +200,6 @@ def matpow(mat, power, return_diag=False):
                 dtype = dtype_in
 
             mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
-            #mat = utils.eigpow(mat, power)
             mat = array_ops.eigpow(mat, power)
             mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
 
@@ -274,21 +275,5 @@ def get_near_psd(mat):
         out[out<0] = 0
         return out
 
-    # Handle 3d case, we use 64 bit for more accuracy.
-    dtype_in = mat.dtype
-    if dtype_in == np.float32:
-        dtype = np.float64
-    else:
-        dtype = dtype_in
-
-    eigvals, eigvecs = np.linalg.eigh(np.transpose(mat, (2, 0, 1)).astype(dtype=dtype))
-
-    mask = eigvals < 0
-    if np.sum(mask) == 0:
-        return mat.astype(dtype_in)
-
-    eigvals[mask] = 0
-    out = np.einsum('ijk, ikm -> ijm',
-            eigvecs, eigvals[:,:,np.newaxis] * np.transpose(eigvecs, (0, 2, 1)))
-    
-    return np.ascontiguousarray(np.transpose(out, (1, 2, 0)), dtype=dtype_in)
+    # Handle 3d case.
+    return matpow(mat, 1, skip_unit_pow=False)

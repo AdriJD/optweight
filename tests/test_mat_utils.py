@@ -191,7 +191,7 @@ class TestMatUtils(unittest.TestCase):
 
         out_exp = mat.copy()
         out_exp[:,:,0] = np.asarray([[1.05, 1, 1.05],[1, 1, 1],[1.05, 1, 1.05]])
-        np.testing.assert_allclose(out, out_exp)
+        np.testing.assert_allclose(out, out_exp, rtol=1e-6)
 
         self.assertEqual(out.dtype, np.float32)
 
