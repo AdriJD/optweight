@@ -294,4 +294,26 @@ class TestMatUtils(unittest.TestCase):
 
         self.assertRaises(ValueError, mat_utils.triu2symm, mat_triu, axis=0)
 
+    def test_atleast_nd(self):
+        
+        mat = np.ones((3, 3), dtype=np.float32)
 
+        mat_out = mat_utils.atleast_nd(mat, 2)        
+        self.assertEqual(mat_out.shape, mat.shape)
+        self.assertTrue(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils.atleast_nd(mat, 3)        
+        self.assertEqual(mat_out.shape, (1, 3, 3))
+        self.assertTrue(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils.atleast_nd(mat, 4)        
+        self.assertEqual(mat_out.shape, (1, 1, 3, 3))
+        self.assertTrue(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils.atleast_nd(mat, 1)
+        self.assertEqual(mat_out.shape, (3, 3))
+        self.assertTrue(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils.atleast_nd(mat, 4, append=True)        
+        self.assertEqual(mat_out.shape, (3, 3, 1, 1))
+        self.assertTrue(np.shares_memory(mat_out, mat))

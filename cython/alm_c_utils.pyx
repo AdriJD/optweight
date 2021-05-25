@@ -9,7 +9,7 @@ def wlm2alm(w_ell, wlm, alm, lmax_w, lmax_a):
     ---------
     w_ell : (nell) array
         Wavelet kernel for single wavelet.
-    w_ell : (ncomp, nelem') complex array
+    wlm : (ncomp, nelem') complex array
         Wavelet coefficients
     alm : (ncomp, nelem) complex array
         SH coefficients.

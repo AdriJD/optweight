@@ -73,7 +73,6 @@ def view_1d(imap, minfo):
         
     return omap
 
-#@profile
 def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
                 mode='constant'):
     '''

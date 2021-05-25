@@ -342,17 +342,17 @@ def unit_var_wav(minfos, preshape, dtype, seed=None):
         First dimensions of the maps, i.e. map.shape = preshape + (npix,)
     dtype : type
         Dtype of maps.
-    seed : int, optional
+    seed : int or np.random._generator.Generator object, optional
         Seed for np.random.seed.
 
     Returns
     -------
     wav_uni : wavtrans.Wav object
-        Block vector with unit-varaince noise maps.
+        Block vector with unit-variance noise maps.
     '''
 
     if seed is not None:
-        np.random.seed(seed)
+        rng = np.random.default_rng(seed)
 
     indices = np.arange(len(minfos))
     wav_uni = wavtrans.Wav(1, preshape=preshape, dtype=dtype)
@@ -361,7 +361,7 @@ def unit_var_wav(minfos, preshape, dtype, seed=None):
         
         minfo = minfos[widx]
         shape = preshape + (minfo.npix,)
-        m_arr = np.random.randn(*shape).astype(dtype)
+        m_arr = rng.normal(size=shape).astype(dtype)
         
         wav_uni.add(widx, m_arr, minfo)
 

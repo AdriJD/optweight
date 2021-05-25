@@ -26,7 +26,6 @@ def symm2triu(mat, axes, return_axis=False):
         Only if return_axis is set. The axis index that contains the 
         upper-tringular elements in output matrix.
         
-
     Raises
     ------
     ValueError
@@ -277,3 +276,34 @@ def get_near_psd(mat):
 
     # Handle 3d case.
     return matpow(mat, 1, skip_unit_pow=False)
+
+def atleast_nd(mat, ndim, append=False): 
+    '''
+    View input as array with at least N dimensions by prepending axes.
+
+    Parameters
+    ----------
+    mat : array-like
+        Input array.
+    ndim : int
+        Number of dimensions.
+    append : bool, optional
+        If set, append extra axes instead of prepending.
+
+    Returns
+    -------
+    out : array
+        Array with ndim >= N.
+    '''
+
+    mat = np.asanyarray(mat) 
+
+    ndim_add = ndim - mat.ndim
+    
+    # Note, negative arg to range results in empty tuple.
+    axes = np.arange(ndim_add)
+
+    if append:
+        axes -= axes.size
+
+    return np.expand_dims(mat, tuple(axes))

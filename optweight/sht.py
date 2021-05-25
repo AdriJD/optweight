@@ -2,7 +2,6 @@ import numpy as np
 
 from pixell import enmap, sharp
 
-#@profile
 def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     '''
     Wrapper around pixell's libsharp wrapper that does not
@@ -10,9 +9,9 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
 
     Parameters
     ----------
-    imap : (npol, npix) array
+    imap : (..., npol, npix) array
         Input map.
-    alm : (npol, nelem) complex array
+    alm : (..., npol, nelem) complex array
         Output alm array, will be overwritten.
     minfo : sharp.map_info object
         Map info for input map.
@@ -30,6 +29,7 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
         If spin value is larger than lmax.
         If npix does not match size map.
         If nelem does not match size alm.
+        If leading dimensions of alm and map do not match.
     '''
 
     if np.asarray(spin).max() > ainfo.lmax:
@@ -40,13 +40,16 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     if alm.shape[-1] != ainfo.nelem:
         raise ValueError(
             f'Wrong alm size, got {alm.shape[-1]} expected {ainfo.nelem}')
-    
+
     if imap.ndim == 1:
         imap = imap[np.newaxis,:]
     if alm.ndim == 1:
         alm = alm[np.newaxis,:]
 
     npol = imap.shape[0]
+    if alm.shape[0] != npol:
+        raise ValueError(f'Mismatch leading dimension of map and alm :'
+                         f'{imap.shape[:-1]} and {alm.shape[:-1]}')
 
     if adjoint:
         job_type = 2
@@ -56,7 +59,6 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     for s, i1, i2 in enmap.spin_helper(spin, npol):    
         sharp.execute(job_type, ainfo, alm[i1:i2,:], minfo, imap[i1:i2,:], spin=s)
 
-#@profile
 def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     '''
     Wrapper around pixell's libsharp wrapper that does not
@@ -116,6 +118,8 @@ def default_spin(shape):
     '''
     Infer spin from alm/map shape.
 
+    Parameters
+    ----------
     shape : tuple
         Shape of map or alm array.
 
