@@ -26,7 +26,7 @@ class TestSHT(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(alm_out, alm)
 
-    def test_alm2map_nd(self):
+    def test_alm2map_2d(self):
 
         lmax = 4
         spin = [0, 2]
@@ -41,6 +41,31 @@ class TestSHT(unittest.TestCase):
         minfo = sharp.map_info_gauss_legendre(nrings, nphi)
 
         omap = np.zeros((3, minfo.npix))
+
+        sht.alm2map(alm, omap, ainfo, minfo, spin)
+        sht.map2alm(omap, alm_out, minfo, ainfo, spin)
+
+        np.testing.assert_array_almost_equal(alm_out, alm)
+        np.testing.assert_allclose(alm_out, alm)
+
+    def test_alm2map_3d(self):
+
+        lmax = 4
+        spin = [0, 2]
+        cov_ell = np.ones((3, 3, lmax + 1))
+        ainfo = sharp.alm_info(lmax)
+        alm = np.zeros((2, 3, ainfo.nelem), dtype=np.complex128)
+        alm[0] = curvedsky.rand_alm(cov_ell, return_ainfo=False)
+        alm[1] = curvedsky.rand_alm(cov_ell, return_ainfo=False)
+        alm[:,1:,:2] = 0
+        alm[:,1:,5] = 0
+        alm_out = np.zeros_like(alm)
+
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        omap = np.zeros((2, 3, minfo.npix))
 
         sht.alm2map(alm, omap, ainfo, minfo, spin)
         sht.map2alm(omap, alm_out, minfo, ainfo, spin)

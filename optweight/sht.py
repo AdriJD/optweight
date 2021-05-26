@@ -1,6 +1,7 @@
 import numpy as np
 
 from pixell import enmap, sharp
+from optweight import mat_utils
 
 def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     '''
@@ -9,9 +10,9 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
 
     Parameters
     ----------
-    imap : (..., npol, npix) array
+    imap : (ntrans, npol, npix) array
         Input map.
-    alm : (..., npol, nelem) complex array
+    alm : (ntrans, npol, nelem) complex array
         Output alm array, will be overwritten.
     minfo : sharp.map_info object
         Map info for input map.
@@ -41,13 +42,10 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
         raise ValueError(
             f'Wrong alm size, got {alm.shape[-1]} expected {ainfo.nelem}')
 
-    if imap.ndim == 1:
-        imap = imap[np.newaxis,:]
-    if alm.ndim == 1:
-        alm = alm[np.newaxis,:]
+    imap = mat_utils.atleast_nd(imap, 3)
+    alm = mat_utils.atleast_nd(alm, 3)
 
-    npol = imap.shape[0]
-    if alm.shape[0] != npol:
+    if alm.shape[:-1] != imap.shape[:-1]:
         raise ValueError(f'Mismatch leading dimension of map and alm :'
                          f'{imap.shape[:-1]} and {alm.shape[:-1]}')
 
@@ -56,8 +54,11 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     else:
         job_type = 0
 
-    for s, i1, i2 in enmap.spin_helper(spin, npol):    
-        sharp.execute(job_type, ainfo, alm[i1:i2,:], minfo, imap[i1:i2,:], spin=s)
+    ntrans, npol = imap.shape[:-1]
+    for tidx in range(ntrans):
+        for s, i1, i2 in enmap.spin_helper(spin, npol):    
+            sharp.execute(job_type, ainfo, alm[tidx,i1:i2,:],
+                          minfo, imap[tidx,i1:i2,:], spin=s)
 
 def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     '''
@@ -92,6 +93,7 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
 
     if np.asarray(spin).max() > ainfo.lmax:
         raise ValueError('Spin exceeds lmax')
+
     if omap.shape[-1] != minfo.npix:
         raise ValueError(
             f'Wrong map size, got {omap.shape[-1]} expected {minfo.npix}')
@@ -99,20 +101,23 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
         raise ValueError(
             f'Wrong alm size, got {alm.shape[-1]} expected {ainfo.nelem}')
     
-    if omap.ndim == 1:
-        omap = omap[np.newaxis,:]
-    if alm.ndim == 1:
-        alm = alm[np.newaxis,:]
+    omap = mat_utils.atleast_nd(omap, 3)
+    alm = mat_utils.atleast_nd(alm, 3)
 
-    npol = omap.shape[0]
+    if alm.shape[:-1] != omap.shape[:-1]:
+        raise ValueError(f'Mismatch leading dimension of map and alm :'
+                         f'{omap.shape[:-1]} and {alm.shape[:-1]}')
 
     if adjoint:
         job_type = 3
     else:
         job_type = 1
 
-    for s, i1, i2 in enmap.spin_helper(spin, npol):    
-        sharp.execute(job_type, ainfo, alm[i1:i2,:], minfo, omap[i1:i2,:], spin=s)
+    ntrans, npol = omap.shape[:-1]
+    for tidx in range(ntrans):
+        for s, i1, i2 in enmap.spin_helper(spin, npol):    
+            sharp.execute(job_type, ainfo, alm[tidx,i1:i2,:],
+                          minfo, omap[tidx,i1:i2,:], spin=s)
         
 def default_spin(shape):
     '''
