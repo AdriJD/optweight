@@ -41,6 +41,23 @@ class TestAlmCUtils(unittest.TestCase):
 
         np.testing.assert_equal(alm_new, alm_new_exp)
 
+    def test_trunc_alm_nd(self):
+        
+        alm = np.zeros((2, 2, 6), dtype=np.complex128)
+        alm[:,0] = np.asarray([1, 2, 3, 4, 5, 6])
+        alm[:,1] = np.asarray([1, 2, 3, 4, 5, 6]) * 2
+
+        ainfo = sharp.alm_info(lmax=2)
+        lmax_new = 1
+        alm_new_exp = np.zeros((2, 2, 3), dtype=np.complex128)
+        alm_new_exp[:,0] = np.asarray([1, 2, 4])
+        alm_new_exp[:,1] = np.asarray([1, 2, 4]) * 2
+
+        alm_new = np.zeros_like(alm_new_exp)
+        alm_c_utils.trunc_alm(alm, alm_new, 2, 1)
+
+        np.testing.assert_equal(alm_new, alm_new_exp)
+
     def test_trunc_alm_err(self):
         
         alm = np.zeros((2, 6), dtype=np.complex128)
@@ -167,6 +184,49 @@ class TestAlmCUtils(unittest.TestCase):
         alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
         np.testing.assert_array_almost_equal(alm, alm_out_exp)
 
+    def test_lmul_nd_dp(self):
+        
+        lmax = 4
+        npol = 3
+        ntrans = 2
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex128)
+        alm = alm.reshape(ntrans, npol, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_out = np.zeros_like(alm)
+        lmat = np.arange(npol * npol * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(npol, npol, lmax + 1)
+
+        alm_c_utils.lmul(alm, lmat, ainfo, alm_out=alm_out)
+        alm_out_exp = np.zeros_like(alm)
+        for tidx in range(ntrans):
+            alm_out_exp[tidx] = ainfo.lmul(alm[tidx], lmat)
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
+    def test_lmul_inplace_nd_dp(self):
+        
+        lmax = 4
+        npol = 3
+        ntrans = 2
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex128)
+        alm = alm.reshape(ntrans, npol, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_out = np.zeros_like(alm)
+        lmat = np.arange(npol * npol * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(npol, npol, lmax + 1)
+
+        alm_out_exp = np.zeros_like(alm)
+        for tidx in range(ntrans):
+            alm_out_exp[tidx] = ainfo.lmul(alm[tidx], lmat)
+
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
     def test_lmul_sp(self):
         
         lmax = 4
@@ -239,6 +299,49 @@ class TestAlmCUtils(unittest.TestCase):
         lmat = lmat.reshape(ncomp, lmax + 1)
 
         alm_out_exp = ainfo.lmul(alm, lmat * np.eye(3)[:,:,np.newaxis])
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+
+    def test_lmul_nd_sp(self):
+        
+        lmax = 4
+        npol = 3
+        ntrans = 2
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex64)
+        alm = alm.reshape(ntrans, npol, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_out = np.zeros_like(alm)
+        lmat = np.arange(npol * npol * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(npol, npol, lmax + 1)
+
+        alm_c_utils.lmul(alm, lmat, ainfo, alm_out=alm_out)
+        alm_out_exp = np.zeros_like(alm)
+        for tidx in range(ntrans):
+            alm_out_exp[tidx] = ainfo.lmul(alm[tidx], lmat)
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
+    def test_lmul_inplace_nd_sp(self):
+        
+        lmax = 4
+        npol = 3
+        ntrans = 2
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex64)
+        alm = alm.reshape(ntrans, npol, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_out = np.zeros_like(alm)
+        lmat = np.arange(npol * npol * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(npol, npol, lmax + 1)
+
+        alm_out_exp = np.zeros_like(alm)
+        for tidx in range(ntrans):
+            alm_out_exp[tidx] = ainfo.lmul(alm[tidx], lmat)
+
         alm_c_utils.lmul(alm, lmat, ainfo, inplace=True)
         np.testing.assert_array_almost_equal(alm, alm_out_exp)
 

@@ -2,7 +2,7 @@ cimport calm_c_utils
 import numpy as np
 
 def wlm2alm(w_ell, wlm, alm, lmax_w, lmax_a):
-    '''		   
+    '''            
     Compute alm[i,nelem] += w_ell[nell] wlm[i,nelem]. 
 
     Arguments
@@ -27,8 +27,8 @@ def wlm2alm(w_ell, wlm, alm, lmax_w, lmax_a):
     ------
     ValueError
         If lmax_w > lmax_a.
-	If input shapes or dtypes are inconsistent.
-	If dtype alms is not np.complex64 or np.complex128.
+        If input shapes or dtypes are inconsistent.
+        If dtype alms is not np.complex64 or np.complex128.
     '''
 
     if lmax_w > lmax_a:
@@ -106,8 +106,8 @@ def trunc_alm(alm_in, alm_out, lmax_in, lmax_out):
     ValueError
         If new lmax > old lmax.
         If alm shapes are not triangular with lmax = mmax.
-	If input shapes are not consistent.
-	If dtype alms is not np.complex64 or np.complex128.
+        If input shapes are not consistent.
+        If dtype alms is not np.complex64 or np.complex128.
     '''
 
     if lmax_out > lmax_in:
@@ -156,13 +156,13 @@ def _trunc_alm_sp(alm_in, alm_out, lmax_in, lmax_out, ncomp):
 
 def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     '''       
-    Compute the a'[i,lm] = m[i,j,ell] a[j,lm] matrix multiplication.
+    Compute the a'[...,i,lm] = m[i,j,ell] a[...,j,lm] matrix multiplication.
 
     Arguments
     ---------
-    alm : (ncomp, nelem) complex array
+    alm : (..., npol, nelem) complex array
         Input alms.
-    lmat : (ncomp, ncomp, nell) or (ncomp, nell) array
+    lmat : (npol, npol, nell) or (npol, nell) array
         Matrix, if diagonal only the diaganal suffices.
     ainfo : sharp.alm_info object
         Metainfo alms.
@@ -173,7 +173,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
 
     Returns
     -------
-    alm_out : (ncomp, nelem) complex array
+    alm_out : (..., npol, nelem) complex array
         Output alms.
 
     Raises
@@ -188,22 +188,22 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     Similar to pixell's lmul but a bit faster serially and with openmp support.
     '''
 
-    if alm.ndim == 1:
-        ncomp = 1
-    else:
-        ncomp = alm.shape[0]
+    #if alm.ndim == 1:
+    #    ncomp = 1
+    #else:
+    #    ncomp = alm.shape[0]
 
-    if ncomp * ainfo.nelem != alm.size:
-        raise ValueError(
-          'ncomp * nelem != alm.size; only triangular alm storage supported')
-
+    shape_in = alm.shape
+    alm = _prepend_axes(alm, 3)
+    preshape = alm.shape[:-2]
     lmax = ainfo.lmax
     nelem = ainfo.nelem
+    npol = alm.shape[-2]
     dtype = alm.dtype
 
-    if alm.size != ncomp * nelem:
-        raise ValueError('got alm.size {}, expected {} x {}'.
-                         format(alm.size, ncomp, nelem))
+    if np.prod(preshape) * npol * ainfo.nelem != alm.size:
+        raise ValueError(f'nelem ({nelem}) != alm.shape[-1] ({alm.shape[-1]}); '
+                         'only triangular alm storage supported')
 
     if alm_out is not None and inplace:
         raise ValueError('Cannot set both inplace and alm_out')
@@ -220,28 +220,35 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
                                  format(alm.size, alm_out.size))
     
     if lmat.ndim == 1:
-        lmat = lmat * np.ones((ncomp, lmat.size), dtype=lmat.dtype)
+        lmat = lmat * np.ones((npol, lmat.size), dtype=lmat.dtype)
 
     if dtype == np.complex128:
 
         lmat = lmat.astype(np.float64)
         if inplace:
-            _lmul_inplace_dp(lmat, alm, lmax, ncomp)
+            lmul_func = _lmul_inplace_dp
         else:
-            _lmul_dp(lmat, alm, alm_out, lmax, ncomp)
+            lmul_func = _lmul_dp
     
     elif dtype == np.complex64:
 
         lmat = lmat.astype(np.float32)
         if inplace:
-            _lmul_inplace_sp(lmat, alm, lmax, ncomp)
+            lmul_func = _lmul_inplace_sp
         else:
-            _lmul_sp(lmat, alm, alm_out, lmax, ncomp)
+            lmul_func = _lmul_sp
 
     if inplace:
-        return alm
+        for idxs in np.ndindex(preshape):
+            lmul_func(lmat, alm[idxs], lmax, npol)
     else:
-        return alm_out
+        for idxs in np.ndindex(preshape):
+            lmul_func(lmat, alm[idxs], alm_out[idxs], lmax, npol)
+        
+    if inplace:
+        return alm.reshape(shape_in)
+    else:
+        return alm_out.reshape(shape_in)
     
 def _lmul_dp(lmat, alm, alm_out, lmax, ncomp):
     '''Double precision variant.'''
@@ -340,3 +347,28 @@ def _lmul_inplace_sp(lmat, alm, lmax, ncomp):
 
     else:
         raise ValueError('Shape lmat : {} not suported'.format(lmat.shape))
+
+def _prepend_axes(mat, ndim):
+    '''
+    View input as array with at least N dimensions by prepending axes.
+
+    Parameters
+    ----------
+    mat : array-like
+        Input array.
+    ndim : int
+        Number of dimensions.
+
+    Returns
+    -------
+    out : array
+        Array with ndim >= N.
+    '''
+
+    mat = np.asanyarray(mat) 
+    ndim_add = ndim - mat.ndim
+    
+    # Note, negative arg to range results in empty tuple.
+    axes = np.arange(ndim_add)
+
+    return np.expand_dims(mat, tuple(axes))

@@ -297,7 +297,6 @@ def atleast_nd(mat, ndim, append=False):
     '''
 
     mat = np.asanyarray(mat) 
-
     ndim_add = ndim - mat.ndim
     
     # Note, negative arg to range results in empty tuple.
