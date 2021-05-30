@@ -188,11 +188,6 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     Similar to pixell's lmul but a bit faster serially and with openmp support.
     '''
 
-    #if alm.ndim == 1:
-    #    ncomp = 1
-    #else:
-    #    ncomp = alm.shape[0]
-
     shape_in = alm.shape
     alm = _prepend_axes(alm, 3)
     preshape = alm.shape[:-2]

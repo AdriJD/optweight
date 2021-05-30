@@ -10,10 +10,10 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
 
     Parameters
     ----------
-    imap : (ntrans, npol, npix) array
-        Input map.
-    alm : (ntrans, npol, nelem) complex array
-        Output alm array, will be overwritten.
+    imap : (..., npol, npix) array
+        Input map(s).
+    alm : (..., npol, nelem) complex array
+        Output alm array(s), will be overwritten.
     minfo : sharp.map_info object
         Map info for input map.
     ainfo : sharp.alm_info object
@@ -54,11 +54,12 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     else:
         job_type = 0
 
-    ntrans, npol = imap.shape[:-1]
-    for tidx in range(ntrans):
+    npol = imap.shape[-2]
+    preshape = imap.shape[:-2]
+    for idxs in np.ndindex(preshape):
         for s, i1, i2 in enmap.spin_helper(spin, npol):    
-            sharp.execute(job_type, ainfo, alm[tidx,i1:i2,:],
-                          minfo, imap[tidx,i1:i2,:], spin=s)
+            sharp.execute(job_type, ainfo, alm[idxs][i1:i2,:],
+                          minfo, imap[idxs][i1:i2,:], spin=s)
 
 def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     '''
@@ -67,9 +68,9 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
 
     Parameters
     ----------
-    alm : (npol, nelem) complex array
+    alm : (ntrans, npol, nelem) complex array
         Input alm array.
-    omap : (npol, npix) array
+    omap : (ntrans, npol, npix) array
         Output map, will be overwritten.
     ainfo : sharp.alm_info object
         alm info for inpu alm.
@@ -113,11 +114,12 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     else:
         job_type = 1
 
-    ntrans, npol = omap.shape[:-1]
-    for tidx in range(ntrans):
+    npol = omap.shape[-2]
+    preshape = omap.shape[:-2]
+    for idxs in np.ndindex(preshape):
         for s, i1, i2 in enmap.spin_helper(spin, npol):    
-            sharp.execute(job_type, ainfo, alm[tidx,i1:i2,:],
-                          minfo, omap[tidx,i1:i2,:], spin=s)
+            sharp.execute(job_type, ainfo, alm[idxs][i1:i2,:],
+                          minfo, omap[idxs][i1:i2,:], spin=s)
         
 def default_spin(shape):
     '''
