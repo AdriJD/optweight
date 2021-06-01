@@ -29,6 +29,33 @@ class TestMatUtils(unittest.TestCase):
         np.testing.assert_array_almost_equal(
             mat_out, np.transpose(mat_out, (1, 0, 2)))
 
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
+    def test_matpow_axes(self):
+
+        mat = np.ones((3, 2, 2))
+        mat *= np.eye(2)[np.newaxis,:,:] * 2
+
+        mat_out_exp = np.ones_like(mat)
+        mat_out_exp *= np.eye(2)[np.newaxis,:,:] * 0.5
+        
+        mat_out = mat_utils.matpow(mat, -1, axes=[-2, -1])
+
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
+        # 2d Matrix.
+        mat = np.ones((2, 2))
+        mat *= np.eye(2) * 2
+
+        mat_out_exp = np.ones_like(mat)
+        mat_out_exp *= np.eye(2) * 0.5
+        
+        mat_out = mat_utils.matpow(mat, -1, axes=[-2, -1])
+
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
     def test_matpow_minus(self):
 
         mat = np.zeros((2, 2, 3))
@@ -77,6 +104,8 @@ class TestMatUtils(unittest.TestCase):
 
         mat_out_exp = np.sqrt(mat)
         np.testing.assert_array_almost_equal(mat_out, mat_out_exp)
+
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
 
     def test_full_matrix(self):
 

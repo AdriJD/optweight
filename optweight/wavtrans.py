@@ -277,7 +277,7 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     '''
 
     if len(wav.shape) != 1:
-        ValueError('Input wavelet container is not a vector')
+        raise ValueError('Input wavelet container is not a vector')
         
     indices = np.arange(w_ell.shape[0])
     lmax = w_ell.shape[-1] - 1
@@ -291,11 +291,10 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
 
         if imap.ndim == 1:
             imap = imap[np.newaxis,:]
-        npol = imap.shape[0]
 
         dtype = type_utils.to_complex(imap.dtype)
         winfo = sharp.alm_info(lmax=lmax_w)
-        wlm = np.zeros((npol, winfo.nelem), dtype=dtype)
+        wlm = np.zeros((alm.shape[:-1]) + (winfo.nelem,), dtype=dtype)
 
         sht.map2alm(imap, wlm, wav.minfos[idx], winfo, spin,
                     adjoint=adjoint)
@@ -311,7 +310,7 @@ def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
 
     Parameters
     ----------
-    alm : (npol, nelem) array
+    alm : (..., npol, nelem) array
         SH coefficients.
     ainfo : sharp.alm_info object
         Metainfo input alms.

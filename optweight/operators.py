@@ -185,7 +185,7 @@ class WavMatVecAlm(MatVecAlm):
     -------
     call(alm) : Apply the operator to a set of alms.
     '''
-    #@profile
+
     def __init__(self, ainfo, m_wav, w_ell, spin, power=1, adjoint=False):
 
         self.ainfo = ainfo
@@ -222,7 +222,6 @@ class WavMatVecAlm(MatVecAlm):
 
         self.alm_dtype = type_utils.to_complex(self.v_wav.dtype)
 
-    #@profile
     def call(self, alm):
         '''
         Apply the operator to a set of alms.
@@ -383,13 +382,16 @@ class WavMatVecWav(MatVecWav):
         Power of matrix.
     inplace : bool, optional
         Perform operation in place.
+    op : str, optional
+        Operation (pased to np.einsum) used for each block. E.g 
+        "ijk, jk -> ik" to reproduce the standard behaviour.
 
     Methods
     -------
     call(wav) : Apply the operator to a wavelet vector.
     '''
 
-    def __init__(self, m_wav, power=1, inplace=False):
+    def __init__(self, m_wav, power=1, inplace=False, op=None):
 
         if m_wav.ndim != 2:
             raise ValueError(f'Expected m_wav.ndim = 2, got : {w_wav.ndim}')
@@ -402,6 +404,8 @@ class WavMatVecWav(MatVecWav):
 
         if not self.inplace:
             raise NotImplementedError()
+
+        self.op = op
 
     def call(self, wav):
         '''
@@ -431,11 +435,14 @@ class WavMatVecWav(MatVecWav):
 
                 map_vec = wav.maps[jpidx]
 
-                if map_mat.ndim == 3:
-                    map_prod = np.einsum(
-                        'ijk, jk -> ik', map_mat, map_vec, out=map_vec, 
-                        optimize=True)
-                elif map_mat.ndim == 2:
-                    map_vec *= map_mat
-
+                if self.op is None:
+                    # Default behaviour.
+                    if map_mat.ndim == 3:
+                        map_prod = np.einsum('ijk, jk -> ik', map_mat, 
+                            map_vec, out=map_vec, optimize=True)
+                    elif map_mat.ndim == 2:
+                        map_vec *= map_mat
+                else:
+                    map_prod = np.einsum(self.op, map_mat, map_vec, out=map_vec, 
+                                         optimize=True)
         return wav

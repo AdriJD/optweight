@@ -154,7 +154,7 @@ def full_matrix(mat):
 
     return mat
 
-def matpow(mat, power, return_diag=False, skip_unit_pow=True):
+def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
     '''
     Raise matrix to a given power.
 
@@ -169,6 +169,9 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True):
         If set, only return diagonal if input matrix was diagonal.
     skip_unit_pow : bool, optional
         If False, evalute even if power = 1, useful for non-psd matrices.
+    axes : array-like, optional
+        List of 2 dimensions that form the symmetric matrix, use in case
+        matrix is not (npol, npol, N) but e.g. (M, npol, npol, N).
 
     Returns
     -------
@@ -184,7 +187,7 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True):
 
     if power != 1 or not skip_unit_pow:
 
-        if ndim_in == 2:
+        if ndim_in == 2 and axes is None:
             mat = mat.copy()
             mat **= power 
 
@@ -198,11 +201,15 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True):
             else:
                 dtype = dtype_in
 
-            mat = np.ascontiguousarray(np.transpose(mat, (2, 0, 1)), dtype=dtype)
-            mat = array_ops.eigpow(mat, power)
-            mat = np.ascontiguousarray(np.transpose(mat, (1, 2, 0)), dtype=dtype_in)
+            if axes is None:
+                axes = [0, 1]
 
-    if not return_diag:
+            mat = mat.astype(dtype)
+            mat = array_ops.eigpow(mat, power, axes=axes)
+            mat = mat.astype(dtype_in)
+
+    if not return_diag and axes is None:
+        # If axes were specified, there is not need for full matrix.
         mat = full_matrix(mat)
 
     if not mat.flags['OWNDATA']:
@@ -251,7 +258,7 @@ def wavmatpow(m_wav, power, **matpow_kwargs):
 
     return m_wav_power
 
-def get_near_psd(mat):
+def get_near_psd(mat, axes=None):
     '''
     Get close positive semi-definite matrix by zeroing negative eigenvalues.
 
@@ -259,6 +266,9 @@ def get_near_psd(mat):
     ---------
     mat : (npol, npol, N) array or (npol, N) array
         Matrix, either symmetric but dense in first two axes or diagonal,
+    axes : array-like, optional
+        List of 2 dimensions that form the symmetric matrix, use in case
+        matrix is not (npol, npol, N) but e.g. (M, npol, npol, N).
     
     Returns
     -------
@@ -269,13 +279,13 @@ def get_near_psd(mat):
     if mat.ndim == 1:
         mat = mat[np.newaxis,:]
 
-    if mat.ndim == 2:
+    if mat.ndim == 2 and axes is None:
         out = mat.copy()
         out[out<0] = 0
         return out
 
     # Handle 3d case.
-    return matpow(mat, 1, skip_unit_pow=False)
+    return matpow(mat, 1, skip_unit_pow=False, axes=axes)
 
 def atleast_nd(mat, ndim, append=False): 
     '''

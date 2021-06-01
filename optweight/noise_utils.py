@@ -13,7 +13,7 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
     
     Parameters
     ----------
-    alm : (npol, nelem) complex array
+    alm : (ncomp, npol, nelem) complex array
         Noise alms.
     ainfo : sharp.alm_info object
         Metainfo input alms.
@@ -65,11 +65,11 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
                      lmax=None, kernel_ell=None):
     '''
     Estimate noise covariance (uncorelated between pixels, possible correlated 
-    between components).
+    between polarizations and other components).
 
     Arguments
     ---------
-    imap : (npol, npix)
+    imap : (ncomp, npol, npix)
         Input noise map.
     minfo : sharp.map_info object
         Metainfo input map.
@@ -87,21 +87,24 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
 
     Returns
     -------
-    cov_pix : (npol, npol, npix) or (npol, npix)
-        Estimated covariance matrix, only diagonal if diag is set.
+    cov_pix : (ncomp, npol, ncomp, npol, npix) or (ncomp, ncomp, npol, npix)
+        Estimated covariance matrix, only diagonal in pol if diag is set.
     '''
     
-    if imap.ndim == 1:
-        imap = imap[np.newaxis,:]
+    imap = mat_utils.atleast_nd(imap, 3)
+    ncomp, npol, npix = imap.shape
+
+    if imap.ndim != 3:
+        raise ValueError(f'imap is not (ncomp, npol, npix), but {imap.shape}')
 
     if features is not None:
         if features.ndim == 1:
             features = features[np.newaxis,:]
-        
+            
     if diag:
-        cov_pix = imap ** 2
+        cov_pix = np.einsum('abc, dbc -> adbc', imap, imap, optimize=True)
     else:
-        cov_pix = np.einsum('il, kl -> ikl', imap, imap, optimize=True)
+        cov_pix = np.einsum('abc, dec -> abdec', imap, imap, optimize=True)
 
     if features is not None:
         lmax_w = map_utils.minfo2lmax(minfo)        
@@ -113,30 +116,33 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
         lmax_w = None
         w_ell = None
 
-    # Loop over upper triangle or diagonal.
-    npol = cov_pix.shape[0]
-    elements = range(npol) if diag else zip(*np.triu_indices(npol))
-
-    for idx in elements:
-        # Only using spin 0 is an approximation, cov elements are not all spin-0.
-        if features is not None:
-            smooth_locally(cov_pix[idx], minfo, w_ell, features, 0, inplace=True)
-        else:
-            map_utils.lmul_pix(cov_pix[idx], b_ell, minfo, 0, inplace=True)
-
     if not diag:
-        # Fill lower triangle.
-        for idx, jdx in zip(*np.tril_indices(npol, k=-1)):
-            cov_pix[idx,jdx] = cov_pix[jdx,idx]
-                    
+        cov_pix = cov_pix.reshape(ncomp * npol, ncomp * npol, npix)
+
+    for idxs in np.ndindex(cov_pix.shape[:-1]):
+        
+        if idxs[0] <= idxs[1]:
+            # Upper triangular part.
+            # Only using spin 0 is an approximation, cov elements are not all spin-0.
+            if features is not None:
+                smooth_locally(cov_pix[idxs], minfo, w_ell, features, 0, inplace=True)
+            else:
+                map_utils.lmul_pix(cov_pix[idxs], b_ell, minfo, 0, inplace=True)
+        else:
+            # Fill lower triangular. Works because idxs loop is in row-major order.
+            cov_pix[idxs] = cov_pix[(idxs[1],idxs[0])+idxs[2:]]
+
     if lmax or kernel_ell is not None:
         if kernel_ell is None:
             # Assume flat kernel in this case.
             kernel_ell = np.ones(lmax + 1)
         cov_pix = norm_cov_est(cov_pix, minfo, kernel_ell=kernel_ell, inplace=True)
-
-    cov_pix = mat_utils.get_near_psd(cov_pix)
+        
+    cov_pix = mat_utils.get_near_psd(cov_pix, axes=[0,1])
     
+    if not diag:
+        cov_pix = cov_pix.reshape(ncomp, npol, ncomp, npol, npix)
+
     return cov_pix
 
 def norm_cov_est(cov_est, minfo, kernel_ell, inplace=False):
@@ -146,8 +152,8 @@ def norm_cov_est(cov_est, minfo, kernel_ell, inplace=False):
 
     Arguments
     ---------
-    cov_est : (npol, npol, npix) or (npol, npix) array
-        Input map, if diagonal only diagonal suffices.
+    cov_est : (..., npix) array
+        Input maps.
     minfo : sharp.map_info object
         Metainfo input map
     kernel_ell : (nell) array
@@ -158,8 +164,8 @@ def norm_cov_est(cov_est, minfo, kernel_ell, inplace=False):
 
     Returns
     -------
-    omap : (npol, npol, npix) or (npol, npix) array
-        Covariance map.
+    omap : (..., npix) array
+        Covariance maps.
     '''
 
     ells = np.arange(kernel_ell.size)
