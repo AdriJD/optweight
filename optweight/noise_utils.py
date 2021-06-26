@@ -357,8 +357,7 @@ def unit_var_wav(minfos, preshape, dtype, seed=None):
         Block vector with unit-variance noise maps.
     '''
 
-    if seed is not None:
-        rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
 
     indices = np.arange(len(minfos))
     wav_uni = wavtrans.Wav(1, preshape=preshape, dtype=dtype)

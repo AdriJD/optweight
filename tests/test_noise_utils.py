@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import enmap, wcsutils
+from pixell import enmap, wcsutils, sharp
 
 from optweight import noise_utils, map_utils, wlm_utils
 
@@ -201,3 +201,62 @@ class TestNoiseBoxUtils(unittest.TestCase):
 
         self.assertRaises(ValueError, noise_utils.minimum_w_ell_lambda, lmax, lmin, lmax_j)        
     
+    def test_unit_var_wav(self):
+
+        minfos = np.asarray([sharp.map_info_gauss_legendre(
+            lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
+        preshape = (2, 3)
+        dtype = np.float32
+
+        wav_unit = noise_utils.unit_var_wav(minfos, preshape, dtype)
+        map_0 = wav_unit.maps[0]
+        map_1 = wav_unit.maps[1]
+        map_2 = wav_unit.maps[2]
+
+        self.assertEqual(wav_unit.dtype, dtype)
+        self.assertEqual(wav_unit.preshape, preshape)
+        self.assertEqual(wav_unit.ndim, 1)
+        self.assertEqual(wav_unit.shape, (3,))
+
+        # Running againg with no seed should give different maps.
+        wav_unit = noise_utils.unit_var_wav(minfos, preshape, dtype)        
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          wav_unit.maps[0], map_0)
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          wav_unit.maps[1], map_1)
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          wav_unit.maps[2], map_2)
+
+        
+        wav_unit = noise_utils.unit_var_wav(minfos, preshape, dtype, seed=1)        
+        map_0 = wav_unit.maps[0]
+        map_1 = wav_unit.maps[1]
+        map_2 = wav_unit.maps[2]
+
+        # Running againg with same seed should give same maps.
+        wav_unit = noise_utils.unit_var_wav(minfos, preshape, dtype, seed=1)        
+        np.testing.assert_allclose(wav_unit.maps[0], map_0)
+        np.testing.assert_allclose(wav_unit.maps[1], map_1)
+        np.testing.assert_allclose(wav_unit.maps[2], map_2)
+
+        rng = np.random.default_rng(1)
+        wav_unit = noise_utils.unit_var_wav(minfos, preshape, dtype, seed=rng)        
+        map_0 = wav_unit.maps[0]
+        map_1 = wav_unit.maps[1]
+        map_2 = wav_unit.maps[2]
+
+        # Running againg with same generator should five different maps.
+        wav_unit = noise_utils.unit_var_wav(minfos, preshape, dtype, seed=rng)        
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          wav_unit.maps[0], map_0)
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          wav_unit.maps[1], map_1)
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          wav_unit.maps[2], map_2)
+
+        # Running againg with fresh generator should give same maps.
+        rng = np.random.default_rng(1)
+        wav_unit = noise_utils.unit_var_wav(minfos, preshape, dtype, seed=rng)        
+        np.testing.assert_allclose(wav_unit.maps[0], map_0)
+        np.testing.assert_allclose(wav_unit.maps[1], map_1)
+        np.testing.assert_allclose(wav_unit.maps[2], map_2)
