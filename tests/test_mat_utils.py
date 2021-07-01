@@ -107,6 +107,40 @@ class TestMatUtils(unittest.TestCase):
 
         self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
 
+    def test_matpow_diag_pinv(self):
+        
+        # Check if non PSD diagonal matrix is consistent.
+        mat_full = np.ones((3, 3, 1))
+        mat_full[:,:,0] = [[1, 0, 0], [0, 0, 0], [0, 0, 1]]
+        
+        mat_diag = np.ones((3, 1))
+        mat_diag[1] = 0
+
+        mat_full_out = mat_utils.matpow(mat_full, -1)
+        mat_diag_out = mat_utils.matpow(mat_diag, -1)
+
+        np.testing.assert_allclose(mat_full_out, mat_diag_out)
+        
+        mat_diag_out_diag = mat_utils.matpow(mat_diag, -1, return_diag=True)        
+        np.testing.assert_allclose(mat_diag_out_diag, mat_diag)
+
+        # Try matrix with negative eigenvalue
+        mat_full = np.ones((3, 3, 1))
+        mat_full[:,:,0] = [[1, 0, 0], [0, -1, 0], [0, 0, 1]]
+        
+        mat_diag = np.ones((3, 1))
+        mat_diag[1] = -1
+
+        mat_full_out = mat_utils.matpow(mat_full, -1)
+        mat_diag_out = mat_utils.matpow(mat_diag, -1)
+
+        np.testing.assert_allclose(mat_full_out, mat_diag_out)
+        
+        mat_diag_out_diag = mat_utils.matpow(mat_diag, -1, return_diag=True)        
+        mat_diag_out_diag_exp = np.ones((3, 1))
+        mat_diag_out_diag_exp[1] = 0
+        np.testing.assert_allclose(mat_diag_out_diag, mat_diag_out_diag_exp)
+
     def test_full_matrix(self):
 
         mat = np.zeros((2, 2, 3))

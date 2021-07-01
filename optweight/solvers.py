@@ -334,10 +334,10 @@ class CGWiener(utils.CG):
                 Use (S^-1 + itau * 1)^-1, where itau is an approximate 
                 inverse noise variance spectrum.
             pinv_wav
-                Use Pseudo-inverse method from Seljebotn et al adapted
+                Use the pseudo-inverse method from Seljebotn et al. adapted
                 to a wavelet-based noise model.
             pinv
-                Use Pseudo-inverse method from Seljebotn et al. Requires 
+                Use the unmodified pseudo-inverse method from Seljebotn et al. Requires 
                 a covariance matrix to be passed though the `icov_pix` kwarg.
 
         spin : int, array-like, optional

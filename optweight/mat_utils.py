@@ -156,7 +156,7 @@ def full_matrix(mat):
 
 def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
     '''
-    Raise matrix to a given power.
+    Raise positive semidefinite matrix to a given power.
 
     Parameters
     ----------
@@ -188,8 +188,11 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
     if power != 1 or not skip_unit_pow:
 
         if ndim_in == 2 and axes is None:
+            # Setting negative eigenvalues to zero.
             mat = mat.copy()
-            mat **= power 
+            mask = mat <= 0
+            mat[mask] = 0
+            np.power(mat, power, out=mat, where=~mask)
 
         else:
             # 64 bit to avoid truncation of small values in eigpow.

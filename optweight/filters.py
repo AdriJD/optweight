@@ -3,7 +3,7 @@ import warnings
 
 from pixell import curvedsky, sharp, utils
 
-from optweight import map_utils, mat_utils
+from optweight import map_utils, mat_utils, solvers
 
 class CGPixFilter(object):
     def __init__(self, ncomp, theory_cls, b_ell, lmax, icov=None,
@@ -116,7 +116,7 @@ class CGPixFilter(object):
         if cov_noise_ell is not None:
             icov_noise_ell = mat_utils.matpow(cov_noise_ell, -1)
         else:
-            icov_noise_ell is None
+            icov_noise_ell = None
                 
         if b_ell.ndim==1:
             b_ell = b_ell[None] * np.asarray((1,1,1)[:ncomp])[:,None]
@@ -207,13 +207,13 @@ class CGPixFilter(object):
         elif stype == 'pcg_pinv':
             prec = 'pinv'
         if stype == 'cg_scaled':
-            solver = CGWienerScaled.from_arrays(alm, ainfo, self.icov_ell, 
+            solver = solvers.CGWienerScaled.from_arrays(alm, ainfo, self.icov_ell, 
                                                         self.icov_pix, self.minfo, 
                                                         b_ell=self.b_ell,
                                                         draw_constr=False, 
                                                         prec=None, x0=x0)
         else:
-            solver = CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
+            solver = solvers.CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
                                           self.icov_pix, self.minfo, b_ell=self.b_ell,
                                           draw_constr=False, 
                                           icov_noise_flat_ell=self.icov_noise_ell,
