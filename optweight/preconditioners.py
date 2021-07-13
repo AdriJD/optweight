@@ -29,18 +29,17 @@ class HarmonicPreconditioner(operators.MatVecAlm):
 
         npol, nell = icov_ell.shape[-2:]
 
+        if itau.ndim == 1:
+            itau = itau * np.eye(npol)
+
         if itau.ndim == 2:
             itau = itau[:,:,np.newaxis]
 
         if b_ell is None:
             b_ell = np.ones((npol, nell))
 
-        if np.count_nonzero(itau - itau * np.eye(npol)[:,:,np.newaxis]):
-            # itau != symmetric, so b_ell and itau will not necessarily commute.
-            b_ell = b_ell * np.eye(npol)[:,:,np.newaxis]
-            op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)        
-        else:
-            op = icov_ell + itau * b_ell ** 2
+        b_ell = b_ell * np.eye(npol)[:,:,np.newaxis]
+        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)        
 
         self.preconditioner = operators.EllMatVecAlm(ainfo, op, -1, inplace=False)
             
