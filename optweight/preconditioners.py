@@ -6,7 +6,7 @@ from optweight import operators, mat_utils
 
 class HarmonicPreconditioner(operators.MatVecAlm):
     '''
-    Harmonic preconditioner: M = (C^-1 + B^2 itau)^-1.
+    Harmonic preconditioner: M = (C^-1 + B itau B)^-1.
 
     Parameters
     ----------
