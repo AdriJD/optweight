@@ -82,8 +82,9 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
     ----------
     imap : (..., ny, nx) enmap
         Input map(s)
-    lmax : int
-        Band limit supported by Gauss-Legendre grid.
+    lmax : int or sharp.map_info object
+        Band limit supported by Gauss-Legendre grid or map_info object that
+        describes output geometry.
     order : int, optional
         Order of spline interpolation
     area_pow : float, optional
@@ -110,7 +111,10 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
         If enmap is not cylindrical.
     '''
     
-    minfo = get_enmap_minfo(imap.shape, imap.wcs, lmax)
+    if isinstance(lmax, sharp.map_info):
+        minfo = lmax
+    else:
+        minfo = get_enmap_minfo(imap.shape, imap.wcs, lmax)
 
     if order > 1:
         imap = utils.interpol_prefilter(
@@ -618,8 +622,10 @@ def get_enmap_minfo(shape, wcs, lmax):
 
     Parameters
     ----------
-    shape : the shape of the enmap geometry
-    wcs : the wcs object of the enmap geometry
+    shape : tuple 
+        The shape of the enmap geometry
+    wcs : astropy.wcs.WCS object
+        The wcs object of the enmap geometry
     lmax : int
         Band limit supported by Gauss-Legendre grid.
 
