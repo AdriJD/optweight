@@ -1,7 +1,6 @@
 from numpy.distutils.core import setup, Extension, build_src
 from distutils.errors import DistutilsError
 from Cython.Build import cythonize
-import versioneer
 import numpy as np
 import os
 import subprocess as sp
@@ -28,8 +27,6 @@ class CustomSrc(build_src.build_src):
         return build_src.build_src.run(self)
 
 cmdclass = {'build_src': CustomSrc}
-
-cmdclass = versioneer.get_cmdclass(cmdclass)
 
 ext_modules = [Extension('optweight.alm_c_utils',
                         [opj(path, 'cython', 'alm_c_utils.pyx')],
