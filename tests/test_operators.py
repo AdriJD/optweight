@@ -376,3 +376,25 @@ class TestOperators(unittest.TestCase):
         alm_out_exp /= (4 * np.pi / (10800 ** 2))
 
         np.testing.assert_allclose(alm_out, alm_out_exp, rtol=5e-2)
+
+    def test_op2mat(self):
+
+        # Test identity matrix with complex input.
+        op = lambda x : x
+        dtype = np.complex64
+        nrow = 3
+
+        mat = operators.op2mat(op, nrow, dtype)
+        mat_exp = np.eye(3, dtype=np.complex64)
+
+        np.testing.assert_allclose(mat, mat_exp)
+        
+        # More complicated matrix.
+        mat_exp = np.asarray([[1, 2, 3], [4, 5, 6]])
+        op = lambda x : np.dot(mat_exp, x)
+
+        mat = operators.op2mat(op, 2, mat_exp.dtype, ncol=3)
+        np.testing.assert_allclose(mat, mat_exp)
+
+
+        

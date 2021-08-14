@@ -446,3 +446,36 @@ class WavMatVecWav(MatVecWav):
                     map_prod = np.einsum(self.op, map_mat, map_vec, out=map_vec, 
                                          optimize=True)
         return wav
+
+def op2mat(op, nrow, dtype, ncol=None):
+    '''
+    Convert a linear operator into a matrix representation.
+
+    Parameters
+    ----------
+    op : callable
+        Linear operation. Takes in 1D vector of length ncol and produces 1d
+        vector of lenght nrow.
+    nrow : int
+        Number of rows of matrix.
+    dtype : type
+        Dtype of input vector and matrix.
+    ncol : int
+        Number of colums of matrix, if different from nrow.
+
+    Returns
+    -------
+    mat : (nrow, ncol) array
+        Matrix representation.
+    '''
+
+    ncol = nrow if ncol is None else ncol    
+    uvec = np.zeros(ncol, dtype=dtype)
+    mat = np.zeros((nrow, ncol), dtype=dtype)
+
+    for idx in range(ncol):
+        uvec[idx] = 1
+        mat[:,idx] = op(uvec)
+        uvec[idx] = 0
+
+    return mat
