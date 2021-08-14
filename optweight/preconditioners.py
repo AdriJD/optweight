@@ -102,13 +102,16 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
                 'Pinv precondition cannot handle off-diagonal itau elements for now.')
 
         if b_ell is None:
-            b_ell = np.ones((icov_ell.shape[0], icov_ell.shape[-1]))
+            b_ell = np.ones((npol, nell))
+
+        b_ell = b_ell * np.eye(npol)[:,:,np.newaxis]
 
         if cov_pix is None:
             cov_pix = mat_utils.matpow(icov_pix, -1)
 
+        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)        
         self.harmonic_prec = operators.EllMatVecAlm(
-            ainfo, icov_ell + itau * b_ell ** 2, -1, inplace=True)
+            ainfo, op, -1, inplace=True)
         
         self.icov_signal = operators.EllMatVecAlm(
             ainfo, icov_ell, inplace=True)
@@ -182,11 +185,12 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
     Methods
     -------
     call(alm) : Apply the preconditioner to a set of alms.
-
     '''
     
     def __init__(self, ainfo, icov_ell, itau_ell, icov_wav, w_ell, spin,
                  mask_pix=None, minfo_mask=None, b_ell=None):
+
+        npol, nell = icov_ell.shape[-2:]
 
         if itau_ell.ndim != 3:
             raise ValueError(
@@ -194,7 +198,9 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
                 format(itau_ell.ndim))
 
         if b_ell is None:
-            b_ell = np.ones((icov_ell.shape[0], icov_ell.shape[-1]))
+            b_ell = np.ones((npol, nell))
+
+        b_ell = b_ell * np.eye(npol)[:,:,np.newaxis]
 
         if mask_pix is None:
             self.imask = lambda alm: alm
@@ -203,8 +209,8 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
                 ainfo, mask_pix, minfo_mask, spin, power=-1,
                 use_weights=True)
 
-        self.harmonic_prec = operators.EllMatVecAlm(
-            ainfo, icov_ell + itau_ell * b_ell ** 2, -1, inplace=True)
+        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau_ell, b_ell)        
+        self.harmonic_prec = operators.EllMatVecAlm(ainfo, op, -1, inplace=True)
         
         self.icov_signal = operators.EllMatVecAlm(
             ainfo, icov_ell, inplace=True)
@@ -217,7 +223,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
 
         self.pcov_noise = operators.WavMatVecAlm(
             ainfo, icov_wav, w_ell, spin, power=-1, adjoint=True)
-    #@profile
+
     def call(self, alm):
         '''
         Apply the preconditioner to a set of alms.
