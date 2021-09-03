@@ -597,6 +597,69 @@ class TestWavTrans(unittest.TestCase):
 
         self.assertRaises(ValueError, wavtrans.preshape2npol, (2, 2, 2))
 
+    def test_wav_get_indices_diag(self):
+        
+        indices = np.asarray([(0,0), (0,1), (1,1)])
+        minfos = np.asarray([sharp.map_info_gauss_legendre(
+            lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
+        wavmat = wavtrans.Wav(2, indices=indices, minfos=minfos)
+
+        indices_diag = wavmat.get_indices_diag()
+        self.assertEqual(indices_diag, [(0, 0), (1, 1)])
+
+        # Again, but with block vector.
+        indices = np.asarray([3, 4, 6])
+        minfos = np.asarray([sharp.map_info_gauss_legendre(
+            lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
+        wavvec = wavtrans.Wav(1, indices=indices, minfos=minfos)
+
+        indices_diag = wavvec.get_indices_diag()
+        self.assertEqual(indices_diag, list(indices))
+
+    def test_wav_get_minfos_diag(self):
+        
+        indices = np.asarray([(0,0), (0,1), (1,1)])
+        minfos = np.asarray([sharp.map_info_gauss_legendre(
+            lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
+        wavmat = wavtrans.Wav(2, indices=indices, minfos=minfos)
+
+        minfos_diag = wavmat.get_minfos_diag()
+        self.assertTrue(map_utils.minfo_is_equiv(minfos_diag[0], minfos[0]))
+        self.assertTrue(map_utils.minfo_is_equiv(minfos_diag[1], minfos[2]))
+        self.assertTrue(len(minfos_diag) == 2)
+
+        # These should be copies.
+        self.assertFalse(minfos_diag[0] is minfos[0])
+        self.assertFalse(minfos_diag[1] is minfos[2])
+
+        # These should be pointers.
+        minfos_diag = wavmat.get_minfos_diag(copy=False)
+        self.assertTrue(minfos_diag[0] is minfos[0])
+        self.assertTrue(minfos_diag[1] is minfos[2])
+
+        # Again, but with block vector.
+        indices = np.asarray([3, 4, 6])
+        minfos = np.asarray([sharp.map_info_gauss_legendre(
+            lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
+        wavvec = wavtrans.Wav(1, indices=indices, minfos=minfos)
+
+        minfos_diag = wavvec.get_minfos_diag()
+        self.assertTrue(map_utils.minfo_is_equiv(minfos_diag[0], minfos[0]))
+        self.assertTrue(map_utils.minfo_is_equiv(minfos_diag[1], minfos[1]))
+        self.assertTrue(map_utils.minfo_is_equiv(minfos_diag[2], minfos[2]))
+        self.assertTrue(len(minfos_diag) == 3)
+
+        # These should be copies.
+        self.assertFalse(minfos_diag[0] is minfos[0])
+        self.assertFalse(minfos_diag[1] is minfos[1])
+        self.assertFalse(minfos_diag[2] is minfos[2])
+
+        # These should be pointers.
+        minfos_diag = wavvec.get_minfos_diag(copy=False)
+        self.assertTrue(minfos_diag[0] is minfos[0])
+        self.assertTrue(minfos_diag[1] is minfos[1])
+        self.assertTrue(minfos_diag[2] is minfos[2])
+
 class TestWavTransIO(unittest.TestCase):
 
     def setUp(self):

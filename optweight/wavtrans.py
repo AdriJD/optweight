@@ -218,6 +218,7 @@ class Wav():
         Returns
         -------
         minfos : (ndiag) list of sharp.map_info objects
+            Map_info objects of the diagonal.
         '''
 
         indices = self.get_indices_diag()
@@ -226,9 +227,9 @@ class Wav():
         for index in indices:
             minfo = self.minfos[index]
             if copy:
-                minfos.append(minfo)
+                minfos.append(map_utils.copy_minfo(minfo))
             else:
-                minfos.append(map_info.copy_minfo(minfo))
+                minfos.append(minfo)
 
         return minfos
 
@@ -236,7 +237,7 @@ class Wav():
         '''Return list of indices of diagonal if block matrix.'''
 
         if self.ndim == 1:
-            indices = self.indices[:,0]
+            indices = list(self.indices[:,0])
 
         elif self.ndim == 2:
             indices = [tuple(idx) for idx in self.indices if idx[0] == idx[1]]
