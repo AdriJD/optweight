@@ -485,7 +485,7 @@ def get_isotropic_ivar(icov_pix, minfo):
     '''
 
     wcov = inv_qweight_map(icov_pix, minfo, inplace=False)
-    
+
     # Set off-diagonal elements to zero, I only understand diagonal for now.
     numerator = np.sum(wcov ** 2, axis=-1)
     denominator = np.sum(wcov, axis=-1)
@@ -521,8 +521,8 @@ def get_ivar_ell(icov_wav, w_ell):
     '''
 
     npol = wavtrans.preshape2npol(icov_wav.preshape)
-   
-    itaus = np.zeros((3, 3, w_ell.shape[0]))
+
+    itaus = np.zeros((npol, npol, w_ell.shape[0]))
 
     for jidx in range(w_ell.shape[0]):
         itaus[:,:,jidx] = get_isotropic_ivar(

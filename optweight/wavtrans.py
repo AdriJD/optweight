@@ -210,8 +210,8 @@ class Wav():
         '''
         Get map_info objects corresponding to diagonal if block matrix.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         copy : bool, optional
             If set, return copies of map info objects.
 

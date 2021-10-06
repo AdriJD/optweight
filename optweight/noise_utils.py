@@ -89,6 +89,17 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
     -------
     cov_pix : (ncomp, npol, ncomp, npol, npix) or (ncomp, ncomp, npol, npix)
         Estimated covariance matrix, only diagonal in pol if diag is set.
+
+    Notes
+    -----
+    There are two scenarios: 1) the input noise map is generated in the pixel
+    domain or, 2) the input noise map has undergone a band-limiting transformation 
+    (i.e. alm2map, so the noise is generated in the spherical harmonic domain 
+    before it is transformed to the map domain). Estimating the variance for
+    case 1 is straightforward, we simply square and smooth the input map. For
+    case 2, we first square and smooth and then divide by the pixel area and 
+    the number of modes that are included below the band limit. See 
+    "norm_cov_est" which is used when either lmax or kernel_ell are provided.
     '''
     
     imap = mat_utils.atleast_nd(imap, 3)
