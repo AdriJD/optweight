@@ -495,3 +495,22 @@ def smooth_locally(imap, minfo, w_ell, features, spin, inplace=False):
     sht.alm2map(alm, omap, ainfo, minfo, spin)
 
     return omap
+
+def muKarcmin_to_n_ell(noise_level):
+    '''
+    Convert a noise level in micro K arcmin to to the amplitude
+    of the corresponding full-sky, flat noise power spectrum in
+    micro K squared.
+
+    Parameters
+    ----------
+    noise_level : float
+        Noise level in uK arcmin.
+
+    Returns
+    -------
+    amp : float
+        Amplitude of power spectrum.
+    '''
+
+    return (noise_level * (np.pi / 60 / 180)) ** 2

@@ -260,3 +260,10 @@ class TestNoiseBoxUtils(unittest.TestCase):
         np.testing.assert_allclose(wav_unit.maps[0], map_0)
         np.testing.assert_allclose(wav_unit.maps[1], map_1)
         np.testing.assert_allclose(wav_unit.maps[2], map_2)
+
+    def test_muKarcmin_to_n_ell(self):
+
+        noise_level = 20 # muK arcmin.
+        amp_exp = (noise_level * np.pi / 60 / 180) ** 2
+        amp = noise_utils.muKarcmin_to_n_ell(noise_level)
+        self.assertAlmostEqual(amp_exp / amp, 1)
