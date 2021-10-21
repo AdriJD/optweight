@@ -233,7 +233,8 @@ class TestMatUtils(unittest.TestCase):
         out = mat_utils.get_near_psd(mat)
 
         e, _ = np.linalg.eig(out[:,:,0])
-        self.assertTrue(np.all(e >= 0))
+        # We can tolerate some negative values as long as they are close to zero.
+        self.assertTrue(np.all(e >= 0) | np.all(np.abs(e[e<0]) < 1e-16))
 
         out_exp = mat.copy()
         out_exp[:,:,0] = np.asarray([[1.05, 1, 1.05],[1, 1, 1],[1.05, 1, 1.05]])

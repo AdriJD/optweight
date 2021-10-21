@@ -615,7 +615,7 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
 
     return icov_pix
 
-def get_enmap_minfo(shape, wcs, lmax):
+def get_enmap_minfo(shape, wcs, lmax, pad=None):
     '''
     Compute map_info metadata for a Gauss-Legendre grid
     given a cylindrical enmap shape and wcs.
@@ -628,11 +628,19 @@ def get_enmap_minfo(shape, wcs, lmax):
         The wcs object of the enmap geometry
     lmax : int
         Band limit supported by Gauss-Legendre grid.
+    pad : float, optional
+        Amount of extra space [radians] in the theta (collatitude) 
+        direction above and below region.
 
     Returns
     -------
     map_info : sharp.map_info object
         metadata of Gausss-Legendre grid.
+
+    Raises
+    ------
+    NotImplementedError
+        If enmap is not cylindrical.
     '''
 
     if not wcsutils.is_cyl(wcs):
@@ -654,10 +662,13 @@ def get_enmap_minfo(shape, wcs, lmax):
 
     theta_min = min(theta_range)
     theta_max = max(theta_range)
-    minfo = get_gauss_minfo(
-        lmax, theta_min=theta_min, theta_max=theta_max)
+    if pad is not None:
+        if pad < 0: raise NotImplementedError(
+                f'Only positive padding implemented, got pad : {pad}')
+        theta_min = max(0, theta_min - pad)
+        theta_max = min(np.pi, theta_max + pad)
 
-    return minfo
+    return get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
 
 def select_mask_edge(mask, minfo):
     '''

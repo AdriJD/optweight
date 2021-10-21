@@ -107,6 +107,39 @@ def get_sd_kernels(lamb, lmax, j0=None, lmin=None, jmax=None, lmax_j=None,
 
     return w_ell, lmaxs
 
+def get_lmax_array(w_ell, eps=1e-10):
+    '''
+    Get array of lmax values from wavelet kernels.
+
+    Parameters
+    ----------
+    w_ell : (nwav, nell) array
+        Wavelet kernels.
+    eps : float
+        Regard elements of `w_ell` with absolute value < `eps` as zero.
+
+    Returns
+    -------
+    lmaxs : (nwav) array
+        Maximum multipole of each wavelet.    
+    '''
+
+    w_ell = np.atleast_2d(w_ell)
+    lmax = w_ell.shape[-1] - 1
+
+    # Subtract index of first zero element after kernel.
+    mask = np.abs(w_ell) > eps
+    lmaxs = lmax - np.argmax(mask[:,::-1], axis=-1)
+    lmaxs += 1 # To agree with lmaxs output of get_sd_kernels.
+    lmaxs[lmaxs > lmax] = lmax
+
+    # Edge case: row filled with zeros, set lmax to zero.
+    for widx in range(w_ell.shape[0]):
+        if lmaxs[widx] == lmax and not np.any(mask[widx]):
+            lmaxs[widx] = 0
+
+    return lmaxs
+
 def j_scale_to_lmax(j_scale, lamb):
     '''
     Return lmax for given wavelet number.

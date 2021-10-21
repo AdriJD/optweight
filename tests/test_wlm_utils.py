@@ -307,3 +307,22 @@ class TestWlmUtils(unittest.TestCase):
         # See Fig. 1 in (1211.1680). 
         j_scales_exp = np.asarray([1, 2, 3, 4])
         np.testing.assert_array_equal(j_scales, j_scales_exp)
+
+    def test_get_lmax_array(self):
+        
+        w_ell = np.asarray([[1, 1, 0, 0],
+                            [0, 1, 1, 0],
+                            [0, 0, 0, 1],
+                            [0, 0, 0, 0]], dtype=float)
+        lmaxs = wlm_utils.get_lmax_array(w_ell)
+        lmaxs_exp = np.asarray([2, 3, 3, 0])
+        
+        np.testing.assert_array_equal(lmaxs, lmaxs_exp)
+
+        # Test again with real kernels.
+        lamb = 3
+        lmax = 30
+
+        w_ell, lmaxs_exp = wlm_utils.get_sd_kernels(lamb, lmax)
+        lmaxs = wlm_utils.get_lmax_array(w_ell)
+        np.testing.assert_array_equal(lmaxs, lmaxs_exp)

@@ -4,7 +4,7 @@ import os
 import tempfile
 import pathlib
 
-from pixell import sharp
+from pixell import sharp, enmap
 
 from optweight import wavtrans, sht, map_utils
 
@@ -660,6 +660,33 @@ class TestWavTrans(unittest.TestCase):
         self.assertTrue(minfos_diag[1] is minfos[1])
         self.assertTrue(minfos_diag[2] is minfos[2])
 
+    def test_get_enmap_minfos(self):
+
+        # Create cut sky enmap geometry
+        ny, nx = 360, 720
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec_cut = np.radians([-60, 30])
+        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+        
+        w_ell = np.zeros((3, 100), dtype=np.float32)
+        w_ell[0,:20] = 1
+        w_ell[1,10:50] = 1
+        w_ell[2,50:] = 1
+
+        minfos = wavtrans.get_enmap_minfos(shape, wcs, w_ell, pad_factor=10)
+
+        self.assertEqual(minfos.dtype, np.dtype('O'))
+
+        # Test if all thetas are inside padded band.
+        self.assertTrue(0 <= np.degrees(minfos[0].theta.min()) < 10)
+        self.assertTrue(170 < np.degrees(minfos[0].theta.max()) <= 180)
+
+        self.assertTrue(15 < np.degrees(minfos[1].theta.min()) < 30)
+        self.assertTrue(170 < np.degrees(minfos[1].theta.max()) <= 180)
+
+        self.assertTrue(40 < np.degrees(minfos[2].theta.min()) < 45)
+        self.assertTrue(165 < np.degrees(minfos[2].theta.max()) < 170)
+
 class TestWavTransIO(unittest.TestCase):
 
     def setUp(self):
@@ -826,3 +853,4 @@ class TestWavTransIO(unittest.TestCase):
                 filename + '.hdf5', extra=extra)
 
         np.testing.assert_allclose(extra_dict['w_ell'], w_ell)
+

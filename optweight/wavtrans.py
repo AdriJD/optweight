@@ -4,7 +4,7 @@ import os
 from pixell import sharp
 import h5py
 
-from optweight import alm_utils, sht, type_utils, type_utils, map_utils
+from optweight import alm_utils, sht, type_utils, type_utils, map_utils, wlm_utils
 
 class Wav():
     '''
@@ -430,6 +430,41 @@ def write_wav(fname, wav, extra=None, **kwargs):
             mgroup = hfile.create_group(dname)
             map_utils.append_map_to_hdf(mgroup, wav.maps[idx2dict],
                                         wav.minfos[idx2dict], **kwargs)
+
+def get_enmap_minfos(shape, wcs, w_ell, pad_factor=10):
+    '''
+    Find map_info objects that sufficiently describe enmap geometry
+    for a set of wavelet kernels.
+
+    Parameters
+    ----------
+    shape : tuple
+        Shape of enmap.
+    wcs : astropy.wcs.WCS object
+        The wcs object of the enmap geometry
+    w_ell : (nwav, nell) array
+        Wavelet kernels.
+    pad_factor : float
+        Add extra space in theta (colattitute) above and below region 
+        spanned by enmap. Extra space (in degrees) per wavelet kernel lmax
+        is determined as `pad_factor` * 180 / lmax.
+
+    Returns
+    -------
+    minfos : (nwav) object array of sharp.mapinfo objects
+        Map_info metadata for each wavelet kernel described by `w_ell`.
+    '''    
+
+    lmaxs = wlm_utils.get_lmax_array(w_ell)
+    minfos = []
+
+    for widx in range(w_ell.shape[0]):
+
+        pad = np.radians(pad_factor * 180 / lmaxs[widx])
+        minfos.append(map_utils.get_enmap_minfo(
+            shape, wcs, 2 * lmaxs[widx], pad=pad))
+
+    return np.asarray(minfos)
 
 def read_wav(fname, extra=None):
     '''
