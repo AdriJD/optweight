@@ -42,7 +42,15 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
     if w_ell.ndim == 1:
         w_ell = w_ell[np.newaxis,:]
 
+    # Subtract monopole, i.e. the mean of the map, before estimating variance.
+    alm_mono = alm[...,0,0].copy()
+    alm[...,0,0] = 0
+
     noise_wav = wavtrans.alm2wav(alm, ainfo, spin, w_ell, wav=wav_template)
+
+    # Insert monopole back in.
+    alm[...,0,0] = alm_mono
+
     cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(alm.dtype))
 
     for jidx in range(w_ell.shape[0]):
