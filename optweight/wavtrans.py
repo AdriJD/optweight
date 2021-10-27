@@ -244,6 +244,50 @@ class Wav():
         
         return indices
 
+    @classmethod
+    def from_enmap(cls, shape, wcs, w_ell, *args, pad_factor=10, **kwargs):
+        '''
+        Initialize from the geometry of an enmap, supporting cut-sky maps.
+
+        Parameters
+        ----------
+        shape : tuple
+            Shape of enmap.
+        wcs : astropy.wcs.WCS object
+            The wcs object of the enmap geometry
+        w_ell : (nwav, nell) array
+            Wavelet kernels.
+        pad_factor : float
+            Add extra space in theta (colattitute) above and below region 
+            spanned by enmap. See `get_enmap_minfos`.
+        
+        Returns
+        -------
+        wav : Wav object
+            Zero-initialized wavelet object with minfos determined by enmap.
+
+        Raises
+        ------
+        ValueError
+            If shape of w_ell does not match provided wav matrix indices.
+        '''
+
+        # Overwrite minfos if provided.
+        kwargs['minfos'] = get_enmap_minfos(shape, wcs, w_ell, pad_factor=pad_factor)
+
+        # If no indices are given, create them here assuming vector or diag matrix
+        # (based on "ndim").
+        nwav = w_ell.shape[0]
+        ndim = args[0]        
+        kwargs.setdefault('indices', 
+                (np.ones((nwav, ndim)) * np.arange(nwav)[:,np.newaxis]).astype(int))
+
+        if kwargs['indices'].shape[0] != nwav:
+            raise ValueError(f'Mismatch shape indices : {indices.shape} and '
+                             f'w_ell : {w_ell.shape}')
+
+        return cls(*args, **kwargs)
+
 def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     '''
     Convert wavelet maps to SH coefficients.

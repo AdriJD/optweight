@@ -687,6 +687,38 @@ class TestWavTrans(unittest.TestCase):
         self.assertTrue(40 < np.degrees(minfos[2].theta.min()) < 45)
         self.assertTrue(165 < np.degrees(minfos[2].theta.max()) < 170)
 
+    def test_from_enmap(self):
+        
+        # Create cut sky enmap geometry
+        ny, nx = 360, 720
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec_cut = np.radians([-60, 30])
+        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+        
+        w_ell = np.zeros((3, 100), dtype=np.float32)
+        w_ell[0,:20] = 1
+        w_ell[1,10:50] = 1
+        w_ell[2,50:] = 1
+
+        minfos_exp = wavtrans.get_enmap_minfos(shape, wcs, w_ell, pad_factor=10)
+        
+        ndim = 1
+        wav = wavtrans.Wav.from_enmap(shape, wcs, w_ell, ndim)
+        
+        self.assertTrue(map_utils.minfo_is_equiv(wav.minfos[0], minfos_exp[0]))
+        self.assertTrue(map_utils.minfo_is_equiv(wav.minfos[1], minfos_exp[1]))
+        self.assertTrue(map_utils.minfo_is_equiv(wav.minfos[2], minfos_exp[2]))
+        
+        self.assertEqual(wav.ndim, ndim)
+        indices_exp = np.asarray([[0], [1], [2]])
+        np.testing.assert_array_equal(wav.indices, indices_exp)
+
+        ndim = 2
+        wav = wavtrans.Wav.from_enmap(shape, wcs, w_ell, ndim)
+        self.assertEqual(wav.ndim, ndim)
+        indices_exp = np.asarray([[0, 0], [1, 1], [2, 2]])
+        np.testing.assert_array_equal(wav.indices, indices_exp)
+
 class TestWavTransIO(unittest.TestCase):
 
     def setUp(self):

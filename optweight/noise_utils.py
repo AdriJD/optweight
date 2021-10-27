@@ -7,7 +7,7 @@ import healpy as hp
 from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht
 
 def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
-                     minfo_features=None):
+                     minfo_features=None, wav_template=None):
     '''
     Estimate wavelet-based covariance matrix given noise alms.
     
@@ -28,7 +28,11 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         when estimating variance.
     minfo_features : sharp.map_info object, optional
         Metainfo for features map.
-
+    wav_template : wavtrans.Wav object, optional
+        (nwav) wavelet vector used for alm2wav operation, used as 
+        template for cut sky wavelet maps. Will determine minfos
+        of output wavelet matrix.
+        
     Returns
     -------
     cov_wav : wavtrans.Wav object
@@ -38,7 +42,7 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
     if w_ell.ndim == 1:
         w_ell = w_ell[np.newaxis,:]
 
-    noise_wav = wavtrans.alm2wav(alm, ainfo, spin, w_ell)
+    noise_wav = wavtrans.alm2wav(alm, ainfo, spin, w_ell, wav=wav_template)
     cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(alm.dtype))
 
     for jidx in range(w_ell.shape[0]):
