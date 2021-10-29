@@ -20,3 +20,10 @@ class TestTypeUtils(unittest.TestCase):
         self.assertIs(type_utils.to_real(np.complex256), np.float128)
 
         self.assertRaises(ValueError, type_utils.to_real, np.float64)
+
+    def test_is_seq_of_seq(self):
+        
+        self.assertTrue(type_utils.is_seq_of_seq([[1], [2]]))
+        self.assertFalse(type_utils.is_seq_of_seq([[1], 2]))
+        self.assertTrue(type_utils.is_seq_of_seq(((1,), (2,))))
+        self.assertTrue(type_utils.is_seq_of_seq(np.ones((2,2))))

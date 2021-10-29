@@ -825,7 +825,7 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
         omap = np.zeros_like(imap)
 
     sht.alm2map(alm, omap, ainfo, minfo, spin, adjoint=False)
-    
+
     return omap
 
 def minfo2lmax(minfo):
@@ -992,7 +992,8 @@ def write_map(fname, imap, minfo, symm_axes=None):
         Map info object to be stored.
     symm_axes : array-like, optional
         Map is symmetric in these adjacent axes, only store upper 
-        triangular part.
+        triangular part. If sequence of sequences, first flatten 
+        axes to get to symmetric matrix, see `mat_utils.flattened_view`.
     '''
 
     if not os.path.splitext(fname)[1]:
@@ -1014,14 +1015,24 @@ def append_map_to_hdf(hfile, imap, minfo, symm_axes=None):
         Map to be stored.        
     minfo : sharp.map_info object
         Map info object to be stored.
-    symm_axes : array-like, optional
+    symm_axes : array-like, or array-like of array-like, optional
         Map is symmetric in these adjacent axes, only store upper 
-        triangular part.
+        triangular part. If sequence of sequences, first flatten 
+        axes to get to symmetric matrix, see `mat_utils.flattened_view`.
     '''
 
     if symm_axes is not None:
+
+        shape_orig = imap.shape
+
+        if type_utils.is_seq_of_seq(symm_axes):
+            imap, flat_axes = mat_utils.flattened_view(
+                imap, symm_axes, return_flat_axes=True)
+            symm_axes = flat_axes
+
         imap = mat_utils.symm2triu(imap, axes=symm_axes)
         hfile.attrs['symm_axis'] = symm_axes[0]
+        hfile.attrs['shape_orig'] = shape_orig
 
     hfile.create_dataset('map', data=imap)
 
@@ -1074,6 +1085,10 @@ def map_from_hdf(hfile):
     symm_axis = hfile.attrs.get('symm_axis', None)
     if symm_axis is not None:
         omap = mat_utils.triu2symm(omap, symm_axis)
+
+    shape_orig = hfile.attrs.get('shape_orig', None)
+    if shape_orig is not None:
+        omap = omap.reshape(shape_orig)
 
     minfo = minfo_from_hdf(hfile['minfo'])
 

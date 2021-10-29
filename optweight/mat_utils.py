@@ -2,7 +2,7 @@ import numpy as np
 
 from enlib import array_ops
 
-from optweight import wavtrans
+from optweight import wavtrans, type_utils
 
 def symm2triu(mat, axes, return_axis=False):
     '''
@@ -154,6 +154,69 @@ def full_matrix(mat):
 
     return mat
 
+def flattened_view(mat, axes, return_flat_axes=False):
+    '''
+    Return view of input that has provided axes combined.
+
+    Parameters
+    ----------
+    mat : array
+        N-dimensional array.
+    axes : array-like of array-like
+        Axis indices to be flattened. E.g. if mat.shape = (3, 2, 5, 10)
+        and axes = [[0, 1], [3]], the output shape is (3 * 2, 5, 10)
+    return_flat_axes : bool
+        If set, also return list of axes in final shape that were constructed
+        by flattening input axes.
+
+    Returns
+    -------
+    mat_view : array
+        View of input array with new shape.
+
+    Raises
+    ------
+    ValueError
+        If axes are repeated.
+    '''
+
+    shape_in = np.asarray(mat.shape)
+    shape_out = shape_in.copy()
+    flat_axes = np.zeros_like(shape_out)
+    mat_view = mat.view()
+
+    # Turn negative axes into positive axes.
+    for idx in range(len(axes)):
+        for jidx in range(len(axes[idx])):
+            ax = axes[idx][jidx]
+            if ax < 0: axes[idx][jidx] = mat.ndim + ax
+
+    # Check for repeats.
+    axes_flat = []
+    for sublist in axes:
+        for idx in sublist:
+            axes_flat.append(idx)            
+    if not np.unique(axes_flat).size == len(axes_flat):
+        raise ValueError(f'Axes cannot contain duplicates, got : {axes}')
+
+    for sublist in axes:
+        sublist = np.asarray(sublist)
+        prod = np.prod(shape_in[sublist])
+        shape_out[sublist[0]] = prod
+        shape_out[sublist[1:]] = 0
+
+        flat_axes[sublist[0]] = 1
+
+    mask = shape_out != 0
+    shape_out = shape_out[mask]
+    flat_axes = list(np.nonzero(flat_axes[mask])[0])
+    mat_view.shape = shape_out
+
+    if return_flat_axes:
+        return mat_view, flat_axes
+    else:
+        return mat_view
+            
 def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
     '''
     Raise positive semidefinite matrix to a given power.
@@ -169,9 +232,12 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
         If set, only return diagonal if input matrix was diagonal.
     skip_unit_pow : bool, optional
         If False, evalute even if power = 1, useful for non-psd matrices.
-    axes : array-like, optional
-        List of 2 dimensions that form the symmetric matrix, use in case
-        matrix is not (npol, npol, N) but e.g. (M, npol, npol, N).
+    axes : sequence or suequece of sequences, optional
+        If sequence: list of 2 dimensions that form the symmetric matrix, use e.g. 
+        [1, 2] in case  matrix is not (npol, npol, N) but (M, npol, npol, N). If 
+        sequence of sequences: axes that should be flattened and then be used as
+        symmetric part of matrix, use e.g. [[0, 1], [2, 3]] in case of e.g. 
+        (ncomp, npol, ncomp, npol, npix) matrix.
 
     Returns
     -------
@@ -180,14 +246,23 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
         set and input was diagonal.
     '''
 
-    ndim_in = mat.ndim
-
-    if ndim_in == 1:
+    if mat.ndim == 1:
         mat = mat[np.newaxis,:]
+    shape_in = mat.shape
+
+    if type_utils.is_seq_of_seq(axes):
+        mat, flat_ax = flattened_view(mat, axes, return_flat_axes=True)
+    else:
+        flat_ax = None
+            
+    if not 2 <= mat.ndim <= 3:
+        raise ValueError(
+            f'Matrix is not (npol, npol, N) or (npol, N), got : {mat.shape} '
+            f'even after possible reshaping based on axes : {axes}')    
 
     if power != 1 or not skip_unit_pow:
-
-        if ndim_in == 2 and axes is None:
+        
+        if mat.ndim == 2 and axes is None:
             # Setting negative eigenvalues to zero.
             mat = mat.copy()
             mask = mat <= 0
@@ -208,8 +283,11 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
                 axes = [0, 1]
 
             mat = mat.astype(dtype)
-            mat = array_ops.eigpow(mat, power, axes=axes)
+            axes_mat = flat_ax if flat_ax else axes
+            mat = array_ops.eigpow(mat, power, axes=axes_mat)
             mat = mat.astype(dtype_in)
+
+    mat = mat.reshape(shape_in)
 
     if not return_diag and axes is None:
         # If axes were specified, there is not need for full matrix.
@@ -218,7 +296,7 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
     if not mat.flags['OWNDATA']:
         # Copy so that output always points to new array regardless of power.
         mat = mat.copy()
-
+    
     return mat
 
 def wavmatpow(m_wav, power, **matpow_kwargs):

@@ -61,3 +61,31 @@ def to_real(dtype):
     else:
         raise ValueError('dtype" {} is not a supported real type'.
                          format(dtype))
+
+def is_seq_of_seq(obj):
+    '''
+    Test if object is sequency of iterables.
+
+    Parameters
+    ----------
+    obj : obj
+        Object to be tested.
+
+    Returns
+    -------
+    out : bool
+        True if object is sequence of iterables.
+    '''
+
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+        
+    for idx in obj:
+        try:
+            iter(idx)
+        except TypeError:
+            return False
+    return True
+            

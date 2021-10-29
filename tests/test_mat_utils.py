@@ -56,6 +56,31 @@ class TestMatUtils(unittest.TestCase):
         np.testing.assert_allclose(mat_out, mat_out_exp)
         self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
 
+    def test_matpow_axes_2d(self):
+
+        mat = np.ones((6, 6, 5))
+        mat *= np.eye(6)[:,:,np.newaxis] * 2
+        mat = mat.reshape(2, 3, 2, 3, 5)
+
+        mat_out_exp = mat.copy() * 0.25
+        
+        mat_out = mat_utils.matpow(mat, -1, axes=[[0, 1], [2, 3]])
+
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
+        # Different order.
+        mat = np.ones((5, 6, 6))
+        mat *= np.eye(6)[np.newaxis, :,:] * 2
+        mat = mat.reshape(5, 2, 3, 2, 3)
+
+        mat_out_exp = mat.copy() * 0.25
+        
+        mat_out = mat_utils.matpow(mat, -1, axes=[[1, 2], [3, 4]])
+
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
     def test_matpow_minus(self):
 
         mat = np.zeros((2, 2, 3))
@@ -381,3 +406,68 @@ class TestMatUtils(unittest.TestCase):
         mat_out = mat_utils.atleast_nd(mat, 4, append=True)        
         self.assertEqual(mat_out.shape, (3, 3, 1, 1))
         self.assertTrue(np.shares_memory(mat_out, mat))
+    
+    def test_flattened_view(self):
+        
+        mat = np.arange(120)
+        mat = mat.reshape(3, 4, 10)
+        
+        mat_view, flat_ax = mat_utils.flattened_view(mat, [[0, 1]],
+                                                     return_flat_axes=True)
+        mat_exp = mat.reshape(12, 10)
+
+        self.assertEqual(mat_view.shape, (12, 10))
+        self.assertTrue(np.shares_memory(mat_view, mat))
+        np.testing.assert_array_equal(mat_view, mat_exp)        
+        self.assertEqual(flat_ax, [0])
+
+        # 2 inputs to axes.
+        mat = mat.reshape(3, 4, 5, 2)        
+        mat_view, flat_ax = mat_utils.flattened_view(mat, [[0, 1], [2, 3]],
+                                            return_flat_axes=True)
+
+        self.assertEqual(mat_view.shape, (12, 10))
+        self.assertTrue(np.shares_memory(mat_view, mat))
+        np.testing.assert_array_equal(mat_view, mat_exp)
+        self.assertEqual(flat_ax, [0, 1])
+        
+        # Weird order.
+        mat_view, flat_ax = mat_utils.flattened_view(mat, [[2, 3], [1, 0]], 
+                                                     return_flat_axes=True)
+
+        self.assertEqual(mat_view.shape, (12, 10))
+        self.assertTrue(np.shares_memory(mat_view, mat))
+        np.testing.assert_array_equal(mat_view, mat_exp)
+        self.assertEqual(flat_ax, [0, 1])
+
+        # Negative axes.
+        mat_view, flat_ax = mat_utils.flattened_view(mat, [[0, 1], [-2, -1]],
+                                                     return_flat_axes=True)
+        self.assertEqual(mat_view.shape, (12, 10))
+        self.assertTrue(np.shares_memory(mat_view, mat))
+        np.testing.assert_array_equal(mat_view, mat_exp)
+        self.assertEqual(flat_ax, [0, 1])
+
+        # Repeats.
+        self.assertRaises(ValueError, mat_utils.flattened_view, mat, [[0, 0], [2, 3]])
+
+        # Non-contiguous axes.
+        mat_view, flat_ax = mat_utils.flattened_view(mat, [[0, 2], [1, 3]], 
+                                                     return_flat_axes=True)
+        mat_exp = mat.reshape(15, 8)
+        self.assertEqual(mat_view.shape, (15, 8))
+        self.assertTrue(np.shares_memory(mat_view, mat))
+        np.testing.assert_array_equal(mat_view, mat_exp)
+        self.assertEqual(flat_ax, [0, 1])
+
+        # 5D case.
+        mat = mat.reshape(3, 2, 2, 5, 2)        
+        mat_view, flat_ax = mat_utils.flattened_view(mat, [[0, 1], [3, 4]],
+                                            return_flat_axes=True)
+        mat_exp = mat.reshape(6, 2, 10)
+
+        self.assertEqual(mat_view.shape, (6, 2, 10))
+        self.assertTrue(np.shares_memory(mat_view, mat))
+        np.testing.assert_array_equal(mat_view, mat_exp)
+        self.assertEqual(flat_ax, [0, 2])
+

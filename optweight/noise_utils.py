@@ -54,7 +54,6 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
     cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(alm.dtype))
 
     for jidx in range(w_ell.shape[0]):
-            
         # No off-diagonal elements for now.
         index = (jidx, jidx)
         minfo = noise_wav.minfos[jidx]
@@ -68,7 +67,6 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo,
                                    kernel_ell=w_ell[jidx], diag=diag,
                                    features=features_j)
-        
         cov_wav.add(index, cov_pix, minfo)
 
     return cov_wav
@@ -143,7 +141,7 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
         cov_pix = cov_pix.reshape(ncomp * npol, ncomp * npol, npix)
 
     for idxs in np.ndindex(cov_pix.shape[:-1]):
-        
+
         if idxs[0] <= idxs[1]:
             # Upper triangular part.
             # Only using spin 0 is an approximation, cov elements are not all spin-0.
@@ -160,9 +158,9 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
             # Assume flat kernel in this case.
             kernel_ell = np.ones(lmax + 1)
         cov_pix = norm_cov_est(cov_pix, minfo, kernel_ell=kernel_ell, inplace=True)
-        
+
     cov_pix = mat_utils.get_near_psd(cov_pix, axes=[0,1])
-    
+
     if not diag:
         cov_pix = cov_pix.reshape(ncomp, npol, ncomp, npol, npix)
 
