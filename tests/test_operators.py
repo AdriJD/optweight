@@ -395,6 +395,26 @@ class TestOperators(unittest.TestCase):
 
         mat = operators.op2mat(op, 2, mat_exp.dtype, ncol=3)
         np.testing.assert_allclose(mat, mat_exp)
-
-
         
+    def test_op2map_sht(self):
+
+        # Example of how to deal with complex alms.
+        lmax = 3
+        ainfo = sharp.alm_info(lmax)
+        minfo = sharp.map_info_gauss_legendre(lmax + 1)
+
+        def alm2map_real(alm_real):
+            alm = alm_real.view(np.complex64)
+            omap = np.zeros(minfo.npix, dtype=np.float32)
+            sht.alm2map(alm, omap, ainfo, minfo, 0)
+            return omap
+
+        mat = operators.op2mat(alm2map_real, minfo.npix, np.float32, ncol=2 * ainfo.nelem)
+
+        alm_test = (np.ones(ainfo.nelem) + np.arange(ainfo.nelem) * 1j).astype(np.complex64)
+        alm_test_real = alm_test.view(np.float32)
+        omap = np.dot(mat, alm_test_real)
+        omap_exp = np.zeros(minfo.npix, dtype=np.float32)
+        sht.alm2map(alm_test, omap_exp, ainfo, minfo, 0)
+
+        np.testing.assert_allclose(omap, omap_exp, rtol=1e-5)

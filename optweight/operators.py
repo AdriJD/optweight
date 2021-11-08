@@ -455,7 +455,7 @@ def op2mat(op, nrow, dtype, ncol=None):
     ----------
     op : callable
         Linear operation. Takes in 1D vector of length ncol and produces 1d
-        vector of lenght nrow.
+        vector of length nrow.
     nrow : int
         Number of rows of matrix.
     dtype : type
