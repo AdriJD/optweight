@@ -380,18 +380,24 @@ def wavmatpow(m_wav, power, **matpow_kwargs):
     if not np.array_equal(m_wav.indices[:,0], m_wav.indices[:,1]):
         raise NotImplementedError(
             'Can only raise diagonal block matrix to a power')
-
-    m_wav_power = wavtrans.Wav(2, dtype=m_wav.dtype)
+        
+    inplace = matpow_kwargs.pop('inplace', False)
+    if not inplace:
+        m_wav_power = wavtrans.Wav(2, dtype=m_wav.dtype)
 
     for jidx in range(m_wav.shape[0]):
 
         minfo = m_wav.minfos[jidx,jidx]
         map_mat = m_wav.maps[jidx,jidx]
+        map_mat = matpow(map_mat, power, inplace=inplace, **matpow_kwargs)
 
-        map_mat = matpow(map_mat, power, **matpow_kwargs)
-        m_wav_power.add((jidx,jidx), map_mat, minfo)
+        if not inplace:
+            m_wav_power.add((jidx,jidx), map_mat, minfo)
 
-    return m_wav_power
+    if inplace:
+        return m_wav
+    else:
+        return m_wav_power
 
 def get_near_psd(mat, axes=None, inplace=False):
     '''

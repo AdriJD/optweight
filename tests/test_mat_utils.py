@@ -273,20 +273,30 @@ class TestMatUtils(unittest.TestCase):
 
         m_wav_sqrt = mat_utils.wavmatpow(m_wav, power)
                 
-        np.testing.assert_allclose(
-            np.einsum('ijk, jlk -> ilk',
-                      m_wav_sqrt.maps[0,0], m_wav_sqrt.maps[0,0]),
-            m_wav.maps[0,0])
+        map0_square = np.einsum('ijk, jlk -> ilk',
+                             m_wav_sqrt.maps[0,0], m_wav_sqrt.maps[0,0])
 
-        np.testing.assert_allclose(
-            np.einsum('ijk, jlk -> ilk',
-                      m_wav_sqrt.maps[1,1], m_wav_sqrt.maps[1,1]),
-            m_wav.maps[1,1])
+        map1_square = np.einsum('ijk, jlk -> ilk',
+                             m_wav_sqrt.maps[1,1], m_wav_sqrt.maps[1,1])
+        
+        np.testing.assert_allclose(map0_square, m_wav.maps[0,0])
+        np.testing.assert_allclose(map1_square, m_wav.maps[1,1])
 
         # Test if matpow kwarg does nothing in this case.
         m_wav_sqrt2 = mat_utils.wavmatpow(m_wav, power, return_diag=True)
         np.testing.assert_allclose(m_wav_sqrt.maps[0,0], m_wav_sqrt2.maps[0,0])
         np.testing.assert_allclose(m_wav_sqrt.maps[1,1], m_wav_sqrt2.maps[1,1])
+
+        # Inplace.
+        m_wav2 = wavtrans.Wav(2)
+        m_wav2.add(index1, m_arr1, minfo1)
+        m_wav2.add(index2, m_arr2, minfo2)
+        
+        m_wav_sqrt3 = mat_utils.wavmatpow(m_wav2, power, inplace=True)
+        np.testing.assert_allclose(m_wav_sqrt3.maps[0,0], m_wav_sqrt.maps[0,0])
+        np.testing.assert_allclose(m_wav_sqrt3.maps[1,1], m_wav_sqrt.maps[1,1])
+        np.testing.assert_allclose(m_wav_sqrt3.maps[0,0], m_wav2.maps[0,0])
+        np.testing.assert_allclose(m_wav_sqrt3.maps[1,1], m_wav2.maps[1,1])
 
     def test_get_near_psd(self):
 
