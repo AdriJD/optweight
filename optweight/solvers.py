@@ -549,3 +549,44 @@ class CGWienerScaled(CGWiener):
         return super(CGWienerScaled, cls).from_arrays(
             alm_data, ainfo, icov_ell, icov_pix, minfo, sqrt_cov_signal, b_ell=b_ell,
             draw_constr=draw_constr, prec=prec, spin=spin, **kwargs)
+
+class MultiGridMasked:
+
+    #def __init__(self, alm_data, icov_signal, icov_noise, beam=None,
+    #             mask=None, rand_isignal=None, rand_inoise=None, **kwargs):
+
+    def __init__(self):
+
+
+        # Point is to initializ v_cycle here.
+        pass
+
+    def solve(self):
+        
+        # call v_cyle.
+        pass
+
+    def v_cyle(self, level, levels, smoothers, b_vec):
+        pass
+
+    def b_vec(self, alm):
+        '''
+        Convert input alm to the b vector (not in place).
+
+        Parameters
+        ----------
+        alm : array
+            Input alm array.
+
+        Returns
+        -------
+        out : array
+            Output alm array, corresponding to b.
+        '''
+
+        pass
+
+
+    # when .solve is called, call v_cycle
+
+    # from arrays ?
