@@ -31,6 +31,32 @@ class TestMatUtils(unittest.TestCase):
 
         self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
 
+    def test_matpow_inplace(self):
+
+        mat = np.zeros((2, 2, 3))
+
+        mat[0,0] = [1,2,3]
+        mat[1,1] = [1,2,3]
+        mat[1,0] = 0.1
+        mat[0,1] = 0.1
+
+        mat_in = mat.copy()
+        mat_out = mat_utils.matpow(mat, 0.5, inplace=True)
+        self.assertTrue(np.shares_memory(mat, mat_out))
+        
+        np.testing.assert_array_almost_equal(
+            np.dot(mat_out[...,0], mat_out[...,0]), mat_in[...,0])
+        np.testing.assert_array_almost_equal(
+            np.dot(mat_out[...,1], mat_out[...,1]), mat_in[...,1])
+        np.testing.assert_array_almost_equal(
+            np.dot(mat_out[...,2], mat_out[...,2]), mat_in[...,2])
+
+        # Test if square root is symmetric. Required, see astro-ph/0608007.
+        np.testing.assert_array_almost_equal(
+            mat_out, np.transpose(mat_out, (1, 0, 2)))
+
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
     def test_matpow_axes(self):
 
         mat = np.ones((3, 2, 2))
@@ -43,6 +69,12 @@ class TestMatUtils(unittest.TestCase):
 
         np.testing.assert_allclose(mat_out, mat_out_exp)
         self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+        
+        # Inplace.
+        mat_out = mat_utils.matpow(mat, -1, axes=[-2, -1], inplace=True)
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+        self.assertTrue(np.shares_memory(mat_out, mat))
 
         # 2d Matrix.
         mat = np.ones((2, 2))
@@ -56,6 +88,12 @@ class TestMatUtils(unittest.TestCase):
         np.testing.assert_allclose(mat_out, mat_out_exp)
         self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
 
+        # Inplace.
+        mat_out = mat_utils.matpow(mat, -1, axes=[-2, -1], inplace=True)
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+        self.assertTrue(np.shares_memory(mat_out, mat))
+
     def test_matpow_axes_2d(self):
 
         mat = np.ones((6, 6, 5))
@@ -65,9 +103,14 @@ class TestMatUtils(unittest.TestCase):
         mat_out_exp = mat.copy() * 0.25
         
         mat_out = mat_utils.matpow(mat, -1, axes=[[0, 1], [2, 3]])
-
         np.testing.assert_allclose(mat_out, mat_out_exp)
         self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
+        # Inplace.
+        mat_out = mat_utils.matpow(mat, -1, axes=[[0, 1], [2, 3]], inplace=True)
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+        self.assertTrue(np.shares_memory(mat_out, mat))
 
         # Different order.
         mat = np.ones((5, 6, 6))
@@ -77,9 +120,14 @@ class TestMatUtils(unittest.TestCase):
         mat_out_exp = mat.copy() * 0.25
         
         mat_out = mat_utils.matpow(mat, -1, axes=[[1, 2], [3, 4]])
-
         np.testing.assert_allclose(mat_out, mat_out_exp)
         self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+
+        # Inplace.
+        mat_out = mat_utils.matpow(mat, -1, axes=[[1, 2], [3, 4]], inplace=True)
+        np.testing.assert_allclose(mat_out, mat_out_exp)
+        self.assertTrue(mat_out.flags['C_CONTIGUOUS'])
+        self.assertTrue(np.shares_memory(mat_out, mat))
 
     def test_matpow_minus(self):
 
@@ -264,6 +312,12 @@ class TestMatUtils(unittest.TestCase):
         out_exp = mat.copy()
         out_exp[:,:,0] = np.asarray([[1.05, 1, 1.05],[1, 1, 1],[1.05, 1, 1.05]])
         np.testing.assert_allclose(out, out_exp)
+        self.assertFalse(np.shares_memory(out, mat))
+
+        # Inplace.
+        out = mat_utils.get_near_psd(mat, inplace=True)
+        np.testing.assert_allclose(out, out_exp)
+        self.assertTrue(np.shares_memory(out, mat))
 
     def test_get_near_psd_sd(self):
 
@@ -470,4 +524,45 @@ class TestMatUtils(unittest.TestCase):
         self.assertTrue(np.shares_memory(mat_view, mat))
         np.testing.assert_array_equal(mat_view, mat_exp)
         self.assertEqual(flat_ax, [0, 2])
+        
+    def test_eigpow(self):
+        
+        mat = np.ones((3, 3, 10), dtype=np.float32)
+        mat *= np.eye(3)[:,:,np.newaxis] * 2
+        mat_exp = mat * 0.25
 
+        mat_out = mat_utils._eigpow(mat, -1, [0, 1], np.float64)
+        np.testing.assert_allclose(mat_out, mat_exp)
+        self.assertEqual(mat_out.dtype, mat.dtype)
+        self.assertFalse(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils._eigpow(mat, -1, [0, 1], np.float64, chunksize=4)
+        np.testing.assert_allclose(mat_out, mat_exp)
+        self.assertEqual(mat_out.dtype, mat.dtype)
+        self.assertFalse(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils._eigpow(mat, -1, [0, 1], np.float64, inplace=True)
+        np.testing.assert_allclose(mat_out, mat_exp)
+        self.assertEqual(mat_out.dtype, mat.dtype)
+        self.assertTrue(np.shares_memory(mat_out, mat))        
+
+        # Now try a different shape. Can't be flattened without copy, but 
+        # should still allow inplace operations.
+        mat = np.ones((2, 3, 3, 5), dtype=np.float32)
+        mat *= np.eye(3)[np.newaxis,:,:,np.newaxis] * 2
+        mat_exp = mat * 0.25
+
+        mat_out = mat_utils._eigpow(mat, -1, [1, 2], np.float64)
+        np.testing.assert_allclose(mat_out, mat_exp)
+        self.assertEqual(mat_out.dtype, mat.dtype)
+        self.assertFalse(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils._eigpow(mat, -1, [1, 2], np.float64, chunksize=4)
+        np.testing.assert_allclose(mat_out, mat_exp)
+        self.assertEqual(mat_out.dtype, mat.dtype)
+        self.assertFalse(np.shares_memory(mat_out, mat))
+
+        mat_out = mat_utils._eigpow(mat, -1, [1, 2], np.float64, inplace=True)
+        np.testing.assert_allclose(mat_out, mat_exp)
+        self.assertEqual(mat_out.dtype, mat.dtype)
+        self.assertTrue(np.shares_memory(mat_out, mat))        

@@ -159,7 +159,7 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
             kernel_ell = np.ones(lmax + 1)
         cov_pix = norm_cov_est(cov_pix, minfo, kernel_ell=kernel_ell, inplace=True)
 
-    cov_pix = mat_utils.get_near_psd(cov_pix, axes=[0,1])
+    cov_pix = mat_utils.get_near_psd(cov_pix, axes=[0,1], inplace=True)
 
     if not diag:
         cov_pix = cov_pix.reshape(ncomp, npol, ncomp, npol, npix)

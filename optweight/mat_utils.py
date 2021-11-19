@@ -1,5 +1,6 @@
 import numpy as np
 
+from pixell import utils
 from enlib import array_ops
 
 from optweight import wavtrans, type_utils
@@ -217,7 +218,8 @@ def flattened_view(mat, axes, return_flat_axes=False):
     else:
         return mat_view
             
-def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
+def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
+           inplace=False, chunksize=10000):
     '''
     Raise positive semidefinite matrix to a given power.
 
@@ -238,6 +240,10 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
         sequence of sequences: axes that should be flattened and then be used as
         symmetric part of matrix, use e.g. [[0, 1], [2, 3]] in case of e.g. 
         (ncomp, npol, ncomp, npol, npix) matrix.
+    inplace : bool, optional
+        If set, do operation in-place.
+    chunksize : int, optional
+        Do operations over non-PSD axes of input in chunks of this size.
 
     Returns
     -------
@@ -264,7 +270,8 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
         
         if mat.ndim == 2 and axes is None:
             # Setting negative eigenvalues to zero.
-            mat = mat.copy()
+            if not inplace:
+                mat = mat.copy()
             mask = mat <= 0
             mat[mask] = 0
             np.power(mat, power, out=mat, where=~mask)
@@ -282,23 +289,70 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None):
             if axes is None:
                 axes = [0, 1]
 
-            mat = mat.astype(dtype)
             axes_mat = flat_ax if flat_ax else axes
-            mat = array_ops.eigpow(mat, power, axes=axes_mat)
-            mat = mat.astype(dtype_in)
+            mat = _eigpow(mat, power, axes_mat, dtype, inplace=inplace)
 
     mat = mat.reshape(shape_in)
 
-    if not return_diag and axes is None:
-        # If axes were specified, there is not need for full matrix.
+    # If axes were specified, there is not need for full matrix.
+    # When doing inplace, also don't expand into full matrix.
+    if not return_diag and axes is None and not inplace:
         mat = full_matrix(mat)
-
-    if not mat.flags['OWNDATA']:
+    
+    if not mat.flags['OWNDATA'] and not inplace:
         # Copy so that output always points to new array regardless of power.
         mat = mat.copy()
     
     return mat
 
+def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=10000):
+    '''
+    Wrapper around eigpow that allows to divide up the problem in chunks
+    to reduce memory usage.
+
+    Parameters
+    ----------
+    mat : array
+        Array that is a PSD matrix in two of its axes.
+    power : int, float
+        Power of matrix.
+    axes : sequence
+        List of 2 dimensions that form the PSD matrix.
+    dtype_internal : type
+        Dtype used for internal calculations.
+    inplace : bool, optional
+        If set, do operation in-place.
+    chunksize : int, optional
+        Do eigpow over non-PSD axes of input in chunks of this size.
+    
+    Returns
+    -------
+    mat : array
+        Input array raised to power in the 2 PSD axes.
+    '''
+
+    dtype_in = mat.dtype
+
+    if not inplace:
+        mat = mat.copy()
+
+    # Always chunk-up problem, so that internal copies don't cost too much memory.
+    # Flatview could result in copy, but for our usual case with (ncomp, ncomp, npix)
+    # it won't.
+    with utils.flatview(mat, axes, pos=-1) as matf:
+
+        for start in range(0, matf.shape[-1], chunksize):
+
+            matslice = slice(start, start+chunksize)
+            # If dtype is same, we do not have to make copy.
+            matf_tmp = matf[:,:,matslice].astype(dtype_internal, copy=False)
+
+            # You know that axes are [0,1] in this case.
+            array_ops.eigpow(matf_tmp, power, axes=[0,1], copy=False)
+            matf[:,:,matslice] = matf_tmp.astype(dtype_in, copy=False)
+
+    return mat
+    
 def wavmatpow(m_wav, power, **matpow_kwargs):
     '''
     Raise wavelet block matrix to a given power.
@@ -339,7 +393,7 @@ def wavmatpow(m_wav, power, **matpow_kwargs):
 
     return m_wav_power
 
-def get_near_psd(mat, axes=None):
+def get_near_psd(mat, axes=None, inplace=False):
     '''
     Get close positive semi-definite matrix by zeroing negative eigenvalues.
 
@@ -350,6 +404,8 @@ def get_near_psd(mat, axes=None):
     axes : array-like, optional
         List of 2 dimensions that form the symmetric matrix, use in case
         matrix is not (npol, npol, N) but e.g. (M, npol, npol, N).
+    inplace : bool, optional
+        If set, do computations in-place.
     
     Returns
     -------
@@ -361,12 +417,13 @@ def get_near_psd(mat, axes=None):
         mat = mat[np.newaxis,:]
 
     if mat.ndim == 2 and axes is None:
-        out = mat.copy()
+        if not inplace:
+            out = mat.copy()
         out[out<0] = 0
         return out
 
     # Handle 3d case.
-    return matpow(mat, 1, skip_unit_pow=False, axes=axes)
+    return matpow(mat, 1, skip_unit_pow=False, axes=axes, inplace=inplace)
 
 def atleast_nd(mat, ndim, append=False): 
     '''
