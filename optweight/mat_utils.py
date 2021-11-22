@@ -290,7 +290,8 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
                 axes = [0, 1]
 
             axes_mat = flat_ax if flat_ax else axes
-            mat = _eigpow(mat, power, axes_mat, dtype, inplace=inplace)
+            mat = _eigpow(mat, power, axes_mat, dtype, inplace=inplace,
+                          chunksize=chunksize)
 
     mat = mat.reshape(shape_in)
 
