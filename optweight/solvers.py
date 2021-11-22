@@ -567,6 +567,9 @@ class MultiGridMasked:
         pass
 
     def v_cyle(self, level, levels, smoothers, b_vec):
+        '''
+        b_vec : map
+        '''
         pass
 
     def b_vec(self, alm):

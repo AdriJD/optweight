@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from pixell import sharp
 
-from optweight import sht, wavtrans, alm_utils, type_utils, alm_c_utils, mat_utils
+from optweight import sht, wavtrans, alm_utils, type_utils, alm_c_utils, mat_utils, map_utils
 
 class MatVecAlm(ABC):
     '''Template for all matrix-vector operators working on alm input.'''
@@ -13,6 +13,16 @@ class MatVecAlm(ABC):
 
     @abstractmethod
     def call(self, alm):
+        pass
+
+class MatVecMap(ABC):
+    '''Template for all matrix-vector operators working on pixelized maps as input.'''
+
+    def __call__(self, imap):
+        return self.call(imap)
+
+    @abstractmethod
+    def call(self, imap):
         pass
 
 class MatVecWav(ABC):
@@ -275,7 +285,7 @@ class WavMatVecAlm(MatVecAlm):
 
 class EllPixEllMatVecAlm(MatVecAlm):
     '''
-    Calculate X_ell^q M_pix^p X_ell^q alm for X an M diagonal in the multipole and 
+    Calculate X_ell^q M_pix^p X_ell^q alm for X and M diagonal in the multipole and 
     pixel domain, respectively. Both matrices should be positive semi-definite symmetric
     in other axes.
 
@@ -447,7 +457,107 @@ class WavMatVecWav(MatVecWav):
                                          optimize=True)
         return wav
 
-def op2mat(op, nrow, dtype, ncol=None):
+class PixEllPixMatVecMap(MatVecMap):
+    '''
+    Calculate M_pix^p X_ell^q M_pix^p map for X and M diagonal in the multipole and 
+    pixel domain, respectively. Both matrices should be positive semi-definite symmetric
+    in other axes.
+
+    Parameters
+    ----------
+    m_pix : (npol, npol, npix) array or (npol, npix) array, or None.
+        Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed. Can also be set to None,
+        in which case the matrix is ignored.
+    x_ell : (npol, npol, nell) array or (npol, nell) array
+        A matrix, either symmetric but dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    minfo : sharp.map_info object
+        Metainfo for pixelization of input map and the M matrix.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    power_m : int, float, optional
+        Power of M matrix.
+    power_x : int, float, optional
+        Power of X matrix.
+    inplace : bool, optional
+        Perform operation in place.
+    adjoint : bool, optional
+        If set, calculate (M_pix W Y X_ell Yt W M_pix) instead of 
+        (M_pix Y X_ell Yt M_pix).
+    use_weights : bool, optional
+        If set, use integration weights: (M_pix Y X_ell Yt W M_pix) or
+        (M_pix W Y X_ell Yt M_pix) for adjoint.
+
+    Methods
+    -------
+    call(imap) : Apply the operator to a map.
+
+    Notes
+    -----
+    Ignoring the powers, this calculates (M_pix Y X_ell Yt M_pix) map, so note
+    the lack of integration weights.
+    '''
+
+    def __init__(self, m_pix, x_ell, minfo, spin, power_m=1, power_x=1, 
+                 inplace=False):
+
+        if m_pix is not None:
+            m_pix = mat_utils.full_matrix(m_pix)
+            if power_m != 1:
+                m_pix = mat_utils.matpow(m_pix, power_m)
+
+        x_ell = mat_utils.full_matrix(x_ell)
+        if power_x != 1:
+            x_ell = mat_utils.matpow(x_ell, power_x)
+
+        self.m_pix = m_pix
+        self.x_ell = x_ell
+        self.npol = x_ell.shape[0]
+        lmax = map_utils.minfo2lmax(minfo)        
+        self.ainfo = sharp.alm_info(lmax)
+        self.minfo = minfo
+        self.spin = spin
+        self.inplace = inplace
+
+    def call(self, imap):
+        '''
+        Apply the operator to input map.
+
+        Parameters
+        ----------
+        imap : (npol, npix) array
+            Input map.
+
+        Returns
+        -------
+        out : (npol, npix) array
+            Output from matrix-vector operation.
+        '''
+
+        assert imap.shape == (self.npol, self.minfo.npix), (
+            f'Wrong imap shape: {imap.shape} != {(self.npol, self.minfo.npix)}')
+
+        if self.inplace:
+            out = imap
+        else:
+            out = imap.copy()
+
+        alm = np.zeros((self.npol, self.ainfo.nelem),
+                       dtype=type_utils.to_complex(imap.dtype))
+
+        if self.m_pix is not None:
+            np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
+        sht.map2alm(out, alm, self.minfo, self.ainfo, self.spin, adjoint=True)
+        alm_c_utils.lmul(alm, self.x_ell, self.ainfo, inplace=True)        
+        sht.alm2map(alm, out, self.ainfo, self.minfo, self.spin, adjoint=False)
+        if self.m_pix is not None:
+            np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
+
+        return out
+
+def op2mat(op, nrow, dtype, ncol=None, input_shape=None):
     '''
     Convert a linear operator into a matrix representation.
 
@@ -462,6 +572,8 @@ def op2mat(op, nrow, dtype, ncol=None):
         Dtype of input vector and matrix.
     ncol : int
         Number of colums of matrix, if different from nrow.
+    input_shape : tuple, optional
+        Reshape ncol input vector into this shape before applying operation.
 
     Returns
     -------
@@ -471,11 +583,15 @@ def op2mat(op, nrow, dtype, ncol=None):
 
     ncol = nrow if ncol is None else ncol    
     uvec = np.zeros(ncol, dtype=dtype)
+    if input_shape is not None:
+        uvec_shaped = uvec.reshape(input_shape)
+    else:
+        uvec_shaped = uvec
     mat = np.zeros((nrow, ncol), dtype=dtype)
 
     for idx in range(ncol):
         uvec[idx] = 1
-        mat[:,idx] = op(uvec)
+        mat[:,idx] = op(uvec_shaped).reshape(-1)
         uvec[idx] = 0
 
     return mat

@@ -159,9 +159,6 @@ class TestOperators(unittest.TestCase):
             ainfo, icov, minfo, spin, power=power, inplace=False)
         alm_out = matvec_alm(alm)
 
-        #alm_out = operators.matvec_pow_pix_alm(
-        #    alm, ainfo, icov, minfo, spin, power, inplace=False)
-
         np.testing.assert_array_almost_equal(alm_out, alm_exp)
 
     def test_matvec_pow_pix_alm_sqrt(self):
@@ -190,9 +187,6 @@ class TestOperators(unittest.TestCase):
         matvec_alm = operators.PixMatVecAlm(
             ainfo, icov, minfo, spin, power=power, inplace=False)
         alm_out = matvec_alm(alm)
-
-        #alm_out = operators.matvec_pow_pix_alm(
-        #    alm, ainfo, icov, minfo, spin, power, inplace=False)
 
         np.testing.assert_array_almost_equal(alm_out, alm_exp)
     
@@ -418,3 +412,42 @@ class TestOperators(unittest.TestCase):
         sht.alm2map(alm_test, omap_exp, ainfo, minfo, 0)
 
         np.testing.assert_allclose(omap, omap_exp, rtol=1e-5)
+
+    def test_PixEllPixMatVecMap(self):
+        
+        # This function should do M_pix Y X_ell Yt M_pix. So if we make 
+        # M_pix = W, where W are the quadrature weights, and X_ell = 1, 
+        # the functions should do W Y Yt W = W.
+
+        lmax = 2
+        minfo = sharp.map_info_gauss_legendre(lmax + 1)
+        spin = [0, 2]
+
+        m_pix = np.zeros((3, 3, minfo.nrow, minfo.nphi[0]))
+        m_pix[0,0,:,:] = minfo.weight[:,np.newaxis]
+        m_pix[1,1,:,:] = minfo.weight[:,np.newaxis]
+        m_pix[2,2,:,:] = minfo.weight[:,np.newaxis]
+        m_pix = m_pix.reshape((3, 3, minfo.npix))
+
+        x_ell = np.ones((3, 3, lmax + 1)) * np.eye(3)[:,:,np.newaxis]
+        
+        op = operators.PixEllPixMatVecMap(m_pix, x_ell, minfo, spin)
+
+        # Give W^-1 as map, we should get ones (for spin 0 at least).
+        imap = np.ones((3, minfo.npix)) * (1 / m_pix[0,0])        
+        imap_copy = imap.copy()
+        omap = op(imap)
+        omap_exp = np.ones((1, minfo.npix))
+        np.testing.assert_allclose(omap[0:1], omap_exp)
+        np.testing.assert_allclose(imap[0:1], imap_copy[0:1])
+        self.assertFalse(np.shares_memory(imap, omap))
+
+        # Inplace.
+        op = operators.PixEllPixMatVecMap(m_pix, x_ell, minfo, spin, inplace=True)
+
+        # Give W^-1 as map, we should get ones (for spin 0 at least).
+        omap = op(imap)
+        omap_exp = np.ones((1, minfo.npix))
+        np.testing.assert_allclose(omap[0:1], omap_exp)
+        np.testing.assert_allclose(imap[0:1], omap_exp)
+        self.assertTrue(np.shares_memory(imap, omap))
