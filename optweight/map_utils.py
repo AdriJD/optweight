@@ -2,7 +2,8 @@
 A collection of functions for dealing with Gauss-Legendre pixelated maps.
 '''
 import numpy as np
-from scipy.interpolate import NearestNDInterpolator, RectBivariateSpline
+from scipy.interpolate import (NearestNDInterpolator, RectBivariateSpline,
+                               interp1d)
 import os
 
 from pixell import enmap, sharp, utils, wcsutils
@@ -72,6 +73,77 @@ def view_1d(imap, minfo):
         raise ValueError("Cannot return (..., npix) view without copy.")
         
     return omap
+
+def equal_area_gauss_copy_2d(imap, minfo):
+    '''
+    Return 2D copy (for plotting and debugging) of equal_area_gauss grid 
+    using nearest-neighbor interpolation (or any map with unequal elements per ring).
+
+    Parameters
+    ----------
+    imap : (..., npix) array
+        Input map.
+    minfo : sharp.map_info object
+        Metainfo for map.
+
+    Returns
+    -------
+    omap : (..., ny, nx) array
+        Output map.
+    '''
+    
+    idx_max = np.argmax(minfo.nphi)
+        
+    omap = np.zeros(imap.shape[:-1] + (minfo.theta.size, minfo.nphi[idx_max]),
+                     dtype=imap.dtype)
+    
+    # Determine phi coordinates in omap.
+    nphi_omap = minfo.nphi[idx_max]
+    phi0_omap = minfo.phi0[idx_max]
+    phis_omap = np.linspace(phi0_omap, 2 * np.pi + phi0_omap , nphi_omap,
+                            endpoint=False)
+                            
+    # Loop over thetas
+    for tidx in range(minfo.theta.size):
+
+        # Determine phi coords in this ring of imap.
+        nphi = minfo.nphi[tidx]
+        phi0 = minfo.phi0[tidx]
+        phis = np.linspace(phi0, 2 * np.pi + phi0 , nphi, endpoint=False)
+
+        # Determine slice into to reduced gauss map (because it's not 2d)
+        ring_slice = get_ring_slice(tidx, minfo)
+
+        # Loop over outer dims
+        for index in np.ndindex(imap.shape[:-1]):
+    
+            fp = interp1d(phis, imap[index][ring_slice], kind='nearest',
+                          fill_value='extrapolate')
+
+            omap[index][tidx,:] = fp(phis_omap).astype(omap.dtype, copy=False)
+
+    return omap
+
+def get_ring_slice(ring_idx, minfo):
+    '''
+    Return slice object that would return view of i'th ring of a map.
+
+    Parameters
+    ----------
+    ring_idx : int
+       Ring index.
+    minfo : shapr.map_info object
+        Metainfo for map.
+
+    Returns
+    -------
+    ring_slice : slice object
+        Slice object such that map[ring_slice] gives you the i'th ring.
+    '''
+
+    return slice(minfo.offsets[ring_idx],
+                 minfo.offsets[ring_idx] + minfo.nphi[ring_idx],
+                 minfo.stride[ring_idx])    
 
 def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
                 mode='constant'):
@@ -236,6 +308,7 @@ def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0):
     omap = view_2d(omap, minfo_out)
 
     if area_pow != 0:
+        area_pow = float(area_pow)
         imap = imap * (minfo_in.weight ** -area_pow)[:,np.newaxis]
     
     # Loop over flattened leading dims.
@@ -249,6 +322,63 @@ def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0):
     
     return view_1d(omap, minfo_out)
 
+def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
+    '''
+    Interpolate one Gauss-Legendre map to an equal-area GL map (or a generic 
+    libsharp compatible map) at different resolution.
+
+    imap : (..., npix) array
+        Input map.
+    minfo_in : sharp.map_info object
+        Metainfo input map.
+    minfo_out : sharp.map_info object
+        Metainfo output map.
+    order : int
+        Order of the spline used for interpolation.
+    area_pow : float, optional
+        How the quantity in the map scales with area, i.e.
+        (area_pix_out / area_pix_in)^area_power. Useful for e.g. variance maps
+        that need a correction for pixel area difference use area_pow = -1 and
+        for inverse variance maps use area_pow = 1.
+    
+    Returns
+    -------
+    omap : (..., npix_out) array
+        Interpolated output map.
+    '''
+
+    thetas_in, phis_in = _get_gauss_coords(minfo_in)
+    omap = np.zeros(imap.shape[:-1] + (minfo_out.npix,), dtype=imap.dtype)    
+
+    if area_pow != 0:
+        area_pow = float(area_pow)
+        imap = imap.copy()
+
+    imap_2d = view_2d(imap, minfo_in)
+    if area_pow != 0:
+        imap_2d *= (minfo_in.weight ** -area_pow)[:,np.newaxis]
+
+    # Loop over out dims
+    for index in np.ndindex(imap.shape[:-1]):
+
+        rbs = RectBivariateSpline(thetas_in, phis_in, imap_2d[index],
+                                  kx=order, ky=order)
+
+        # Loop over thetas.
+        for tidx in range(minfo_out.theta.size):
+           
+            nphi = minfo_out.nphi[tidx]
+            phi0 = minfo_out.phi0[tidx]
+            phis = np.linspace(phi0, 2 * np.pi + phi0 , nphi, endpoint=False)
+
+            ring_slice = get_ring_slice(tidx, minfo_out)
+            omap[index][ring_slice] = rbs(minfo_out.theta[tidx], phis)
+            
+            if area_pow != 0:
+                omap[index][ring_slice] *= (minfo_out.weight[tidx] ** area_pow)
+
+    return omap
+    
 def _get_gauss_coords(map_info):
     '''
     Return coordinate arrays for map_info.
@@ -328,6 +458,62 @@ def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
         return map_info, + arc_len,
 
     return ret
+
+def get_equal_area_gauss_minfo(lmax, theta_min=None, theta_max=None, 
+                               gl_band=np.pi/8, ratio_pow=1.):
+    '''
+    Compute map_info metadata for a Gauss-Legendre grid that has
+    samples per ring reduced to get approximate equal area pixels.
+
+    Parameters
+    ----------
+    lmax : int
+        Band limit supported by Gauss-Legendre grid.
+    theta_min : float, optional
+        Minimum colattitute of grid in radians.
+    theta_max : float, optional
+        Maximum colattitute of grid in radians.
+    gl_band : float, optional
+        Angle in radians away from equator that determines the band 
+        in which the grid is set to the normal Gauss-Legendre grid. 
+        Set to 0 to turn off.
+    ratio_pow : float, optional
+        if set to value < 1, tolerate smaller area pixels close to pole.
+        Returns to normal GL if set to 0. Number of phi samples per ring 
+        is given by nphi_gl * (area_pix_on_ring / area_pix_equator)^ratio_pow.
+
+    Returns
+    -------
+    map_info : sharp.map_info object
+        metadata of grid.
+    '''
+
+    assert gl_band >= 0, ('gl_band must be >= 0, got {gl_band}')
+
+    # We need GL pixel area on equator as reference.
+    minfo = get_gauss_minfo(lmax)
+    idx_ref = np.searchsorted(minfo.theta, np.pi / 2, side="left")
+    area_pix_ref = minfo.weight[idx_ref]
+
+    # Replace minfo with one that has theta bounds.
+    minfo = get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
+
+    nphi_reduced = np.zeros_like(minfo.nphi)
+    weight_reduced = np.zeros_like(minfo.weight)
+
+    for tidx in range(minfo.theta.size):
+
+        area_pix = minfo.weight[tidx]
+
+        if (np.pi / 2 - gl_band) < minfo.theta[tidx] < (np.pi / 2 + gl_band):
+            ratio = 1            
+        else:
+            ratio = (area_pix / area_pix_ref) ** ratio_pow
+
+        nphi_reduced[tidx] = max(2, int(np.round(minfo.nphi[tidx] * ratio)))
+        weight_reduced[tidx] = area_pix * minfo.nphi[tidx] / nphi_reduced[tidx]
+
+    return sharp.map_info(minfo.theta, nphi=nphi_reduced, weight=weight_reduced)
 
 def get_arc_len(theta, theta_min, theta_max):
     '''
@@ -830,7 +1016,8 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
 
 def minfo2lmax(minfo):
     '''
-    Determine lmax from map info assuming GL pixelization.
+    Determine lmax from map_info based on the max number of phi samples
+    on the map's rings (usually the equator).
 
     Arguments
     ---------
@@ -843,7 +1030,7 @@ def minfo2lmax(minfo):
         Max multipole supported by pixelization.
     '''
     
-    return int(0.5 * (minfo.nphi[0] - 1))
+    return int(0.5 * (np.max(minfo.nphi) - 1))
 
 def copy_minfo(minfo):
     '''

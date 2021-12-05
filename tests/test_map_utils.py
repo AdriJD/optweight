@@ -71,6 +71,49 @@ class TestMapUtils(unittest.TestCase):
         arc_len_exp = (np.pi - 2 * np.arccos(ct[-1])) / 2
 
         np.testing.assert_array_almost_equal(arc_len, np.asarray(arc_len_exp))
+
+    def test_get_equal_area_gauss_minfo(self):
+        
+        lmax = 9
+        minfo = map_utils.get_equal_area_gauss_minfo(lmax)
+        
+        # We expect support for polynomial in cos(theta) of order lmax,
+        # so lmax = 2 n - 1 -> n = 5.
+        n_theta = int(lmax / 2) + 1
+        n_phi = lmax + 1
+        ct, ct_w = roots_legendre(n_theta)
+        
+        np.testing.assert_array_almost_equal(minfo.theta, np.arccos(ct)[::-1])
+        np.testing.assert_array_almost_equal(minfo.phi0, np.zeros(n_theta))
+
+        # Test if areas are equal.
+        np.testing.assert_allclose(minfo.weight / minfo.weight[2], np.ones(n_theta),
+                                   rtol=0.12)
+
+        # And rings are not.
+        self.assertTrue(minfo.nphi[0] < minfo.nphi[2])
+        self.assertTrue(minfo.nphi[1] < minfo.nphi[2])
+        # Symmetric?
+        self.assertTrue(minfo.nphi[0] == minfo.nphi[4])
+        self.assertTrue(minfo.nphi[1] == minfo.nphi[3])
+        
+        # Test if offsets and nphi match up.
+        self.assertEqual(minfo.offsets[-1] + minfo.nphi[-1], minfo.npix)
+        np.testing.assert_array_equal(np.ediff1d(minfo.offsets), minfo.nphi[:-1])
+
+        # If changing gl_band, we should get GL rings in wider band.
+        minfo = map_utils.get_equal_area_gauss_minfo(lmax, gl_band=np.pi/4)
+
+        self.assertTrue(minfo.nphi[0] < minfo.nphi[2])
+        self.assertTrue(minfo.nphi[1] == minfo.nphi[2])
+
+        self.assertTrue(minfo.nphi[0] == minfo.nphi[4])
+        self.assertTrue(minfo.nphi[1] == minfo.nphi[3])
+
+        # If changing ratio_pow to 0 we should get back GL.
+        minfo = map_utils.get_equal_area_gauss_minfo(lmax, ratio_pow=0)
+        minfo_gl = map_utils.get_gauss_minfo(lmax)
+        self.assertTrue(map_utils.minfo_is_equiv(minfo, minfo_gl))
         
     def test_enmap2gauss_fullsky(self):
 
@@ -580,6 +623,59 @@ class TestMapUtils(unittest.TestCase):
         imap.reshape(2, minfo.nrow, minfo.nphi[0])
         self.assertRaises(ValueError, map_utils.view_1d, imap, minfo)
         
+    def test_equal_area_gauss_copy_2d(self):
+        
+        lmax = 9
+        minfo = map_utils.get_equal_area_gauss_minfo(lmax)
+
+        imap = np.ones((2, minfo.npix), dtype=bool)
+
+        imap[0,map_utils.get_ring_slice(0, minfo)] = [False, False, True, True]
+        imap[0,map_utils.get_ring_slice(2, minfo)] = False
+        imap[0,map_utils.get_ring_slice(4, minfo)] = False
+
+        omap = map_utils.equal_area_gauss_copy_2d(imap, minfo)
+
+        np.testing.assert_array_equal(
+            omap[0,0], np.asarray([0, 0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=bool))
+        np.testing.assert_array_equal(
+            omap[0,1], np.ones(10, dtype=bool))
+        np.testing.assert_array_equal(
+            omap[0,2], np.zeros(10, dtype=bool))
+        np.testing.assert_array_equal(
+            omap[0,3], np.ones(10, dtype=bool))
+        np.testing.assert_array_equal(
+            omap[0,4], np.zeros(10, dtype=bool))
+
+        np.testing.assert_array_equal(omap[1], np.ones((5, 10), dtype=bool))
+
+        # Test if normal GL map stays unchanged.
+        lmax = 9
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        imap = np.ones((2, minfo.npix), dtype=np.float64)
+        imap[:] = np.random.randn(*imap.shape)
+
+        omap = map_utils.equal_area_gauss_copy_2d(imap, minfo)
+        
+        np.testing.assert_almost_equal(omap, imap.reshape(2, 5, 10))
+
+    def test_get_ring_slice(self):
+
+        lmax = 9
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        ring_slice = map_utils.get_ring_slice(2, minfo)
+        ring_slice_exp = slice(minfo.offsets[2], minfo.offsets[2] + minfo.nphi[2], 1)
+        self.assertEqual(ring_slice, ring_slice_exp)
+
+        minfo = map_utils.get_equal_area_gauss_minfo(lmax)
+        ring_slice = map_utils.get_ring_slice(2, minfo)
+        ring_slice_exp = slice(minfo.offsets[2], minfo.offsets[2] + minfo.nphi[2], 1)
+        self.assertEqual(ring_slice, ring_slice_exp)
+        
+        self.assertRaises(IndexError, map_utils.get_ring_slice, 10, minfo)
+
     def test_gauss2gauss(self):
         
         lmax = 20
@@ -622,6 +718,51 @@ class TestMapUtils(unittest.TestCase):
         omap_exp = omap_exp.reshape(2, minfo_out.npix)
 
         np.testing.assert_allclose(omap, omap_exp)        
+
+    def test_gauss2map(self):
+        
+        lmax = 20
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        imap = np.ones((2, minfo.nrow, minfo.nphi[0]))
+        imap *= np.cos(minfo.theta[:,np.newaxis])
+        imap = imap.reshape(2, minfo.npix)
+
+        lmax_out = 15
+        minfo_out = map_utils.get_equal_area_gauss_minfo(lmax_out)
+
+        omap = map_utils.gauss2map(imap, minfo, minfo_out, order=3)
+
+        omap_exp = np.ones((2, minfo_out.npix))
+        for tidx in range(minfo_out.theta.size):
+            ring_slice = map_utils.get_ring_slice(tidx, minfo_out)
+            omap_exp[:,ring_slice] *= np.cos(minfo_out.theta[tidx])
+
+        np.testing.assert_allclose(omap, omap_exp, rtol=1e-3)
+
+    def test_gauss2map_area_pow(self):
+
+        area_pow = 1        
+        lmax = 20
+        minfo = map_utils.get_gauss_minfo(lmax)
+
+        # Scale input by area, should cancel in output.
+        imap = np.ones((2, minfo.nrow, minfo.nphi[0]))
+        imap *= minfo.weight[:,np.newaxis]
+        imap = imap.reshape(2, minfo.npix)
+
+        lmax_out = 15
+        minfo_out = map_utils.get_equal_area_gauss_minfo(lmax_out)
+
+        omap = map_utils.gauss2map(imap, minfo, minfo_out, order=3,
+                                                area_pow=area_pow)
+
+        omap_exp = np.ones((2, minfo_out.npix))
+        for tidx in range(minfo_out.theta.size):
+            ring_slice = map_utils.get_ring_slice(tidx, minfo_out)
+            omap_exp[:,ring_slice] *= minfo_out.weight[tidx]
+
+        np.testing.assert_allclose(omap, omap_exp, rtol=1e-3)
 
     def test_minfo2lmax(self):
 

@@ -501,7 +501,7 @@ class PixEllPixMatVecMap(MatVecMap):
     '''
 
     def __init__(self, m_pix, x_ell, minfo, spin, power_m=1, power_x=1, 
-                 inplace=False):
+                 inplace=False, adjoint=False, use_weights=False):
 
         if m_pix is not None:
             m_pix = mat_utils.full_matrix(m_pix)
@@ -520,6 +520,8 @@ class PixEllPixMatVecMap(MatVecMap):
         self.minfo = minfo
         self.spin = spin
         self.inplace = inplace
+        self.adjoint = adjoint
+        self.use_weights = use_weights
 
     def call(self, imap):
         '''
@@ -549,9 +551,11 @@ class PixEllPixMatVecMap(MatVecMap):
 
         if self.m_pix is not None:
             np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
-        sht.map2alm(out, alm, self.minfo, self.ainfo, self.spin, adjoint=True)
-        alm_c_utils.lmul(alm, self.x_ell, self.ainfo, inplace=True)        
-        sht.alm2map(alm, out, self.ainfo, self.minfo, self.spin, adjoint=False)
+        sht.map2alm(out, alm, self.minfo, self.ainfo, self.spin,
+                    adjoint=self.adjoint is self.use_weights)
+        alm_c_utils.lmul(alm, self.x_ell, self.ainfo, inplace=True)
+        sht.alm2map(alm, out, self.ainfo, self.minfo, self.spin,
+                    adjoint=self.adjoint)
         if self.m_pix is not None:
             np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
 
