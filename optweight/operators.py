@@ -599,3 +599,36 @@ def op2mat(op, nrow, dtype, ncol=None, input_shape=None):
         uvec[idx] = 0
 
     return mat
+
+def add_operators(op_1, op_2, slice_2=None):
+    '''
+    Return calling function that acts as sum of two operators.
+
+    Arguments
+    ---------
+    op_1 : callable
+        First operator.
+    op_2 : callable
+        Second operator.
+    slice_2 : slice or tuple of slices, optional
+        Slice into input vector needed for operator 2.
+
+    Returns
+    -------
+    op_add : callable
+        Function that takes in same input as both functions
+    '''
+    
+    if slice_2 is None:
+        slice_2 = slice(None)
+
+    def add(ivec):
+        
+        # Copying is probably redundant, but we don't know if
+        # operators work in-place or not.
+        ovec = op_1(ivec.copy())
+        ovec[slice_2] += op_2(ivec[slice_2].copy())
+
+        return ovec
+
+    return add

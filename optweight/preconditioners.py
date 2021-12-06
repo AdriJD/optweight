@@ -2,7 +2,7 @@ import numpy as np
 
 from pixell import utils
 
-from optweight import operators, mat_utils
+from optweight import operators, mat_utils, multigrid, type_utils, sht
 
 class HarmonicPreconditioner(operators.MatVecAlm):
     '''
@@ -259,5 +259,69 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         alm += alm_signal
 
         alm = self.harmonic_prec(alm)
+
+        return alm
+
+class MaskedPreconditioner(operators.MatVecAlm):
+    '''
+    Adaptation of the masked preconditioner from Seljebotn et al.,
+    2017 (1710.00621).
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    icov_ell : (npol, npol, nell) array or (npol, nell) array
+        Inverse signal covariance, If diagonal, only the diagonal suffices.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
+    mask_bool = (npol, npix) array
+        Pixel mask, True for observed pixels.
+    minfo : sharp.map_info object
+        Metainfo for pixel mask covariance.
+
+    Methods
+    -------
+    call(alm) : Apply the preconditioner to a set of alms.
+    '''
+    
+    def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo, min_pix=1000,
+                 n_jacobi=1):
+
+        self.spin = spin
+        self.npol = icov_ell.shape[0]        
+        self.ainfo = ainfo
+        self.n_jacobi = n_jacobi
+        self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
+                                           min_pix=min_pix)
+
+        self.mask_unobs = self.levels[0].mask_unobs
+        self.minfo = self.levels[0].minfo
+
+    def call(self, alm):
+        '''
+        Apply the preconditioner to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+        
+        alm = alm.copy()
+        imap = np.zeros((self.npol, self.minfo.npix),
+                        dtype=type_utils.to_real(alm.dtype))
+
+        sht.alm2map(alm, imap, self.ainfo, self.minfo, self.spin)
+        imap *= self.mask_unobs
+        imap = multigrid.v_cycle(self.levels, imap, n_jacobi=self.n_jacobi)
+        imap *= self.mask_unobs
+        sht.map2alm(imap, alm, self.minfo, self.ainfo, self.spin,
+                    adjoint=True)
 
         return alm

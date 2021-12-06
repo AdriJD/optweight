@@ -176,6 +176,9 @@ def get_levels(mask, minfo, icov_ell, min_pix=1000):
         If shape icov_ell is not (npol, npol, nell) or (npol, nell)
     '''
 
+    if icov_ell.ndim == 1:
+        icov_ell = icov_ell[np.newaxis,:]
+
     if icov_ell.ndim == 2:
         npol, nell = icov_ell.shape
         # Upgrade to dense matrix.

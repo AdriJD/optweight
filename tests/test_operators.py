@@ -451,3 +451,41 @@ class TestOperators(unittest.TestCase):
         np.testing.assert_allclose(omap[0:1], omap_exp)
         np.testing.assert_allclose(imap[0:1], omap_exp)
         self.assertTrue(np.shares_memory(imap, omap))
+
+    def test_add_operators(self):
+        
+        op_1 = lambda x : x + 2
+        op_2 = lambda x : x + 10
+
+        op_add = operators.add_operators(op_1, op_2)
+        vec = np.ones((3, 10))
+        out = op_add(vec)
+        out_exp = np.ones_like(vec) * 14
+
+        np.testing.assert_array_equal(out, out_exp)
+
+        # Now with slicing.
+        slice_2 = np.s_[:1]
+
+        op_add = operators.add_operators(
+            op_1, op_2, slice_2=slice_2)
+        out = op_add(vec)
+        out_exp = np.ones_like(vec)
+        out_exp[0] = 14
+        out_exp[1] = 3
+        out_exp[2] = 3
+
+        np.testing.assert_array_equal(out, out_exp)
+
+        # Different slicing.
+        slice_2 = np.s_[0]
+
+        op_add = operators.add_operators(
+            op_1, op_2, slice_2=slice_2)
+        out = op_add(vec)
+        out_exp = np.ones_like(vec)
+        out_exp[0] = 14
+        out_exp[1] = 3
+        out_exp[2] = 3
+
+        np.testing.assert_array_equal(out, out_exp)

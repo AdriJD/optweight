@@ -7,7 +7,7 @@ from pixell import curvedsky, sharp
 from optweight import multigrid
 from optweight import map_utils, sht, alm_c_utils, alm_utils, mat_utils
 
-class TestMapUtils(unittest.TestCase):
+class TestMultiGrid(unittest.TestCase):
 
     def test_lowpass_filter(self):
 
