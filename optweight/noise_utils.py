@@ -7,7 +7,7 @@ import healpy as hp
 from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht
 
 def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
-                     minfo_features=None, wav_template=None):
+                     minfo_features=None, wav_template=None, fwhm_fact=2):
     '''
     Estimate wavelet-based covariance matrix given noise alms.
     
@@ -32,6 +32,9 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         (nwav) wavelet vector used for alm2wav operation, used as 
         template for cut sky wavelet maps. Will determine minfos
         of output wavelet matrix.
+    fwhm_fact : float, optional
+        Factor determining smoothing scale at each wavelet scale:
+        FWHM = fact * pi / lmax, where lmax is the max wavelet ell.
         
     Returns
     -------
@@ -64,9 +67,10 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         else:
             features_j = None
 
+        fwhm = fwhm_fact * np.pi / map_utils.minfo2lmax(minfo)
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo,
                                    kernel_ell=w_ell[jidx], diag=diag,
-                                   features=features_j)
+                                   features=features_j, fwhm=fwhm)
         cov_wav.add(index, cov_pix, minfo)
 
     return cov_wav
@@ -128,7 +132,7 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
         cov_pix = np.einsum('abc, dec -> abdec', imap, imap, optimize=True)
 
     if features is not None:
-        lmax_w = map_utils.minfo2lmax(minfo)        
+        lmax_w = map_utils.minfo2lmax(minfo)
         _, w_ell = minimum_w_ell_lambda(lmax_w, lmax_w // 2, (4 * lmax_w) // 5,
                                         return_w_ell=True)
         b_ell = None
