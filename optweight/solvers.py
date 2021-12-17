@@ -175,7 +175,7 @@ class CGWiener(utils.CG):
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
                     b_ell=None, mask_pix=None, draw_constr=False, prec=None, spin=None,
-                    icov_noise_flat_ell=None, **kwargs):
+                    icov_noise_flat_ell=None, use_prec_masked=False, **kwargs):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -214,6 +214,8 @@ class CGWiener(utils.CG):
             Inverse noise covariance of flattened (icov_pix weighted) data.
             If diagonal, only the diagonal suffices. If provided, updates noise model to 
             icnf_ell^0.5 icov_pix icnf_ell^0.5.
+        use_prec_masked : bool
+            Use extra precondiioner for masked pixels.
         **kwargs
             Keyword arguments for pixell.utils.CG.
         '''
@@ -289,6 +291,20 @@ class CGWiener(utils.CG):
 
         if preconditioner:
             kwargs.setdefault('M', preconditioner)
+            
+            if use_prec_masked:
+                prec_masked = preconditioners.MaskedPreconditioner(
+                    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo,
+                    min_pix=1000, n_jacobi=1) # NOTE!!!
+
+                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
+                                                      slice_2=np.s_[0:1])
+
+                prec_masked_pol = preconditioners.MaskedPreconditionerCG(
+                    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
+
+                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
+                                                      slice_2=np.s_[1:3])
 
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
                    mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,

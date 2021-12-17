@@ -596,7 +596,7 @@ def op2mat(op, nrow, dtype, ncol=None, input_shape=None):
     for idx in range(ncol):
         uvec[idx] = 1
         mat[:,idx] = op(uvec_shaped).reshape(-1)
-        uvec[idx] = 0
+        uvec[:] = 0
 
     return mat
 

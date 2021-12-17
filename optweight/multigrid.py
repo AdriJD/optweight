@@ -57,8 +57,10 @@ class Level():
             f'got {d_ell.shape}')
         self.d_ell = d_ell
 
+        #self.g_op = operators.PixEllPixMatVecMap(
+        #    self.mask_unobs, self.d_ell, self.minfo, [0, 2])
         self.g_op = operators.PixEllPixMatVecMap(
-            self.mask_unobs, self.d_ell, self.minfo, [0, 2])
+            self.mask_unobs, self.d_ell, self.minfo, sht.default_spin((self.npol, self.minfo.npix)))
 
         if dense_smoothing:
             self.smoother, self.pinv_g = self._init_dense_smoother()
@@ -277,11 +279,15 @@ def restrict(imap, level_in, level_out, adjoint=False):
     if lmax_out < lmax_in:
         alm = np.zeros((imap.shape[0], ainfo_out.nelem),
                        dtype=type_utils.to_complex(imap.dtype))
-        sht.map2alm(imap, alm, level_in.minfo, ainfo_out, [0, 2], adjoint=adjoint)
+        #sht.map2alm(imap, alm, level_in.minfo, ainfo_out, [0, 2], adjoint=adjoint)
+        sht.map2alm(imap, alm, level_in.minfo, ainfo_out,
+                    sht.default_spin(imap.shape), adjoint=adjoint)
     else:
         alm = np.zeros((imap.shape[0], ainfo_in.nelem),
                        dtype=type_utils.to_complex(imap.dtype))
-        sht.map2alm(imap, alm, level_in.minfo, ainfo_in, [0, 2], adjoint=adjoint)
+        #sht.map2alm(imap, alm, level_in.minfo, ainfo_in, [0, 2], adjoint=adjoint)
+        sht.map2alm(imap, alm, level_in.minfo, ainfo_in,
+                    sht.default_spin(imap.shape), adjoint=adjoint)
         ainfo_out = ainfo_in
 
     if not adjoint:
@@ -292,7 +298,9 @@ def restrict(imap, level_in, level_out, adjoint=False):
            lmax_in, fwhm=2 * np.pi / lmax_in)
 
     alm_c_utils.lmul(alm, r_ell, ainfo_out, inplace=True)
-    sht.alm2map(alm, omap, ainfo_out, minfo_out, [0,2], adjoint=adjoint)
+    #sht.alm2map(alm, omap, ainfo_out, minfo_out, [0, 2], adjoint=adjoint)
+    sht.alm2map(alm, omap, ainfo_out, minfo_out, sht.default_spin(alm.shape),
+                adjoint=adjoint)
     omap *= level_out.mask_unobs
 
     return omap
@@ -400,6 +408,9 @@ def lowpass_filter(lmax):
         Lowpass filter.
     '''
 
-    beta = - np.log(np.sqrt(0.05)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
+    #beta = - np.log(np.sqrt(0.05)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
+    # NOTE
+    #beta = - np.log(np.sqrt(0.8)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
+    beta = - np.log(np.sqrt(1)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
     ells = np.arange(lmax + 1)
     return np.exp(-beta * (ells * (ells + 1)) ** 2)

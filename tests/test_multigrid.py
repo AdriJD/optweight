@@ -228,7 +228,6 @@ class TestMultiGrid(unittest.TestCase):
 
         # Apply the G operation, let multigrid find approximate inverse.
         imap_g = levels[0].g_op(imap)
-        
         omap = multigrid.v_cycle(levels, imap_g, n_jacobi=3)
 
         # Lots of noisy outliers, so only test median and median absolute deviation.
@@ -237,7 +236,7 @@ class TestMultiGrid(unittest.TestCase):
 
         self.assertTrue(np.abs(np.median(diff) < 0.1))
         mad = np.median(np.abs(diff - np.median(diff)))
-        self.assertTrue(mad < 0.3)
+        self.assertLess(mad, 0.3)
 
 
 

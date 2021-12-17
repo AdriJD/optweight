@@ -325,3 +325,94 @@ class MaskedPreconditioner(operators.MatVecAlm):
                     adjoint=True)
 
         return alm
+
+class MaskedPreconditionerCG(operators.MatVecAlm):
+    '''
+    Masked preconditioner using conjugate gradient solver.
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    icov_ell : (npol, npol, nell) array or (npol, nell) array
+        Inverse signal covariance, If diagonal, only the diagonal suffices.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
+    mask_bool = (npol, npix) array
+        Pixel mask, True for observed pixels.
+    minfo : sharp.map_info object
+        Metainfo for pixel mask covariance.
+
+    Methods
+    -------
+    call(alm) : Apply the preconditioner to a set of alms.
+    '''
+    
+    def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo):
+
+        self.spin = spin
+        self.npol = icov_ell.shape[0]        
+        self.ainfo = ainfo
+        self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
+                                           min_pix=1000)
+
+        self.mask_unobs = self.levels[0].mask_unobs
+        self.minfo = self.levels[0].minfo
+
+        #def dot(vec1, vec2):
+        #    return np.sum(vec1.astype(np.float128) * vec2.astype(np.float128)).astype(vec1.dtype)
+        def dot(vec1, vec2):
+            return np.sum(vec1 * vec2)
+
+        cov_ell = mat_utils.matpow(icov_ell, -1)
+        from optweight import alm_c_utils
+        def g_op_reduced_pinv(imap, ainfo, mask_unobs, minfo):
+
+            alm = np.zeros((2, ainfo.nelem), dtype=np.complex64)
+            imap = imap * mask_unobs[0]
+            sht.map2alm(imap, alm, minfo, ainfo, 2, adjoint=False)
+            alm = alm_c_utils.lmul(alm, cov_ell, ainfo, inplace=False)
+            sht.alm2map(alm, imap, ainfo, minfo, 2, adjoint=True)
+            imap = imap * mask_unobs[0]
+            return imap
+
+
+        self.dot = dot
+        #self.prec = lambda x : x
+        self.prec = lambda x : g_op_reduced_pinv(x, self.ainfo, self.mask_unobs, self.minfo)
+
+    def call(self, alm):
+        '''
+        Apply the preconditioner to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+        
+        alm = alm.copy()
+        imap = np.zeros((self.npol, self.minfo.npix),
+                        dtype=type_utils.to_real(alm.dtype))
+
+        sht.alm2map(alm, imap, self.ainfo, self.minfo, self.spin)
+        imap *= self.mask_unobs
+        #imap = multigrid.v_cycle(self.levels, imap, n_jacobi=self.n_jacobi)
+        print(imap)
+        print(np.any(np.isnan(imap)))
+        print(imap.shape)
+        cg = utils.CG(self.levels[0].g_op, imap, dot=self.dot, M=self.prec)
+        for idx in range(10):
+            cg.step()
+            print(idx, cg.err)
+        imap = cg.x
+        imap *= self.mask_unobs
+        sht.map2alm(imap, alm, self.minfo, self.ainfo, self.spin,
+                    adjoint=True)
+
+        return alm
