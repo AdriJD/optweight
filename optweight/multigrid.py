@@ -23,6 +23,8 @@ class Level():
         Meta info mask.
     d_ell : (npol, npol, nell) array
         Lowpass filtered inverse signal power spectrum.
+    spin : int, array-like
+        Spin values for transforms, should be compatible with npol.
     dense_smoothing : bool, optional
         If set, initialize the dense version of the smoother, i.e. the
         pseudo-inverse of M Y d_ell Yt M.
@@ -37,13 +39,15 @@ class Level():
         Number of polarizations
     lmax : int
         Multipole supported by grid described by minfo.
+    spin : int, array-like
+        Spin values for transforms.
     d_ell :  (npol, npol, nell) array
         Lowpass filtered inverse signal power spectrum.
     g_op : callable
         The G = M Y d_ell Yt M function, taking and returning (npol, npix) maps.
     '''
 
-    def __init__(self, mask, minfo, d_ell, dense_smoothing=False):
+    def __init__(self, mask, minfo, d_ell, spin, dense_smoothing=False):
 
         assert mask.dtype == bool, f'mask must be bool, got {mask.dtype}'
 
@@ -51,16 +55,15 @@ class Level():
             mask = mask[np.newaxis,:]
         self.mask_unobs = ~mask
         self.minfo = minfo
+        self.spin = spin
 
         assert d_ell.shape == (self.npol, self.npol, self.lmax + 1), (
             f'Invalid shape d_ell expected {(self.npol,self.npol,self.lmax+1)} '
             f'got {d_ell.shape}')
         self.d_ell = d_ell
 
-        #self.g_op = operators.PixEllPixMatVecMap(
-        #    self.mask_unobs, self.d_ell, self.minfo, [0, 2])
         self.g_op = operators.PixEllPixMatVecMap(
-            self.mask_unobs, self.d_ell, self.minfo, sht.default_spin((self.npol, self.minfo.npix)))
+            self.mask_unobs, self.d_ell, self.minfo, self.spin)
 
         if dense_smoothing:
             self.smoother, self.pinv_g = self._init_dense_smoother()
@@ -149,7 +152,7 @@ class Level():
         omap = self.g_op(imap)
         return omap[self.mask_unobs]
 
-def get_levels(mask, minfo, icov_ell, min_pix=1000):
+def get_levels(mask, minfo, icov_ell, spin, min_pix=1000):
     '''
     Create a list of level objects each half of the previous level's lmax.
 
@@ -161,6 +164,8 @@ def get_levels(mask, minfo, icov_ell, min_pix=1000):
         Meta info mask.
     icov_ell : (npol, npol, nell) or (npol, nell) array
         Inverse signal power spectrum.
+    spin : int, array-like
+        Spin values for transforms, should be compatible with npol.
     min_pix : int, optional
         Once this number of masked pixels is reached or exceeded in any
         of the `npol` masks, stop making levels.
@@ -236,14 +241,14 @@ def get_levels(mask, minfo, icov_ell, min_pix=1000):
                 lmax_level, fwhm=2 * np.pi / lmax_level)
             d_ell = levels[idx - 1].d_ell[:,:,:lmax_level+1] * r_ell ** 2
 
-        levels.append(Level(mask_level, minfo_level, d_ell,
+        levels.append(Level(mask_level, minfo_level, d_ell, spin,
                             dense_smoothing=last_level))
         if last_level:
             break
 
     return levels
 
-def restrict(imap, level_in, level_out, adjoint=False):
+def restrict(imap, level_in, level_out, spin, adjoint=False):
     '''
     Interpolate/restrict map from one grid to another.
 
@@ -255,6 +260,8 @@ def restrict(imap, level_in, level_out, adjoint=False):
         Input level.
     level_out : multigrid.Level instance
         Output level.
+    spin : int, array-like
+        Spin values for transforms, should be compatible with npol.    
     adjoint : bool, optional
         If set, perform adjoint operation, i.e. W Y R Yt instead of Y R Yt W.
 
@@ -279,15 +286,11 @@ def restrict(imap, level_in, level_out, adjoint=False):
     if lmax_out < lmax_in:
         alm = np.zeros((imap.shape[0], ainfo_out.nelem),
                        dtype=type_utils.to_complex(imap.dtype))
-        #sht.map2alm(imap, alm, level_in.minfo, ainfo_out, [0, 2], adjoint=adjoint)
-        sht.map2alm(imap, alm, level_in.minfo, ainfo_out,
-                    sht.default_spin(imap.shape), adjoint=adjoint)
+        sht.map2alm(imap, alm, level_in.minfo, ainfo_out, spin, adjoint=adjoint)
     else:
         alm = np.zeros((imap.shape[0], ainfo_in.nelem),
                        dtype=type_utils.to_complex(imap.dtype))
-        #sht.map2alm(imap, alm, level_in.minfo, ainfo_in, [0, 2], adjoint=adjoint)
-        sht.map2alm(imap, alm, level_in.minfo, ainfo_in,
-                    sht.default_spin(imap.shape), adjoint=adjoint)
+        sht.map2alm(imap, alm, level_in.minfo, ainfo_in, spin, adjoint=adjoint)
         ainfo_out = ainfo_in
 
     if not adjoint:
@@ -298,14 +301,12 @@ def restrict(imap, level_in, level_out, adjoint=False):
            lmax_in, fwhm=2 * np.pi / lmax_in)
 
     alm_c_utils.lmul(alm, r_ell, ainfo_out, inplace=True)
-    #sht.alm2map(alm, omap, ainfo_out, minfo_out, [0, 2], adjoint=adjoint)
-    sht.alm2map(alm, omap, ainfo_out, minfo_out, sht.default_spin(alm.shape),
-                adjoint=adjoint)
+    sht.alm2map(alm, omap, ainfo_out, minfo_out, spin, adjoint=adjoint)
     omap *= level_out.mask_unobs
 
     return omap
 
-def coarsen(imap, level_in, level_out):
+def coarsen(imap, level_in, level_out, spin):
     '''
     Restrict a map from a high resolution level to low resolution level.
 
@@ -317,6 +318,8 @@ def coarsen(imap, level_in, level_out):
         Input level.
     level_out : multigrid.Level instance
         Output level.
+    spin : int, array-like
+        Spin values for transforms, should be compatible with npol.    
     
     Returns
     -------
@@ -324,9 +327,9 @@ def coarsen(imap, level_in, level_out):
         Output map with npix matching the geometry of `level_out`.
     '''
 
-    return restrict(imap, level_in, level_out, adjoint=False)
+    return restrict(imap, level_in, level_out, spin, adjoint=False)
 
-def interpolate(imap, level_in, level_out):
+def interpolate(imap, level_in, level_out, spin):
     '''
     Interpolate a map from a low resolution level to a high resolution level.
 
@@ -338,6 +341,8 @@ def interpolate(imap, level_in, level_out):
         Input level.
     level_out : multigrid.Level instance
         Output level.
+    spin : int, array-like
+        Spin values for transforms, should be compatible with npol.    
     
     Returns
     -------
@@ -345,9 +350,9 @@ def interpolate(imap, level_in, level_out):
         Output map with npix matching the geometry of `level_out`.
     '''
 
-    return restrict(imap, level_in, level_out, adjoint=True)
+    return restrict(imap, level_in, level_out, spin, adjoint=True)
 
-def v_cycle(levels, imap, idx=0, n_jacobi=1):
+def v_cycle(levels, imap, spin, idx=0, n_jacobi=1):
     '''
     The solver, finds an approximation of G^-1 applied to the input map.
 
@@ -380,11 +385,11 @@ def v_cycle(levels, imap, idx=0, n_jacobi=1):
 
         r_h = imap - levels[idx].g_op(x_vec)
 
-        r_H = coarsen(r_h, levels[idx], levels[idx+1])
+        r_H = coarsen(r_h, levels[idx], levels[idx+1], spin)
 
-        c_H = v_cycle(levels, r_H, idx=idx + 1, n_jacobi=n_jacobi)
+        c_H = v_cycle(levels, r_H, spin, idx=idx + 1, n_jacobi=n_jacobi)
 
-        c_h = interpolate(c_H, levels[idx + 1], levels[idx])
+        c_h = interpolate(c_H, levels[idx + 1], levels[idx], spin)
 
         x_vec += c_h
 
@@ -412,5 +417,7 @@ def lowpass_filter(lmax):
     # NOTE
     #beta = - np.log(np.sqrt(0.8)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
     beta = - np.log(np.sqrt(1)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
+    #beta = - np.log(np.sqrt(0.05)) / ((6000 / 2) * (6000 / 2 + 1)) ** 2
+
     ells = np.arange(lmax + 1)
     return np.exp(-beta * (ells * (ells + 1)) ** 2)

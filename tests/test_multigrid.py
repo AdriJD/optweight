@@ -22,6 +22,7 @@ class TestMultiGrid(unittest.TestCase):
         lmax = 22
         ells = np.arange(lmax + 1)
         npol = 3
+        spin = [0, 2]
         icov_ell = np.ones((npol, npol, lmax+1))
         icov_ell *= np.asarray([[1, 0.1, 0.1], [0.1, 1, 0.1], [0.1, 0.1, 1]])[:,:,np.newaxis]
         # Approximate icov_ell.
@@ -38,7 +39,7 @@ class TestMultiGrid(unittest.TestCase):
         mask_2d[21:,:] = False
 
         min_pix = 10
-        levels = multigrid.get_levels(mask, minfo, icov_ell, min_pix=min_pix)
+        levels = multigrid.get_levels(mask, minfo, icov_ell, spin, min_pix=min_pix)
 
         self.assertEqual(len(levels), 3)
 
@@ -85,6 +86,7 @@ class TestMultiGrid(unittest.TestCase):
 
         lmax = 50
         npol = 3
+        spin = [0, 2]
         icov_ell = np.ones((npol, npol, lmax+1))
         icov_ell *= np.asarray([[1, 0.1, 0.1], [0.1, 1, 0.1], [0.1, 0.1, 1]])[:,:,np.newaxis]
 
@@ -92,17 +94,18 @@ class TestMultiGrid(unittest.TestCase):
 
         # Wrong dtype.
         mask = np.ones((minfo.npix), dtype=float)
-        self.assertRaises(ValueError, multigrid.get_levels, mask, minfo, icov_ell)
+        self.assertRaises(ValueError, multigrid.get_levels, mask, minfo, icov_ell, spin)
 
         # Wrong shape.
         mask = np.ones((minfo.npix), dtype=bool)
         icov_ell = icov_ell[0,0]
-        self.assertRaises(ValueError, multigrid.get_levels, mask, minfo, icov_ell)
+        self.assertRaises(ValueError, multigrid.get_levels, mask, minfo, icov_ell, spin)
 
     def test_coarsen(self):
 
         lmax = 5
         npol = 3
+        spin = [0, 2]
         ells = np.arange(lmax + 1)
 
         # Create 2 masks.
@@ -127,11 +130,11 @@ class TestMultiGrid(unittest.TestCase):
         sht.alm2map(alm, imap, ainfo, minfo_in, [0, 2])
 
         # Create 2 levels.
-        level_in = multigrid.Level(mask_in, minfo_in, cov_ell)
+        level_in = multigrid.Level(mask_in, minfo_in, cov_ell, spin)
         lmax_out = map_utils.minfo2lmax(minfo_out)
         level_out = multigrid.Level(mask_out, minfo_out,
-                                    cov_ell[:,:,:lmax_out+1])
-        omap = multigrid.coarsen(imap, level_in, level_out)
+                                    cov_ell[:,:,:lmax_out+1], spin)
+        omap = multigrid.coarsen(imap, level_in, level_out, spin)
 
         # Do manual coarsen in a way that keeps the alm at full size.
         omap_exp = imap * ~mask_in
@@ -151,6 +154,7 @@ class TestMultiGrid(unittest.TestCase):
 
         lmax = 5
         npol = 3
+        spin = [0, 2]
         ells = np.arange(lmax + 1)
 
         # Create 2 masks.
@@ -177,10 +181,10 @@ class TestMultiGrid(unittest.TestCase):
         sht.alm2map(alm, imap, ainfo, minfo_in, [0, 2])
 
         # Create 2 levels. Note, switched compared to previous test.
-        level_out = multigrid.Level(mask_out, minfo_out, cov_ell)
+        level_out = multigrid.Level(mask_out, minfo_out, cov_ell, spin)
         level_in = multigrid.Level(mask_in, minfo_in,
-                                    cov_ell[:,:,:lmax_in+1])
-        omap = multigrid.interpolate(imap, level_in, level_out)
+                                    cov_ell[:,:,:lmax_in+1], spin)
+        omap = multigrid.interpolate(imap, level_in, level_out, spin)
 
         # Do manual interpolate.
         omap_exp = imap * ~mask_in
@@ -197,9 +201,11 @@ class TestMultiGrid(unittest.TestCase):
 
     def test_v_cycle(self):
 
+        #lmax = 15
         lmax = 22
         ells = np.arange(lmax + 1)
         npol = 3
+        spin = [0, 2]
         icov_ell = np.ones((npol, npol, lmax+1))
         icov_ell *= np.asarray([[1, 0.1, 0.1], [0.1, 1, 0.1], [0.1, 0.1, 1]])[:,:,np.newaxis]
         # Approximate icov_ell.
@@ -213,8 +219,9 @@ class TestMultiGrid(unittest.TestCase):
         mask_2d = map_utils.view_2d(mask, minfo)
         mask_2d[8:12,:] = False
 
+        #min_pix = 150
         min_pix = 10
-        levels = multigrid.get_levels(mask, minfo, icov_ell, min_pix=min_pix)
+        levels = multigrid.get_levels(mask, minfo, icov_ell, spin, min_pix=min_pix)
 
         # Create map.
         cov_ell = mat_utils.matpow(icov_ell, -1)
@@ -228,13 +235,12 @@ class TestMultiGrid(unittest.TestCase):
 
         # Apply the G operation, let multigrid find approximate inverse.
         imap_g = levels[0].g_op(imap)
-        omap = multigrid.v_cycle(levels, imap_g, n_jacobi=3)
+        omap = multigrid.v_cycle(levels, imap_g, spin, n_jacobi=3)
 
         # Lots of noisy outliers, so only test median and median absolute deviation.
         diff = (imap[levels[0].mask_unobs] - omap[levels[0].mask_unobs]) / \
               np.abs(imap[levels[0].mask_unobs]) 
-
-        self.assertTrue(np.abs(np.median(diff) < 0.1))
+        self.assertLess(np.abs(np.median(diff)), 0.1)
         mad = np.median(np.abs(diff - np.median(diff)))
         self.assertLess(mad, 0.3)
 

@@ -293,7 +293,7 @@ class MaskedPreconditioner(operators.MatVecAlm):
         self.ainfo = ainfo
         self.n_jacobi = n_jacobi
         self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
-                                           min_pix=min_pix)
+                                           self.spin, min_pix=min_pix)
 
         self.mask_unobs = self.levels[0].mask_unobs
         self.minfo = self.levels[0].minfo
@@ -319,7 +319,8 @@ class MaskedPreconditioner(operators.MatVecAlm):
 
         sht.alm2map(alm, imap, self.ainfo, self.minfo, self.spin)
         imap *= self.mask_unobs
-        imap = multigrid.v_cycle(self.levels, imap, n_jacobi=self.n_jacobi)
+        imap = multigrid.v_cycle(self.levels, imap, self.spin, 
+                                 n_jacobi=self.n_jacobi)
         imap *= self.mask_unobs
         sht.map2alm(imap, alm, self.minfo, self.ainfo, self.spin,
                     adjoint=True)
@@ -328,7 +329,7 @@ class MaskedPreconditioner(operators.MatVecAlm):
 
 class MaskedPreconditionerCG(operators.MatVecAlm):
     '''
-    Masked preconditioner using conjugate gradient solver.
+    Masked preconditioner using conjugate gradient solver. 
 
     Parameters
     ----------
@@ -346,6 +347,11 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
     Methods
     -------
     call(alm) : Apply the preconditioner to a set of alms.
+
+    Notes
+    -----
+    Useful for LCDM polarization, for which the multigrid precondioner works
+    less well because icov_ell does not resemble ell^2 (as it does for TT).
     '''
     
     def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo):
@@ -353,7 +359,9 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         self.spin = spin
         self.npol = icov_ell.shape[0]        
         self.ainfo = ainfo
-        self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
+
+        # REPLACE WITH SOMETHING LESS UGLY.
+        self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell, self.spin,
                                            min_pix=1000)
 
         self.mask_unobs = self.levels[0].mask_unobs
@@ -366,13 +374,14 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
         cov_ell = mat_utils.matpow(icov_ell, -1)
         from optweight import alm_c_utils
+
         def g_op_reduced_pinv(imap, ainfo, mask_unobs, minfo):
 
-            alm = np.zeros((2, ainfo.nelem), dtype=np.complex64)
+            alm = np.zeros((self.npol, ainfo.nelem), dtype=type_utils.to_complex(imap.dtype))
             imap = imap * mask_unobs[0]
-            sht.map2alm(imap, alm, minfo, ainfo, 2, adjoint=False)
+            sht.map2alm(imap, alm, minfo, ainfo, self.spin, adjoint=False)
             alm = alm_c_utils.lmul(alm, cov_ell, ainfo, inplace=False)
-            sht.alm2map(alm, imap, ainfo, minfo, 2, adjoint=True)
+            sht.alm2map(alm, imap, ainfo, minfo, self.spin, adjoint=True)
             imap = imap * mask_unobs[0]
             return imap
 
@@ -403,11 +412,13 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         sht.alm2map(alm, imap, self.ainfo, self.minfo, self.spin)
         imap *= self.mask_unobs
         #imap = multigrid.v_cycle(self.levels, imap, n_jacobi=self.n_jacobi)
-        print(imap)
-        print(np.any(np.isnan(imap)))
-        print(imap.shape)
+        #print(imap)
+        #print(np.any(np.isnan(imap)))
+        #print(imap.shape)
         cg = utils.CG(self.levels[0].g_op, imap, dot=self.dot, M=self.prec)
-        for idx in range(10):
+
+        # NEED TO BE ABLE TO SPECIFY NSTEPS.
+        for idx in range(15):
             cg.step()
             print(idx, cg.err)
         imap = cg.x

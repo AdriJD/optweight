@@ -300,11 +300,29 @@ class CGWiener(utils.CG):
                 kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
                                                       slice_2=np.s_[0:1])
 
+                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
+                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
+
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
+                #                                      slice_2=np.s_[1:3])
+
                 prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
+                    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo)
 
                 kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                                                      slice_2=np.s_[1:3])
+                                                      slice_2=np.s_[0:3])
+
+                #prec_masked_t = preconditioners.MaskedPreconditionerCG(
+                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo)
+
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_t,
+                #                                      slice_2=np.s_[0:1])
+
+                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
+                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
+
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
+                #                                      slice_2=np.s_[1:3])
 
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
                    mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
@@ -314,7 +332,7 @@ class CGWiener(utils.CG):
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
                         icov_pix=None, minfo_icov_pix=None, prec=None, spin=None, 
-                        **kwargs):
+                        use_prec_masked=False, **kwargs):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -359,6 +377,8 @@ class CGWiener(utils.CG):
         spin : int, array-like, optional
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
+        use_prec_masked : bool
+            Use extra precondiioner for masked pixels.
         **kwargs
             Keyword arguments for pixell.utils.CG.
         '''
@@ -416,6 +436,38 @@ class CGWiener(utils.CG):
 
         if preconditioner:
             kwargs.setdefault('M', preconditioner)
+
+            if use_prec_masked:
+                prec_masked = preconditioners.MaskedPreconditioner(
+                    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo_mask,
+                    min_pix=1000, n_jacobi=1) # NOTE!!!
+
+                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
+                                                      slice_2=np.s_[0:1])
+
+                prec_masked_pol = preconditioners.MaskedPreconditionerCG(
+                    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo_mask)
+
+                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
+                                                      slice_2=np.s_[1:3])
+
+                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
+                #    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo)
+
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
+                #                                      slice_2=np.s_[0:3])
+
+                #prec_masked_t = preconditioners.MaskedPreconditionerCG(
+                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo)
+
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_t,
+                #                                      slice_2=np.s_[0:1])
+
+                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
+                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
+
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
+                #                                      slice_2=np.s_[1:3])
 
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
                    mask=mask, rand_isignal=None, rand_inoise=None,
