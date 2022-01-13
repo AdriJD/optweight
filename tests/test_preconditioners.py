@@ -25,7 +25,8 @@ class TestPreconditioners(unittest.TestCase):
         mask_bool_2d[0,7:] = False
 
         prec = preconditioners.MaskedPreconditioner(
-            ainfo, icov_ell, spin, mask_bool, minfo, n_jacobi=3, min_pix=10)
+            ainfo, icov_ell, spin, mask_bool, minfo, n_jacobi=3, min_pix=10,
+            lmax_r_ell=lmax)
 
         self.assertEqual(prec.npol, 1)
         self.assertEqual(prec.n_jacobi, 3)

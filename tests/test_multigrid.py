@@ -39,7 +39,8 @@ class TestMultiGrid(unittest.TestCase):
         mask_2d[21:,:] = False
 
         min_pix = 10
-        levels = multigrid.get_levels(mask, minfo, icov_ell, spin, min_pix=min_pix)
+        levels = multigrid.get_levels(mask, minfo, icov_ell, spin, min_pix=min_pix,
+                                      lmax_r_ell=lmax)
 
         self.assertEqual(len(levels), 3)
 
@@ -221,7 +222,8 @@ class TestMultiGrid(unittest.TestCase):
 
         #min_pix = 150
         min_pix = 10
-        levels = multigrid.get_levels(mask, minfo, icov_ell, spin, min_pix=min_pix)
+        levels = multigrid.get_levels(mask, minfo, icov_ell, spin, min_pix=min_pix,
+                                      lmax_r_ell=lmax)
 
         # Create map.
         cov_ell = mat_utils.matpow(icov_ell, -1)

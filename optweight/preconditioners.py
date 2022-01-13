@@ -279,6 +279,14 @@ class MaskedPreconditioner(operators.MatVecAlm):
         Pixel mask, True for observed pixels.
     minfo : sharp.map_info object
         Metainfo for pixel mask covariance.
+    min_pix : int, optional
+        Once this number of masked pixels is reached or exceeded in any
+        of the `npol` masks, stop making levels.
+    n_jacobi : int, optional
+        Number of Jacobi iterations for the diagonal smoothers.
+    lmax_r_ell : int, optional
+        Lmax parameter for r_ell filter that is applied to first (finest) 
+        level. See `multigrid.lowpass_filter`.
 
     Methods
     -------
@@ -286,14 +294,15 @@ class MaskedPreconditioner(operators.MatVecAlm):
     '''
     
     def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo, min_pix=1000,
-                 n_jacobi=1):
+                 n_jacobi=1, lmax_r_ell=6000):
 
         self.spin = spin
         self.npol = icov_ell.shape[0]        
         self.ainfo = ainfo
         self.n_jacobi = n_jacobi
         self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
-                                           self.spin, min_pix=min_pix)
+                                           self.spin, min_pix=min_pix,
+                                           lmax_r_ell=lmax_r_ell)
 
         self.mask_unobs = self.levels[0].mask_unobs
         self.minfo = self.levels[0].minfo
@@ -362,7 +371,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
         # REPLACE WITH SOMETHING LESS UGLY.
         self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell, self.spin,
-                                           min_pix=1000)
+                                           min_pix=1000, lmax_r_ell=100000) # NOTE
 
         self.mask_unobs = self.levels[0].mask_unobs
         self.minfo = self.levels[0].minfo
@@ -419,6 +428,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
         # NEED TO BE ABLE TO SPECIFY NSTEPS.
         for idx in range(15):
+        #for idx in range(10):
             cg.step()
             print(idx, cg.err)
         imap = cg.x

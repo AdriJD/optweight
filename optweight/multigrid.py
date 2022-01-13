@@ -152,7 +152,7 @@ class Level():
         omap = self.g_op(imap)
         return omap[self.mask_unobs]
 
-def get_levels(mask, minfo, icov_ell, spin, min_pix=1000):
+def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
     '''
     Create a list of level objects each half of the previous level's lmax.
 
@@ -169,6 +169,9 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000):
     min_pix : int, optional
         Once this number of masked pixels is reached or exceeded in any
         of the `npol` masks, stop making levels.
+    lmax_r_ell : int, optional
+        Lmax parameter for r_ell filter that is applied to first (finest) 
+        level. See `multigrid.lowpass_filter`.
 
     Returns
     -------
@@ -234,7 +237,8 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000):
                              f'in one or more of the masks : {nmasked_per_pol}')
 
         if idx == 0:
-            r_ell = lowpass_filter(lmax_level)
+            r_ell = np.zeros(lmax_level + 1)
+            r_ell[:lmax_r_ell+1] = lowpass_filter(lmax_r_ell)[:lmax_level+1]
             d_ell = icov_ell[:,:,:lmax_level+1] * r_ell ** 2
         else:
             r_ell = noise_utils._band_limit_gauss_beam(
@@ -413,11 +417,6 @@ def lowpass_filter(lmax):
         Lowpass filter.
     '''
 
-    #beta = - np.log(np.sqrt(0.05)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
-    # NOTE
-    #beta = - np.log(np.sqrt(0.8)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
-    beta = - np.log(np.sqrt(1)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
-    #beta = - np.log(np.sqrt(0.05)) / ((6000 / 2) * (6000 / 2 + 1)) ** 2
-
+    beta = - np.log(np.sqrt(0.05)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
     ells = np.arange(lmax + 1)
     return np.exp(-beta * (ells * (ells + 1)) ** 2)
