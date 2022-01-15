@@ -219,6 +219,21 @@ class TestAlmUtils(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(alm, alm_exp)
 
+    def test_add_to_alm_overwrite(self):
+
+        alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
+        ainfo = sharp.alm_info(lmax=3)
+
+        blm = np.asarray([1, 2, 3, 4j, 5j, 6j], dtype=np.complex64)
+        binfo = sharp.alm_info(lmax=2)
+
+        alm_utils.add_to_alm(alm, blm, ainfo, binfo, overwrite=True)
+
+        alm_exp = np.asarray([1, 2, 3, 4, 4j, 5j, 7, 6j, 9, 10],
+                             dtype=np.complex64)
+
+        np.testing.assert_array_almost_equal(alm, alm_exp)
+
     def test_add_to_alm_err(self):
 
         alm = np.asarray([1, 2, 3, 4j, 5j, 6j], dtype=np.complex64)

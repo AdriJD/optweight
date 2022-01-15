@@ -45,4 +45,4 @@ class TestPreconditioners(unittest.TestCase):
         self.assertEqual(alm.dtype, alm_out_sp.dtype)
 
         np.testing.assert_allclose(alm_out / alm_out_sp, np.ones_like(alm),
-                                   rtol=1e-4)
+                                   rtol=3e-4)

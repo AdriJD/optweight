@@ -307,7 +307,8 @@ class CGWiener(utils.CG):
                 #                                      slice_2=np.s_[1:3])
 
                 prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo)
+                    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo, lmax=None,
+                    nsteps=15)
 
                 kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
                                                       slice_2=np.s_[0:3])

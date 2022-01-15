@@ -215,15 +215,8 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
         downgrade = 2 ** idx
         lmax_level = lmax // downgrade
 
-        # We always want full-sky minfos, we're interested in masked regions.
-        minfo_level = map_utils.get_equal_area_gauss_minfo(
-            2 * lmax_level, ratio_pow=1, gl_band=0)
-
-        mask_level = map_utils.gauss2map(
-            mask.astype(np.float32), minfo, minfo_level, order=1)
-        # Mask includes pixels made out of 100% masked pixels in fine grid.
-        mask_level[(mask_level > 0) & (mask_level < 1)] = 1.
-        mask_level = mask_level.astype(bool)
+        mask_level, minfo_level = get_equal_area_mask_bool(
+            mask, minfo, lmax=lmax_level)
 
         assert lmax_level <= nell - 1, (
             f'lmax_level {lmax_level} exceeds lmax of icov_ell {nell - 1}')
@@ -251,6 +244,48 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
             break
 
     return levels
+
+def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
+    '''
+    Interpolate boolean mask defined on Gauss legendre grid to
+    equal area Gauss Legendre grid (possibly with different lmax).
+
+    Parameters
+    ----------
+    mask_bool : (..., npix) bool array
+        Input mask, True for obseved regions.
+    minfo : sharp.map_info object
+        Meta info mask.
+    lmax : int, optional
+        Band-limit of output map.
+
+    Returns
+    -------
+    mask_out : (..., npix') bool array
+        Ouput mask.
+    minfo_out : sharp.map_info object
+        Meta info output mask.
+    '''
+
+    if lmax is None:
+        lmax = map_utils.minfo2lmax(minfo)
+
+    # We want fullsky minfos (for now), we want to solve masked pixels.
+    minfo_out = map_utils.get_equal_area_gauss_minfo(
+        2 * lmax, ratio_pow=1, gl_band=0)
+    #minfo_out = map_utils.get_equal_area_gauss_minfo(
+    #    2 * lmax, ratio_pow=1, gl_band=np.pi/3) # NOTE
+
+    mask_out = map_utils.gauss2map(
+        mask_bool.astype(np.float32), minfo, minfo_out, order=1)
+    # In Seljebotns paper the mask includes pixels made out of 
+    # 100% masked pixels in fine grid. I find that the construction 
+    # below works better for my equal area Gauss pixels.
+    mask_out[(mask_out > 0) & (mask_out < 0.5)] = 0.
+    mask_out[(mask_out >= 0.5) & (mask_out < 1)] = 1.
+    mask_out = mask_out.astype(bool)
+
+    return mask_out, minfo_out
 
 def restrict(imap, level_in, level_out, spin, adjoint=False):
     '''

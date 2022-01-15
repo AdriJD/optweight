@@ -321,7 +321,7 @@ def rand_alm_wav(cov_wav, ainfo, w_ell, spin):
 
     return rand_alm
 
-def add_to_alm(alm, blm, ainfo, binfo):
+def add_to_alm(alm, blm, ainfo, binfo, overwrite=False):
     '''
     In-place addition of blm coefficients to alm coefficients.
 
@@ -335,6 +335,8 @@ def add_to_alm(alm, blm, ainfo, binfo):
         Metainfo for alm.
     binfo : sharp.alm_info object
         Metainfo for blm.
+    overwrite : bool, optional
+        If set, do not add but overwrite alm with blm.
 
     Returns
     -------
@@ -365,6 +367,9 @@ def add_to_alm(alm, blm, ainfo, binfo):
         slice_alm = np.s_[...,start_alm:end_alm+ainfo.stride:ainfo.stride]
         slice_blm = np.s_[...,start_blm:end_blm+binfo.stride:binfo.stride]
 
-        alm[slice_alm] += blm[slice_blm]
+        if overwrite:
+            alm[slice_alm] = blm[slice_blm]
+        else:
+            alm[slice_alm] += blm[slice_blm]
 
     return alm
