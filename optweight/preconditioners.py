@@ -3,7 +3,7 @@ import numpy as np
 from pixell import utils, sharp
 
 from optweight import (operators, mat_utils, multigrid, type_utils, sht,
-                       alm_utils)
+                       alm_utils, map_utils, alm_c_utils)
 
 class HarmonicPreconditioner(operators.MatVecAlm):
     '''
@@ -288,6 +288,8 @@ class MaskedPreconditioner(operators.MatVecAlm):
     lmax_r_ell : int, optional
         Lmax parameter for r_ell filter that is applied to first (finest) 
         level. See `multigrid.lowpass_filter`.
+    nsteps : int, optional
+        The amount of v-cycles used. Usually requires `n_jacobi` > 1.
 
     Methods
     -------
@@ -295,16 +297,21 @@ class MaskedPreconditioner(operators.MatVecAlm):
     '''
     
     def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo, min_pix=1000,
-                 n_jacobi=1, lmax_r_ell=6000):
+                 n_jacobi=1, lmax_r_ell=6000, nsteps=1):
 
-        self.spin = spin
+        if icov_ell.ndim == 1:
+            icov_ell = icov_ell[np.newaxis,:]
+
         self.npol = icov_ell.shape[0]        
+        self.spin = spin
         self.ainfo = ainfo
         self.n_jacobi = n_jacobi
+        self.lmax = self.ainfo.lmax
+        self.nsteps = nsteps
         self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
                                            self.spin, min_pix=min_pix,
                                            lmax_r_ell=lmax_r_ell)
-
+        self.r_ell = multigrid.lowpass_filter(lmax_r_ell)[:self.lmax+1]
         self.mask_unobs = self.levels[0].mask_unobs
         self.minfo = self.levels[0].minfo
 
@@ -327,13 +334,18 @@ class MaskedPreconditioner(operators.MatVecAlm):
         imap = np.zeros((self.npol, self.minfo.npix),
                         dtype=type_utils.to_real(alm.dtype))
 
+        alm_c_utils.lmul(alm, self.r_ell, self.ainfo, inplace=True)
         sht.alm2map(alm, imap, self.ainfo, self.minfo, self.spin)
+
         imap *= self.mask_unobs
-        imap = multigrid.v_cycle(self.levels, imap, self.spin, 
-                                 n_jacobi=self.n_jacobi)
-        imap *= self.mask_unobs
-        sht.map2alm(imap, alm, self.minfo, self.ainfo, self.spin,
+        omap = None
+        for _ in range(self.nsteps):            
+            omap = multigrid.v_cycle(self.levels, imap, self.spin, 
+                                     n_jacobi=self.n_jacobi, x0=omap)
+        omap *= self.mask_unobs
+        sht.map2alm(omap, alm, self.minfo, self.ainfo, self.spin,
                     adjoint=True)
+        alm_c_utils.lmul(alm, self.r_ell, self.ainfo, inplace=True)
 
         return alm
 
@@ -353,10 +365,15 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         Pixel mask, True for observed pixels.
     minfo : sharp.map_info object
         Metainfo for pixel mask covariance.
+    lmax_r_ell : int, optional
+        Lmax parameter for r_ell filter that is applied to the masked equation 
+        system. See `multigrid.lowpass_filter`.
     lmax : int, optional
         Only apply precondtioner to multipoles up to lmax.
     nsteps : int, optional
         Number of CG steps used.
+    verbose : bool, optional
+        Print info about CG convergence.
 
     Methods
     -------
@@ -364,23 +381,35 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
     Notes
     -----
-    Useful for LCDM polarization, for which the multigrid precondioner works
+    Useful for LCDM polarization, for which the multigrid preconditioner works
     less well because icov_ell does not resemble ell^2 (as it does for TT).
     '''
     
-    def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo, lmax=None, nsteps=15):
+    def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo, lmax_r_ell=None, 
+                 lmax=None, nsteps=15, verbose=False):
 
         self.spin = spin
         self.npol = icov_ell.shape[0]        
         self.ainfo = ainfo
         self.nsteps = nsteps
+        self.verbose = verbose
 
         if lmax is not None:
             icov_ell = icov_ell[...,:lmax+1].copy()
+            if lmax > ainfo.lmax:
+                raise ValueError(f'lmax {lmax} has be be <= ainfo.lmax {ainfo.lmax}')
         else:
             lmax = self.ainfo.lmax
+
         self.lmax = lmax
         self.ainfo_lowres = sharp.alm_info(self.lmax)
+
+        if lmax_r_ell is not None:
+            self.r_ell = multigrid.lowpass_filter(lmax_r_ell, lmax=ainfo.lmax)
+            d_ell = icov_ell * self.r_ell[:self.lmax+1] ** 2
+        else:
+            self.r_ell = None
+            d_ell = icov_ell.copy()
 
         if mask_bool.ndim == 1:
             mask_bool = np.ones(
@@ -396,25 +425,12 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
             mask_bool, minfo, lmax=lmax)
         self.mask_unobs = ~mask_bool
         self.minfo = minfo
-
         self.g_op = operators.PixEllPixMatVecMap(
-            self.mask_unobs, icov_ell, self.minfo, self.spin)
-
-        cov_ell = mat_utils.matpow(icov_ell, -1)
-        from optweight import alm_c_utils
-
-        def g_op_reduced_pinv(imap, ainfo, mask_unobs, minfo):
-
-            alm = np.zeros((self.npol, ainfo.nelem), dtype=type_utils.to_complex(imap.dtype))
-            imap = imap * mask_unobs
-            sht.map2alm(imap, alm, minfo, ainfo, self.spin, adjoint=False)
-            alm = alm_c_utils.lmul(alm, cov_ell, ainfo, inplace=False)
-            sht.alm2map(alm, imap, ainfo, minfo, self.spin, adjoint=True)
-            imap = imap * mask_unobs
-            return imap
-
+            self.mask_unobs, d_ell, self.minfo, self.spin, lmax=self.lmax)
         self.dot = lambda x, y : np.dot(x.reshape(-1), y.reshape(-1))
-        self.prec = lambda x : g_op_reduced_pinv(x, self.ainfo_lowres, self.mask_unobs, self.minfo)
+        self.prec = operators.PixEllPixMatVecMap(
+            self.mask_unobs, icov_ell, self.minfo, self.spin, power_x=-1, lmax=self.lmax,
+            adjoint=True)
 
     def call(self, alm):
         '''
@@ -432,9 +448,13 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         '''
         
         alm = alm.copy()        
-        alm_lowres, _ = alm_utils.trunc_alm(alm, self.ainfo, self.lmax)
         imap = np.zeros((self.npol, self.minfo.npix),
                         dtype=type_utils.to_real(alm.dtype))
+
+        alm_lowres, _ = alm_utils.trunc_alm(alm, self.ainfo, self.lmax)
+
+        if self.r_ell is not None:
+            alm_c_utils.lmul(alm_lowres, self.r_ell[:self.lmax+1], self.ainfo_lowres, inplace=True)
 
         sht.alm2map(alm_lowres, imap, self.ainfo_lowres, self.minfo, self.spin)
         imap *= self.mask_unobs
@@ -442,24 +462,18 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
         for idx in range(self.nsteps):
             cg.step()
-            print(idx, cg.err)
+            if self.verbose:
+                print(idx, cg.err)
         imap = cg.x
         imap *= self.mask_unobs
 
         sht.map2alm(imap, alm_lowres, self.minfo, self.ainfo_lowres, self.spin,
                     adjoint=True)
 
-        alm_utils.add_to_alm(alm, alm_lowres, self.ainfo, self.ainfo_lowres,
-                             overwrite=True)
-        #import healpy as hp
-        #from optweight import alm_c_utils        
-        #print('alm', alm)
-        #print('lowres', alm_lowres)
-        #b_ell = hp.gauss_beam(fwhm = 2 * np.pi / self.lmax, lmax=self.lmax) * np.eye(3)[:,:,np.newaxis]
-        #alm_c_utils.lmul(alm_lowres, b_ell, self.ainfo_lowres, inplace=True)
-        #alm_lowres *= 0
-        #alm *= 5e-6
-        #alm = alm_utils.add_to_alm(alm, alm_lowres, self.ainfo, self.ainfo_lowres,
-        #                           overwrite=False)
+        if self.r_ell is not None:
+            alm_c_utils.lmul(alm_lowres, self.r_ell[:self.lmax+1], self.ainfo_lowres, inplace=True)
+
+        alm *= 0
+        alm_utils.add_to_alm(alm, alm_lowres, self.ainfo, self.ainfo_lowres)
 
         return alm

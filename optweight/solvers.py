@@ -293,28 +293,45 @@ class CGWiener(utils.CG):
             kwargs.setdefault('M', preconditioner)
             
             if use_prec_masked:
-                prec_masked = preconditioners.MaskedPreconditioner(
-                    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo,
-                    min_pix=1000, n_jacobi=1, lmax_r_ell=100000) # NOTE!!!
+                #prec_masked = preconditioners.MaskedPreconditioner(
+                #    ainfo, icov_ell[0:3,0:3], [0, 2], mask_pix[0].astype(bool), minfo,
+                #    min_pix=5000, n_jacobi=1, lmax_r_ell=6000)
 
-                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
-                                                      slice_2=np.s_[0:1])
+                #prec_masked = preconditioners.MaskedPreconditioner(
+                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo,
+                #    min_pix=10000, n_jacobi=1, lmax_r_ell=6000)
+
+                #prec_masked = preconditioners.MaskedPreconditioner(
+                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo,
+                #    min_pix=5000, n_jacobi=1, lmax_r_ell=6000, lmax=None)
+
+                #prec_masked = preconditioners.MaskedPreconditioner(
+                #    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo,
+                #    min_pix=5000, n_jacobi=1, lmax_r_ell=6000) 
+
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
+                #                                      slice_2=np.s_[0:1])
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
+                #                                      slice_2=np.s_[0:3])
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
+                #                                      slice_2=np.s_[1:3])
 
                 #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
+                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo, lmax=None,
+                #    nsteps=15)
 
                 #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
                 #                                      slice_2=np.s_[1:3])
 
                 prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo, lmax=None,
-                    nsteps=15)
+                    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo, lmax=3000,
+                    nsteps=15, lmax_r_ell=None)
 
                 kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
                                                       slice_2=np.s_[0:3])
 
                 #prec_masked_t = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo)
+                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo, nsteps=15)
 
                 #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_t,
                 #                                      slice_2=np.s_[0:1])
@@ -452,11 +469,11 @@ class CGWiener(utils.CG):
                 #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
                 #                                      slice_2=np.s_[1:3])
 
-                prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo)
+                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
+                #    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo)
 
-                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                                                      slice_2=np.s_[0:3])
+                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
+                #                                      slice_2=np.s_[0:3])
 
                 #prec_masked_t = preconditioners.MaskedPreconditionerCG(
                 #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo)

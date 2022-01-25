@@ -253,7 +253,7 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
     Parameters
     ----------
     mask_bool : (..., npix) bool array
-        Input mask, True for obseved regions.
+        Input mask, True for observed regions.
     minfo : sharp.map_info object
         Meta info mask.
     lmax : int, optional
@@ -272,17 +272,12 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
 
     # We want fullsky minfos (for now), we want to solve masked pixels.
     minfo_out = map_utils.get_equal_area_gauss_minfo(
-        2 * lmax, ratio_pow=1, gl_band=0)
-    #minfo_out = map_utils.get_equal_area_gauss_minfo(
-    #    2 * lmax, ratio_pow=1, gl_band=np.pi/3) # NOTE
+        2 * lmax, ratio_pow=1, gl_band=0.4) # NOTE this is hardcoded for DR6 now.
 
     mask_out = map_utils.gauss2map(
         mask_bool.astype(np.float32), minfo, minfo_out, order=1)
-    # In Seljebotns paper the mask includes pixels made out of 
-    # 100% masked pixels in fine grid. I find that the construction 
-    # below works better for my equal area Gauss pixels.
-    mask_out[(mask_out > 0) & (mask_out < 0.5)] = 0.
-    mask_out[(mask_out >= 0.5) & (mask_out < 1)] = 1.
+    # Only includes pixels made out of 100% masked pixels in fine grid.
+    mask_out[(mask_out > 0) & (mask_out < 1)] = 1.
     mask_out = mask_out.astype(bool)
 
     return mask_out, minfo_out
@@ -391,20 +386,22 @@ def interpolate(imap, level_in, level_out, spin):
 
     return restrict(imap, level_in, level_out, spin, adjoint=True)
 
-def v_cycle(levels, imap, spin, idx=0, n_jacobi=1):
+def v_cycle(levels, imap, spin, idx=0, n_jacobi=1, x0=None):
     '''
-    The solver, finds an approximation of G^-1 applied to the input map.
+    The solver, finds an approximation of x = G^-1 imap.
 
     Parameters
     ----------
     levels : list of multigrid.Level instances
         See `get_levels`.
     imap : (npol, npix) array
-        Input map.
+        Input RHS map.
     idx : int, optional
         Current level index.
     n_jacobi : int, optional
         Number of Jacobi iterations for the diagonal smoothers.
+    x0 : (npol, npix) array, optional
+        Starting point for x vector. Not required.
 
     Returns
     -------
@@ -415,43 +412,49 @@ def v_cycle(levels, imap, spin, idx=0, n_jacobi=1):
     if idx == len(levels) - 1:
         return levels[idx].smoother(imap)
 
+    if x0 is not None:
+        x_vec = x0.copy()
+        x_vec += levels[idx].smoother(imap - levels[idx].g_op(x_vec))        
     else:
         x_vec = np.zeros_like(imap)
-
+        # To avoid unnecessarily calling g_op on vector of zeros.
         x_vec += levels[idx].smoother(imap)
-        for _ in range(n_jacobi - 1):
-            x_vec += levels[idx].smoother(imap - levels[idx].g_op(x_vec))
 
-        r_h = imap - levels[idx].g_op(x_vec)
+    # In case there are >1 jacobi steps.
+    for _ in range(n_jacobi - 1):
+        x_vec += levels[idx].smoother(imap - levels[idx].g_op(x_vec))
 
-        r_H = coarsen(r_h, levels[idx], levels[idx+1], spin)
+    r_h = imap - levels[idx].g_op(x_vec)
+    r_H = coarsen(r_h, levels[idx], levels[idx+1], spin)
+    c_H = v_cycle(levels, r_H, spin, idx=idx + 1, n_jacobi=n_jacobi)
+    c_h = interpolate(c_H, levels[idx + 1], levels[idx], spin)
+    x_vec += c_h
 
-        c_H = v_cycle(levels, r_H, spin, idx=idx + 1, n_jacobi=n_jacobi)
+    for _ in range(n_jacobi):
+        x_vec += levels[idx].smoother(imap - levels[idx].g_op(x_vec))
 
-        c_h = interpolate(c_H, levels[idx + 1], levels[idx], spin)
+    return x_vec
 
-        x_vec += c_h
-
-        for _ in range(n_jacobi):
-            x_vec += levels[idx].smoother(imap - levels[idx].g_op(x_vec))
-
-        return x_vec
-
-def lowpass_filter(lmax):
+def lowpass_filter(lmax_r_ell, lmax=None):
     '''
     Return lowpass filter r_ell.
 
     Parameters
     ----------
-    lmax : int
-        Bandlimit of filter, filter is defined such that r_(lmax / 2) = sqrt(0.05).
+    lmax_r_ell : int
+        Scaling parameter of filter: r_(lmax_r_ell / 2) = sqrt(0.05).
+    lmax : int, optional
+        Band-limit of filter, if not given, default to `lmax_r_ell`.
 
     Returns
     -------
     r_ell : (nell) array
         Lowpass filter.
     '''
+    
+    if lmax is None:
+        lmax = lmax_r_ell
 
-    beta = - np.log(np.sqrt(0.05)) / ((lmax / 2) * (lmax / 2 + 1)) ** 2
+    beta = - np.log(np.sqrt(0.05)) / ((lmax_r_ell / 2) * (lmax_r_ell / 2 + 1)) ** 2
     ells = np.arange(lmax + 1)
-    return np.exp(-beta * (ells * (ells + 1)) ** 2)
+    return np.exp(-beta * (ells * (ells + 1)) ** 2.)

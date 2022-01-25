@@ -489,6 +489,9 @@ class PixEllPixMatVecMap(MatVecMap):
     use_weights : bool, optional
         If set, use integration weights: (M_pix Y X_ell Yt W M_pix) or
         (M_pix W Y X_ell Yt M_pix) for adjoint.
+    lmax : int, optional
+        Max multipole for internal harmonic operations. Will be inferred from
+        minfo if not provided.
 
     Methods
     -------
@@ -501,13 +504,15 @@ class PixEllPixMatVecMap(MatVecMap):
     '''
 
     def __init__(self, m_pix, x_ell, minfo, spin, power_m=1, power_x=1, 
-                 inplace=False, adjoint=False, use_weights=False):
+                 inplace=False, adjoint=False, use_weights=False, lmax=None):
 
         if m_pix is not None:
             m_pix = mat_utils.full_matrix(m_pix)
             if power_m != 1:
                 m_pix = mat_utils.matpow(m_pix, power_m)
 
+        # FIXME, this is lazy. For diagonal matrix don't do this,
+        # would save factor 2 in speed later on.
         x_ell = mat_utils.full_matrix(x_ell)
         if power_x != 1:
             x_ell = mat_utils.matpow(x_ell, power_x)
@@ -515,7 +520,8 @@ class PixEllPixMatVecMap(MatVecMap):
         self.m_pix = m_pix
         self.x_ell = x_ell
         self.npol = x_ell.shape[0]
-        lmax = map_utils.minfo2lmax(minfo)        
+        if lmax is None:
+            lmax = map_utils.minfo2lmax(minfo)        
         self.ainfo = sharp.alm_info(lmax)
         self.minfo = minfo
         self.spin = spin
