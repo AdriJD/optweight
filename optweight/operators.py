@@ -507,21 +507,17 @@ class PixEllPixMatVecMap(MatVecMap):
                  inplace=False, adjoint=False, use_weights=False, lmax=None):
 
         if m_pix is not None:
-            m_pix = mat_utils.full_matrix(m_pix)
             if power_m != 1:
-                m_pix = mat_utils.matpow(m_pix, power_m)
+                m_pix = mat_utils.matpow(m_pix, power_m, return_diag=True)
 
-        # FIXME, this is lazy. For diagonal matrix don't do this,
-        # would save factor 2 in speed later on.
-        x_ell = mat_utils.full_matrix(x_ell)
         if power_x != 1:
-            x_ell = mat_utils.matpow(x_ell, power_x)
+            x_ell = mat_utils.matpow(x_ell, power_x, return_diag=True)
 
         self.m_pix = m_pix
         self.x_ell = x_ell
         self.npol = x_ell.shape[0]
         if lmax is None:
-            lmax = map_utils.minfo2lmax(minfo)        
+            lmax = map_utils.minfo2lmax(minfo)
         self.ainfo = sharp.alm_info(lmax)
         self.minfo = minfo
         self.spin = spin
@@ -556,14 +552,20 @@ class PixEllPixMatVecMap(MatVecMap):
                        dtype=type_utils.to_complex(imap.dtype))
 
         if self.m_pix is not None:
-            np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
+            if self.m_pix.ndim == 3:
+                np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
+            else:
+                out *= self.m_pix
         sht.map2alm(out, alm, self.minfo, self.ainfo, self.spin,
                     adjoint=self.adjoint is self.use_weights)
         alm_c_utils.lmul(alm, self.x_ell, self.ainfo, inplace=True)
         sht.alm2map(alm, out, self.ainfo, self.minfo, self.spin,
                     adjoint=self.adjoint)
         if self.m_pix is not None:
-            np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
+            if self.m_pix.ndim == 3:
+                np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
+            else:
+                out *= self.m_pix
 
         return out
 
