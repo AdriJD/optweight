@@ -11,9 +11,7 @@ import os
 import healpy as hp
 from pixell import curvedsky, enplot, enmap
 
-from optweight import sht
-from optweight import map_utils
-from optweight import solvers
+from optweight import sht, map_utils, solvers, preconditioners
 
 opj = os.path.join
 np.random.seed(39)
@@ -111,6 +109,7 @@ plt.close(fig)
 alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
 for pidx in range(alm.shape[0]):
     hp.almxfl(alm[pidx], b_ell[pidx], inplace=True)
+alm = alm.astype(np.complex64)
 # Draw map-based noise and add to alm.
 noise = map_utils.rand_map_pix(cov_pix)
 alm_signal = alm.copy()
@@ -142,54 +141,65 @@ noise *= mask
 sht.map2alm(noise, alm, minfo, ainfo, [0,2], adjoint=False)
 
 # Solve for Wiener filtered alms.
-niter = 35
-#stypes = ['cg', 'cg_scaled', 'pcg_harm', 'pcg_pinv']
-stypes = ['pcg_pinv']
-errors = np.zeros((len(stypes), niter + 1))
+niter_masked_cg = 5
+niter_masked_mg = 15
+niter = niter_masked_cg + niter_masked_mg
+errors = np.zeros(niter + 1)
 chisqs = np.zeros_like(errors)
 residuals = np.zeros_like(errors)
 ps_c_ell = np.zeros((niter, 3, 3, lmax + 1))
 
-for sidx, stype in enumerate(stypes):
-    
-    if stype == 'cg' or stype == 'cg_scaled':
-        prec = None
-    elif stype == 'pcg_harm':
-        prec = 'harmonic'
-    elif stype == 'pcg_pinv':
-        prec = 'pinv'
-    print('sidx', sidx)
+solver = solvers.CGWiener.from_arrays(alm, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
+                                      mask_pix=mask, draw_constr=False)
+prec_pinv = preconditioners.PseudoInvPreconditioner(
+    ainfo, icov_ell, icov_pix, minfo, [0, 2], b_ell=b_ell)
 
-    x0 = None
-    
-    if stype == 'cg_scaled':
-        solver = solvers.CGWienerScaled.from_arrays(alm, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
-                                                    draw_constr=False, prec=None, x0=x0)
-    else:
-        solver = solvers.CGWiener.from_arrays(alm, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
-                                              draw_constr=False, prec=prec, x0=x0)
+prec_masked_cg = preconditioners.MaskedPreconditionerCG(
+    ainfo, icov_ell, [0, 2], mask[0].astype(bool), minfo, lmax=3000,
+    nsteps=15, lmax_r_ell=None)
 
-    b_copy = solver.b.copy()
+prec_masked_mg = preconditioners.MaskedPreconditioner(
+    ainfo, icov_ell[0:1,0:1], 0, mask[0].astype(bool), minfo,
+    min_pix=10000, n_jacobi=1, lmax_r_ell=6000)
 
+solver.add_preconditioner(prec_pinv)
+solver.add_preconditioner(prec_masked_cg)
+solver.init_solver()
+print('|b| :', np.sqrt(solver.dot(solver.b0, solver.b0)))
+
+errors[0] = np.nan
+chisqs[0] = solver.get_chisq()
+residuals[0] = solver.get_residual()
+
+for idx in range(niter_masked_cg):
     # Note, calculating all this metainfo is quite expensive. To time the solver only, you
     # can remove all lines below except for the solver.step() call.
-    errors[sidx,0] = np.nan
-    chisqs[sidx,0] = solver.get_chisq()
-    residuals[sidx,0] = solver.get_residual()
+    solver.step()
+    error = solver.err
+    errors[idx+1] = error
+    chisq = solver.get_chisq()
+    chisqs[idx+1] = chisq
+    residual = solver.get_residual()
+    residuals[idx+1] = residual
+    ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+    print(solver.i, error, chisq, residual)
 
-    if sidx == 0:
-        print('|b| :', np.sqrt(solver.dot(b_copy, b_copy)))
+solver.reset_preconditioner()
+solver.add_preconditioner(prec_pinv)
+solver.add_preconditioner(prec_masked_mg, sel=np.s_[0])
+solver.b_vec = solver.b0
+solver.init_solver(x0=solver.x)
 
-    for idx in range(niter):
-        solver.step()
-        error = solver.err
-        errors[sidx,idx+1] = error
-        chisq = solver.get_chisq()
-        chisqs[sidx,idx+1] = chisq
-        residual = solver.get_residual()
-        residuals[sidx,idx+1] = residual
-        ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
-        print(solver.i, error, chisq / alm.size / 2, residual)
+for idx in range(niter_masked_cg, niter_masked_cg + niter_masked_mg):
+    solver.step()
+    error = solver.err * errors[niter_masked_cg-1]
+    errors[idx+1] = error
+    chisq = solver.get_chisq()
+    chisqs[idx+1] = chisq
+    residual = solver.get_residual()
+    residuals[idx+1] = residual
+    ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+    print(solver.i, error, chisq, residual)
 
 # Save all arrays.
 np.save(opj(imgdir, 'residuals'), residuals)
@@ -211,14 +221,12 @@ plt.close(fig)
 
 fig, axs = plt.subplots(nrows=3, dpi=300, sharex=True, figsize=(4, 6), 
                         constrained_layout=True)
-for sidx, stype in enumerate(stypes):
-    axs[0].plot(errors[sidx], label=stype)
-    axs[1].plot(chisqs[sidx], label=stype)
-    axs[2].plot(residuals[sidx], label=stype)
+axs[0].plot(errors)
+axs[1].plot(chisqs)
+axs[2].plot(residuals)
 axs[0].set_ylabel('error')
 axs[1].set_ylabel('chisq')
 axs[2].set_ylabel('residual')
-axs[0].legend()
 for ax in axs:
     ax.set_yscale('log')
 axs[2].set_xlabel('steps')
@@ -230,25 +238,25 @@ omap = curvedsky.make_projectable_map_by_pos(
     [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(alm.shape[0],))
 
 omap = curvedsky.alm2map(alm_signal, omap)
-plot = enplot.plot(omap, colorbar=True, font_size=250, grid=False, range='250:10')
+plot = enplot.plot(omap, colorbar=True, font_size=60, grid=False, range='250:10', downgrade=4)
 enplot.write(opj(imgdir, 'alm_signal'), plot)
 
 omap = curvedsky.alm2map(alm, omap)
-plot = enplot.plot(omap, colorbar=True, font_size=250, grid=False, range='250:10')
+plot = enplot.plot(omap, colorbar=True, font_size=60, grid=False, range='250:10', downgrade=4)
 enplot.write(opj(imgdir, 'alm_in'), plot)
 
 # Plot result
 omap = curvedsky.alm2map(solver.get_wiener(), omap)
-plot = enplot.plot(omap, colorbar=True, font_size=250, grid=False, range='250:10')
+plot = enplot.plot(omap, colorbar=True, font_size=60, grid=False, range='250:10', downgrade=4)
 enplot.write(opj(imgdir, 'alm_out'), plot)
 
 omap_b_out = curvedsky.alm2map(solver.A(solver.x), omap.copy())
-omap_b_in = curvedsky.alm2map(b_copy, omap.copy())
+omap_b_in = curvedsky.alm2map(solver.b0, omap.copy())
 
 for pidx in range(alm.shape[0]):
 
-    plot = enplot.plot(omap_b_out[pidx], colorbar=True, grid=False, font_size=250)
+    plot = enplot.plot(omap_b_out[pidx], colorbar=True, grid=False, font_size=60, downgrade=4)
     enplot.write(opj(imgdir, 'b_out_{}'.format(pidx)), plot)
 
-    plot = enplot.plot(omap_b_in[pidx], colorbar=True, grid=False, font_size=250)
+    plot = enplot.plot(omap_b_in[pidx], colorbar=True, grid=False, font_size=250, downgrade=4)
     enplot.write(opj(imgdir, 'b_{}'.format(pidx)), plot)
