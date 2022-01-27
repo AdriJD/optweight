@@ -276,7 +276,7 @@ def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
 
     return alm_noise
 
-def rand_alm_wav(cov_wav, ainfo, w_ell, spin):
+def rand_alm_wav(cov_wav, ainfo, w_ell, spin, adjoint=False):
     '''
     Draw random alm from covariance diagonal in wavelet domain.
 
@@ -318,7 +318,7 @@ def rand_alm_wav(cov_wav, ainfo, w_ell, spin):
         wlm = np.zeros(alm_shape[:-1] + (winfo.nelem,),
                        dtype=alm_dtype)
 
-        sht.map2alm(rand_map, wlm, minfo, winfo, spin)
+        sht.map2alm(rand_map, wlm, minfo, winfo, spin, adjoint=adjoint)
 
         wlm2alm_axisym([wlm], [winfo], w_ell[jidx:jidx+1,:],
                        alm=rand_alm, ainfo=ainfo)

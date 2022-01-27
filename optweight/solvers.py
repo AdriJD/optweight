@@ -286,7 +286,6 @@ class CGWiener(utils.CG):
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
             rand_inoise = alm_utils.rand_alm_pix(
                 icov_pix, ainfo, minfo, spin, adjoint=True)
-
         else:
             rand_isignal = None
             rand_inoise = None
@@ -297,7 +296,7 @@ class CGWiener(utils.CG):
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                        spin=None):
+                        draw_constr=False, spin=None):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -322,6 +321,8 @@ class CGWiener(utils.CG):
             Pixel mask.
         minfo_mask : sharp.map_info object
             Metainfo for pixel mask.
+        draw_constr : bool, optional
+            If set, initialize for constrained realization instead of Wiener.
         spin : int, array-like, optional
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
@@ -345,8 +346,16 @@ class CGWiener(utils.CG):
         else:
             mask = None
 
+        if draw_constr:
+            rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
+            rand_inoise = alm_utils.rand_alm_wav(icov_wav, ainfo, w_ell,
+                                                 spin, adjoint=True)
+        else:
+            rand_isignal = None
+            rand_inoise = None
+
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
-                   mask=mask, rand_isignal=None, rand_inoise=None)
+                   mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise)
 
 class CGWienerScaled(CGWiener):
     '''

@@ -445,7 +445,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
             mask_bool = np.ones(
                 (self.npol, mask_bool.size), dtype=mask_bool.dtype) * mask_bool
         else:
-            assert mask_bool.shape[0] == npol, (
+            assert mask_bool.shape[0] == self.npol, (
                 f'shape[0] mask != npol {mask_bool.shape[0]} != {self.npol}')
 
         if mask_bool.dtype != bool:
