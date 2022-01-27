@@ -51,12 +51,10 @@ class CGWiener(utils.CG):
         Draw from inverse signal covariance as SH coefficients in alm_data shape.
     rand_inoise : array, optional
         Draw from inverse noise covariance as SH coefficients in alm_data shape.
-    **kwargs
-        Keyword arguments for pixell.utils.CG.
     '''
 
     def __init__(self, alm_data, icov_signal, icov_noise, beam=None,
-                 mask=None, rand_isignal=None, rand_inoise=None, **kwargs):
+                 mask=None, rand_isignal=None, rand_inoise=None):
 
         self.alm_data = alm_data
         self.icov_signal = icov_signal
@@ -71,13 +69,62 @@ class CGWiener(utils.CG):
         self.rand_inoise = rand_inoise
 
         if self.rand_isignal is not None and self.rand_inoise is not None:
-            b = self.b_vec_constr(self.alm_data)
+            self.b_vec = self.get_b_vec_constr(self.alm_data)
         else:
-            b = self.b_vec(self.alm_data)
-        self.b0 = b.copy()
+            self.b_vec = self.get_b_vec(self.alm_data)
+        self.b0 = self.b_vec.copy()
+        
+        self.preconditioner = None
+
+    def init_solver(self, **kwargs):
+        '''
+        Finalize the initalization of the CG solver. Should
+        be called after any preconditioner(s) is/are set.        
+
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments for pixell.utils.CG.
+        '''
 
         kwargs.setdefault('dot', alm_utils.contract_almxblm)
-        utils.CG.__init__(self, self.a_matrix, b, **kwargs)
+        if self.preconditioner is not None:
+            kwargs.setdefault('M', self.preconditioner)
+        super().__init__(self.a_matrix, self.b_vec, **kwargs)
+        
+    def add_preconditioner(self, prec, sel=None):
+        '''
+        Add a precondioner to the CG solver. Can be called multiple times.
+
+        Parameters
+        ----------
+        prec : callable
+            Callable that takes alm_data-shaped alm array as input and applies
+            preconditioner.
+        sel : slice
+            Slice into alm input array in case preconditioner is only to be 
+            applied to a slice.
+        '''
+        
+        if self.preconditioner is None:
+            if sel is None:
+                self.preconditioner = prec
+            else:
+                def sliced_prec(alm):
+                    alm[sel] = prec(alm[sel])
+                    return alm
+                self.preconditioner = sliced_prec
+        else:
+            self.preconditioner = operators.add_operators(
+                self.preconditioner, prec, slice_2=sel)
+
+    def reset_preconditioner(self):
+        '''
+        Reset preconditioner to default (identity matrix). Useful when
+        restarting solver.
+        '''
+
+        self.preconditioner = None
 
     def a_matrix(self, alm):
         '''
@@ -104,7 +151,7 @@ class CGWiener(utils.CG):
 
         return alm_signal + alm_noise
 
-    def b_vec(self, alm):
+    def get_b_vec(self, alm):
         '''
         Convert input alm to the b (= B N^-1 a) vector (not in place).
 
@@ -125,7 +172,7 @@ class CGWiener(utils.CG):
 
         return alm
 
-    def b_vec_constr(self, alm):
+    def get_b_vec_constr(self, alm):
         '''
         Convert input alm to the b vector used for drawing constrained
         realizations (not in place).
@@ -141,7 +188,7 @@ class CGWiener(utils.CG):
             Output alm array, corresponding to b.
         '''
 
-        alm = self.b_vec(alm)
+        alm = self.get_b_vec(alm)
         alm += self.beam(self.mask(self.rand_inoise.copy()))
         alm += self.rand_isignal
 
@@ -174,8 +221,8 @@ class CGWiener(utils.CG):
 
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
-                    b_ell=None, mask_pix=None, draw_constr=False, prec=None, spin=None,
-                    icov_noise_flat_ell=None, use_prec_masked=False, **kwargs):
+                    b_ell=None, mask_pix=None, draw_constr=False, spin=None,
+                    icov_noise_flat_ell=None):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -199,14 +246,6 @@ class CGWiener(utils.CG):
             Pixel mask.
         draw_constr : bool, optional
             If set, initialize for constrained realization instead of Wiener.
-        prec : {'harmonic', 'pinv'}, optional
-            Select type of preconditioner, one of:
-
-            harmonic
-                Use (S^-1 + itau * 1)^-1, where itau is isotropic inverse variance.
-            pinv
-                Use Pseudo-inverse method from Seljebotn et al.
-
         spin : int, array-like, optional
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
@@ -214,14 +253,7 @@ class CGWiener(utils.CG):
             Inverse noise covariance of flattened (icov_pix weighted) data.
             If diagonal, only the diagonal suffices. If provided, updates noise model to 
             icnf_ell^0.5 icov_pix icnf_ell^0.5.
-        use_prec_masked : bool
-            Use extra precondiioner for masked pixels.
-        **kwargs
-            Keyword arguments for pixell.utils.CG.
         '''
-
-        if kwargs.get('M') and prec:
-            raise ValueError('Pick only one preconditioner')
 
         if spin is None:
             spin = sht.default_spin(alm_data.shape)
@@ -253,104 +285,19 @@ class CGWiener(utils.CG):
 
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
             rand_inoise = alm_utils.rand_alm_pix(
-                icov_pix, ainfo, minfo, spin)
+                icov_pix, ainfo, minfo, spin, adjoint=True)
 
         else:
             rand_isignal = None
             rand_inoise = None
 
-        if prec == 'harmonic':
-
-            itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
-
-            if icov_noise_flat_ell is not None:
-                nell = icov_noise_flat_ell.shape[-1]
-                sqrt_icnf = mat_utils.matpow(icov_noise_flat_ell, 0.5)
-                itau = itau[:,:,np.newaxis] * np.ones(itau.shape + (nell,))
-                itau = np.einsum('ijl, jkl, kol -> iol', sqrt_icnf, itau, sqrt_icnf) 
-
-            preconditioner = preconditioners.HarmonicPreconditioner(
-                ainfo, icov_ell, itau, b_ell=b_ell)
-
-        elif prec == 'pinv':
-         
-            itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
-
-            if icov_noise_flat_ell is not None:
-                raise NotImplementedError('icov_noise_flat_ell not implemented for '
-                                          'pinv, use harmonic preconditioner for now.')
-
-            preconditioner = preconditioners.PseudoInvPreconditioner(
-                ainfo, icov_ell, itau, icov_pix, minfo, spin, b_ell=b_ell)
-
-        elif prec is None:
-            preconditioner = None
-
-        else:
-            raise ValueError('Preconditioner: {} not understood'.format(prec))
-
-        if preconditioner:
-            kwargs.setdefault('M', preconditioner)
-            
-            if use_prec_masked:
-                #prec_masked = preconditioners.MaskedPreconditioner(
-                #    ainfo, icov_ell[0:3,0:3], [0, 2], mask_pix[0].astype(bool), minfo,
-                #    min_pix=5000, n_jacobi=1, lmax_r_ell=6000)
-
-                #prec_masked = preconditioners.MaskedPreconditioner(
-                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo,
-                #    min_pix=10000, n_jacobi=1, lmax_r_ell=6000)
-
-                #prec_masked = preconditioners.MaskedPreconditioner(
-                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo,
-                #    min_pix=5000, n_jacobi=1, lmax_r_ell=6000, lmax=None)
-
-                #prec_masked = preconditioners.MaskedPreconditioner(
-                #    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo,
-                #    min_pix=5000, n_jacobi=1, lmax_r_ell=6000) 
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
-                #                                      slice_2=np.s_[0:1])
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
-                #                                      slice_2=np.s_[0:3])
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
-                #                                      slice_2=np.s_[1:3])
-
-                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo, lmax=None,
-                #    nsteps=15)
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                #                                      slice_2=np.s_[1:3])
-
-                prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo, lmax=3000,
-                    nsteps=15, lmax_r_ell=None)
-
-                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                                                      slice_2=np.s_[0:3])
-
-                #prec_masked_t = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo, nsteps=15)
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_t,
-                #                                      slice_2=np.s_[0:1])
-
-                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                #                                      slice_2=np.s_[1:3])
-
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
-                   mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
-                   **kwargs)
+                   mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise)
 
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                        icov_pix=None, minfo_icov_pix=None, prec=None, spin=None, 
-                        use_prec_masked=False, **kwargs):
+                        spin=None):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -375,34 +322,10 @@ class CGWiener(utils.CG):
             Pixel mask.
         minfo_mask : sharp.map_info object
             Metainfo for pixel mask.
-        icov_pix : (npol, npol, npix) or (npol, npix) array, optional
-            Inverse noise covariance. If diagonal, only the diagonal suffices.
-        minfo_icov_pix : sharp.map_info object
-            Metainfo for pixel mask.
-        prec : {'harmonic', 'pinv_wav', 'pinv'}, optional
-            Select type of preconditioner, one of:
-
-            harmonic
-                Use (S^-1 + itau * 1)^-1, where itau is an approximate 
-                inverse noise variance spectrum.
-            pinv_wav
-                Use the pseudo-inverse method from Seljebotn et al. adapted
-                to a wavelet-based noise model.
-            pinv
-                Use the unmodified pseudo-inverse method from Seljebotn et al. Requires 
-                a covariance matrix to be passed though the `icov_pix` kwarg.
-
         spin : int, array-like, optional
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
-        use_prec_masked : bool
-            Use extra precondiioner for masked pixels.
-        **kwargs
-            Keyword arguments for pixell.utils.CG.
         '''
-
-        if kwargs.get('M') and prec:
-            raise ValueError('Pick only one preconditioner')
 
         if spin is None:
             spin = sht.default_spin(alm_data.shape)
@@ -422,74 +345,8 @@ class CGWiener(utils.CG):
         else:
             mask = None
 
-        if prec == 'harmonic':
-
-            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
-            preconditioner = preconditioners.HarmonicPreconditioner(
-                ainfo, icov_ell, itau_ell, b_ell=b_ell)
-
-        elif prec == 'pinv':
-         
-            if icov_pix is None:
-                raise ValueError('pinv preconditioner requires icov_pix.')
-            if minfo_icov_pix is None:
-                raise ValueError('pinv preconditioner requires minfo_icov_pix.')
-
-            itau = map_utils.get_isotropic_ivar(icov_pix, minfo_icov_pix)
-            preconditioner = preconditioners.PseudoInvPreconditioner(
-                ainfo, icov_ell, itau, icov_pix, minfo_icov_pix, spin, b_ell=b_ell)
-
-        elif prec == 'pinv_wav':
-         
-            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
-            preconditioner = preconditioners.PseudoInvPreconditionerWav(
-                ainfo, icov_ell, itau_ell, icov_wav, w_ell, spin, mask_pix=mask_pix, 
-                minfo_mask=minfo_mask, b_ell=b_ell)
-
-        elif prec is None:
-            preconditioner = None
-
-        else:
-            raise ValueError('Preconditioner: {} not understood'.format(prec))
-
-        if preconditioner:
-            kwargs.setdefault('M', preconditioner)
-
-            if use_prec_masked:
-                prec_masked = preconditioners.MaskedPreconditioner(
-                    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo_mask,
-                    min_pix=1000, n_jacobi=1, lmax_r_ell=20000) # NOTE!!!
-
-                kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked,
-                                                      slice_2=np.s_[0:1])
-
-                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo_mask)
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                #                                      slice_2=np.s_[1:3])
-
-                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell, [0, 2], mask_pix[0].astype(bool), minfo)
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                #                                      slice_2=np.s_[0:3])
-
-                #prec_masked_t = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[0:1,0:1], 0, mask_pix[0].astype(bool), minfo)
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_t,
-                #                                      slice_2=np.s_[0:1])
-
-                #prec_masked_pol = preconditioners.MaskedPreconditionerCG(
-                #    ainfo, icov_ell[1:3,1:3], 2, mask_pix[0].astype(bool), minfo)
-
-                #kwargs['M'] = operators.add_operators(kwargs['M'], prec_masked_pol,
-                #                                      slice_2=np.s_[1:3])
-
         return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
-                   mask=mask, rand_isignal=None, rand_inoise=None,
-                   **kwargs)
+                   mask=mask, rand_isignal=None, rand_inoise=None)
 
 class CGWienerScaled(CGWiener):
     '''
@@ -537,17 +394,15 @@ class CGWienerScaled(CGWiener):
         Draw from inverse signal covariance as SH coefficients in alm_data shape.
     rand_inoise : array, optional
         Draw from inverse noise covariance as SH coefficients in alm_data shape.
-    **kwargs
-        Keyword arguments for pixell.utils.CG.
     '''
 
     def __init__(self, alm_data, icov_signal, icov_noise, sqrt_cov_signal, beam=None,
-                 rand_isignal=None, rand_inoise=None, **kwargs):
+                 mask=None, rand_isignal=None, rand_inoise=None):
 
         self.sqrt_cov_signal = sqrt_cov_signal
 
         CGWiener.__init__(self, alm_data, icov_signal, icov_noise, beam=beam,
-                          rand_isignal=rand_isignal, rand_inoise=rand_inoise, **kwargs)
+                          mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise)
 
     def a_matrix(self, alm):
         '''
@@ -574,7 +429,7 @@ class CGWienerScaled(CGWiener):
 
         return alm_signal + alm_noise
 
-    def b_vec(self, alm):
+    def get_b_vec(self, alm):
         '''
         Convert input alm to the b (= S^1/2 B N^-1 a) vector (not in place).
 
@@ -595,7 +450,7 @@ class CGWienerScaled(CGWiener):
 
         return alm
 
-    def b_vec_constr(self, alm):
+    def get_b_vec_constr(self, alm):
         '''
         Convert input alm to the b vector used for drawing constrained
         realizations (not in place).
@@ -611,7 +466,7 @@ class CGWienerScaled(CGWiener):
             Output alm array, corresponding to b.
         '''
 
-        alm = self.b_vec(alm)
+        alm = self.get_b_vec(alm)
         alm += self.sqrt_cov_signal(self.beam(self.rand_inoise.copy()))
         alm += self.sqrt_cov_signal(self.rand_isignal.copy())
 
@@ -627,11 +482,12 @@ class CGWienerScaled(CGWiener):
 
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo,
-                    b_ell=None, draw_constr=False, prec=None, spin=None, **kwargs):
+                    b_ell=None, draw_constr=False, spin=None):
+
         '''Initialize solver with arrays instead of callables.'''
 
         sqrt_cov_signal = operators.EllMatVecAlm(ainfo, icov_ell, power=-0.5)
 
         return super(CGWienerScaled, cls).from_arrays(
             alm_data, ainfo, icov_ell, icov_pix, minfo, sqrt_cov_signal, b_ell=b_ell,
-            draw_constr=draw_constr, prec=prec, spin=spin, **kwargs)
+            draw_constr=draw_constr, spin=spin)

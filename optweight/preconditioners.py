@@ -16,8 +16,18 @@ class HarmonicPreconditioner(operators.MatVecAlm):
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse covariance matrix, either symmetric but dense in first two axes
         or diagonal, in which case only the diagonal elements are needed.
-    itau : (npol, npol) or (npol, npol, nell) array
+    itau : (npol, npol) or (npol, npol, nell) array, optional
         Isotropic noise (co)variance.
+    icov_pix : (npol, npol, npix) or (npol, npix) array, optional
+        Inverse noise covariance. If diagonal, only the diagonal suffices. Only
+        needed when `itau` or `icov_wav` are not given.
+    minfo : sharp.map_info object, optional
+        Metainfo for inverse noise covariance. Needed if `icov_pix` is provided.
+    icov_wav : wavtrans.Wav object, optional
+        Wavelet block matrix representing the inverse noise covariance. Only
+        needed when `itau` or `icov_pix` are not given.
+    w_ell : (nwav, nell) array, optional
+        Wavelet kernels. Needed when `icov_wav` is given.
     b_ell : (npol, nell) array, optional
         Beam window function.
 
@@ -26,9 +36,22 @@ class HarmonicPreconditioner(operators.MatVecAlm):
     call(alm) : Apply the preconditioner to a set of alms.
     '''
 
-    def __init__(self, ainfo, icov_ell, itau, b_ell=None):
+    def __init__(self, ainfo, icov_ell, itau=None, icov_pix=None, minfo=None, 
+                 icov_wav=None, w_ell=None, b_ell=None):
 
         npol, nell = icov_ell.shape[-2:]
+
+        if itau is None:
+            if icov_pix is None and icov_wav is None:
+                raise ValueError('itau, icov_pix and icov_wav cannot all be None')                
+            if icov_wav is None:
+                itau = map_utils.get_isotropic_ivar(icov_pix, minfo)            
+            elif icov_pic is None:
+                itau = map_utils.get_ivar_ell(icov_wav, w_ell)                
+            else:
+                raise ValueError('icov_pix and icov_wav cannot both be given.')
+        elif icov_pix is not None or icov_wav is not None:
+            raise ValueError('if itau is provided, icov_pix/wav should be None.')
 
         if itau.ndim == 1:
             itau = itau * np.eye(npol)
@@ -72,14 +95,14 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse signal covariance, If diagonal, only the diagonal suffices.
-    itau : (npol, npol) or (npol) array or float
-        Isotropic noise (co)variance.
     icov_pix : (npol, npol, npix) or (npol, npix) array
         Inverse noise covariance. If diagonal, only the diagonal suffices.
     minfo : sharp.map_info object
         Metainfo for inverse noise covariance.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
+    itau : (npol, npol) or (npol) array or float, optional
+        Isotropic noise (co)variance. Inferred from `icov_pix` if not provided.
     b_ell : (npol, nell) array, optional
         Beam window function.
     cov_pix : (npol, npol, npix) or (npol, npix) array, optional
@@ -90,10 +113,13 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
     call(alm) : Apply the preconditioner to a set of alms.
     '''
 
-    def __init__(self, ainfo, icov_ell, itau, icov_pix, minfo, spin,
-                 b_ell=None, cov_pix=None):
+    def __init__(self, ainfo, icov_ell, icov_pix, minfo, spin,
+                 itau=None, b_ell=None, cov_pix=None):
 
         npol, nell = icov_ell.shape[-2:]
+
+        if itau is None:
+            itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
 
         if itau.ndim == 2:
             itau = itau[:,:,np.newaxis]
@@ -168,8 +194,6 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse signal covariance, If diagonal, only the diagonal suffices.
-    itau_ell : (npol, npol, nell) array
-        Isotropic noise (co)variance.
     icov_wav : wavtrans.Wav object
         Wavelet block matrix representing the inverse noise covariance.
     w_ell : (nwav, nell) array
@@ -180,6 +204,8 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         Pixel mask.
     minfo_mask : sharp.map_info object, optional
         Metainfo for pixel mask covariance.
+    itau_ell : (npol, npol, nell) array
+        Isotropic noise (co)variance. Inferred from icov_wav if not provided.
     b_ell : (npol, nell) array, optional
         Beam window function.
 
@@ -188,10 +214,14 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
     call(alm) : Apply the preconditioner to a set of alms.
     '''
     
-    def __init__(self, ainfo, icov_ell, itau_ell, icov_wav, w_ell, spin,
-                 mask_pix=None, minfo_mask=None, b_ell=None):
+    def __init__(self, ainfo, icov_ell, icov_wav, w_ell, spin,
+                 mask_pix=None, minfo_mask=None, itau_ell=None,
+                 b_ell=None):
 
         npol, nell = icov_ell.shape[-2:]
+
+        if itau_ell is None:
+            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
 
         if itau_ell.ndim != 3:
             raise ValueError(
@@ -454,7 +484,8 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         alm_lowres, _ = alm_utils.trunc_alm(alm, self.ainfo, self.lmax)
 
         if self.r_ell is not None:
-            alm_c_utils.lmul(alm_lowres, self.r_ell[:self.lmax+1], self.ainfo_lowres, inplace=True)
+            alm_c_utils.lmul(alm_lowres, self.r_ell[:self.lmax+1],
+                             self.ainfo_lowres, inplace=True)
 
         sht.alm2map(alm_lowres, imap, self.ainfo_lowres, self.minfo, self.spin)
         imap *= self.mask_unobs
@@ -471,7 +502,8 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
                     adjoint=True)
 
         if self.r_ell is not None:
-            alm_c_utils.lmul(alm_lowres, self.r_ell[:self.lmax+1], self.ainfo_lowres, inplace=True)
+            alm_c_utils.lmul(alm_lowres, self.r_ell[:self.lmax+1],
+                             self.ainfo_lowres, inplace=True)
 
         alm *= 0
         alm_utils.add_to_alm(alm, alm_lowres, self.ainfo, self.ainfo_lowres)

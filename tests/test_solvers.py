@@ -16,6 +16,7 @@ class TestCGWiener(unittest.TestCase):
         icov_noise = lambda alm: alm
 
         solver = solvers.CGWiener(alm_data, icov_signal, icov_noise)
+        solver.init_solver()
         self.assertTrue(hasattr(solver, 'alm_data'))
         self.assertTrue(hasattr(solver, 'icov_signal'))
         self.assertTrue(hasattr(solver, 'icov_noise'))
@@ -34,7 +35,9 @@ class TestCGWiener(unittest.TestCase):
         dot = lambda a, b: np.sum(a * b)
 
         solver = solvers.CGWiener(
-            alm_data, icov_signal, icov_noise, x0=x0, M=M, dot=dot)
+            alm_data, icov_signal, icov_noise)
+
+        solver.init_solver(x0=x0, M=M, dot=dot)
         self.assertIs(solver.dot, dot)
         self.assertIs(solver.M, M)
         np.testing.assert_array_equal(solver.x, x0)
@@ -46,6 +49,7 @@ class TestCGWiener(unittest.TestCase):
         icov_noise = lambda alm: 3 * alm
 
         solver = solvers.CGWiener(alm_data, icov_signal, icov_noise)
+        solver.init_solver()
         b_in = solver.b.copy()
         while solver.i < 1:
             solver.step()
@@ -61,6 +65,7 @@ class TestCGWiener(unittest.TestCase):
         beam = lambda alm: 0.1 * alm
 
         solver = solvers.CGWiener(alm_data, icov_signal, icov_noise, beam=beam)
+        solver.init_solver()
         b_in = solver.b.copy()
         while solver.i < 1:
             solver.step()
@@ -77,6 +82,7 @@ class TestCGWiener(unittest.TestCase):
         beam = lambda alm: 0.1 * alm
 
         solver = solvers.CGWiener(alm_data, icov_signal, icov_noise, beam=beam)
+        solver.init_solver()
         b_in = solver.b.copy()
         while solver.i < 1:
             solver.step()
@@ -95,6 +101,7 @@ class TestCGWiener(unittest.TestCase):
         solver = solvers.CGWiener(
             alm_data, icov_signal, icov_noise, 
             rand_isignal=rand_isignal, rand_inoise=rand_inoise)
+        solver.init_solver()
 
         self.assertTrue(hasattr(solver, 'alm_data'))
         self.assertTrue(hasattr(solver, 'icov_signal'))
@@ -115,6 +122,7 @@ class TestCGWiener(unittest.TestCase):
         solver = solvers.CGWiener(
             alm_data, icov_signal, icov_noise, 
             rand_isignal=rand_isignal, rand_inoise=rand_inoise)
+        solver.init_solver()
 
         b_in = solver.b.copy()
         while solver.i < 1:
@@ -136,6 +144,7 @@ class TestCGWiener(unittest.TestCase):
         solver = solvers.CGWiener(
             alm_data, icov_signal, icov_noise, beam=beam,
             rand_isignal=rand_isignal, rand_inoise=rand_inoise)
+        solver.init_solver()
 
         b_in = solver.b.copy()
         while solver.i < 1:
@@ -158,11 +167,51 @@ class TestCGWiener(unittest.TestCase):
 
         solver = solvers.CGWiener.from_arrays(
             alm_data, ainfo, icov_ell, icov_pix, minfo)
+        solver.init_solver()
         b_in = solver.b.copy()
         while solver.i < 10:
             solver.step()
 
         np.testing.assert_array_almost_equal(solver.A(solver.x), b_in)
+
+    def test_CGWiener_add_preconditioner(self):
+        
+        alm_data = np.arange(12, dtype=np.complex64).reshape(2, 6)
+        icov_signal = lambda alm: alm
+        icov_noise = lambda alm: alm
+
+        solver = solvers.CGWiener(alm_data, icov_signal, icov_noise)
+        self.assertTrue(hasattr(solver, 'preconditioner'))
+        self.assertIs(solver.preconditioner, None)
+
+        # Default preconditioner should be identity operation.
+        solver.init_solver()
+        alm_out = solver.M(alm_data)
+        np.testing.assert_allclose(alm_data, alm_out)
+
+        # Add new preconditioner.
+        prec2add = lambda alm : 2 * alm
+        solver.add_preconditioner(prec2add)
+        alm_out = solver.preconditioner(alm_data)
+        np.testing.assert_allclose(alm_data * 2, alm_out)
+
+        # Add new sliced preconditioner.
+        solver.add_preconditioner(prec2add, sel=np.s_[1])
+        alm_out = solver.preconditioner(alm_data)
+        alm_exp = alm_data.copy()
+        alm_exp[0] *= 2
+        alm_exp[1] *= 4
+        np.testing.assert_allclose(alm_exp, alm_out)
+        
+        solver.init_solver()
+        self.assertIs(solver.M, solver.preconditioner)
+
+        # Reset.
+        solver.reset_preconditioner()
+        self.assertIs(solver.preconditioner, None)
+        solver.init_solver()
+        alm_out = solver.M(alm_data)
+        np.testing.assert_allclose(alm_data, alm_out)
 
 class TestCGWienerScaled(unittest.TestCase):
 
@@ -175,6 +224,7 @@ class TestCGWienerScaled(unittest.TestCase):
 
         solver = solvers.CGWienerScaled(
             alm_data, icov_signal, icov_noise, sqrt_cov_signal)
+        solver.init_solver()
 
         self.assertTrue(hasattr(solver, 'alm_data'))
         self.assertTrue(hasattr(solver, 'icov_signal'))
@@ -198,7 +248,8 @@ class TestCGWienerScaled(unittest.TestCase):
 
         solver = solvers.CGWienerScaled(
             alm_data, icov_signal, icov_noise, sqrt_cov_signal,
-            beam=beam, x0=x0, M=M, dot=dot)
+            beam=beam)
+        solver.init_solver(x0=x0, M=M, dot=dot)
 
         self.assertIs(solver.dot, dot)
         self.assertIs(solver.beam, beam)
@@ -218,6 +269,7 @@ class TestCGWienerScaled(unittest.TestCase):
 
         solver = solvers.CGWienerScaled.from_arrays(
             alm_data, ainfo, icov_ell, icov_pix, minfo)
+        solver.init_solver()
 
         b_in = solver.b.copy()
         while solver.i < 10:

@@ -243,7 +243,7 @@ def trunc_alm(alm, ainfo, lmax):
 
     return alm_trunc, ainfo_trunc
 
-def rand_alm_pix(cov_pix, ainfo, minfo, spin):
+def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
     '''
     Draw random alm from covariance diagonal in pixel domain.
 
@@ -257,6 +257,10 @@ def rand_alm_pix(cov_pix, ainfo, minfo, spin):
         Metainfo specifying pixelization of covariance.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
+    adjoint : bool, optional
+        If set, calculate Yt N^0.5 r, instead of Yt W N^0.5 r, where
+        r ~ N(0,1), N^0.5 is square root of pixel-based noise model and
+        W are the SH quadrature weights.
 
     Returns
     -------
@@ -268,7 +272,7 @@ def rand_alm_pix(cov_pix, ainfo, minfo, spin):
     noise = map_utils.rand_map_pix(cov_pix)
     alm_noise = np.zeros((noise.shape[0], ainfo.nelem), dtype=dtype)
 
-    sht.map2alm(noise, alm_noise, minfo, ainfo, spin, adjoint=False)
+    sht.map2alm(noise, alm_noise, minfo, ainfo, spin, adjoint=adjoint)
 
     return alm_noise
 
