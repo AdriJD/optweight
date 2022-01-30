@@ -6,8 +6,8 @@ from pixell import curvedsky, sharp, utils
 from optweight import map_utils, mat_utils, solvers
 
 class CGPixFilter(object):
-    def __init__(self, ncomp, theory_cls, b_ell, lmax, icov=None,
-                 icov_pix=None, cov_noise_ell=None, minfo=None,
+    def __init__(self, ncomp, theory_cls, b_ell, lmax,
+                 icov_pix=None, mask_bool=None, cov_noise_ell=None, minfo=None,
                  include_te=False, rtol_icov=1e-2, order=1):
         """
         Prepare to filter maps using a pixel-space instrument noise model
@@ -31,39 +31,35 @@ class CGPixFilter(object):
             beams can be specified for T,E,B if the array is 2d.
         lmax : int
             The maximum multipole for the filtering, used to determine the
-            resolution of the Gauss-Legendre pixelization geometry. If icov_pix
-            is provided instead of icov, this lmax must correspond to the lmax
-            of the icov_pix map.
-        icov : (ncomp,ncomp,Ny,Nx), (ncomp,Ny,Nx) or (Ny,Nx) ndmap
+            resolution of the Gauss-Legendre pixelization geometry.
+        icov_pix : (ncomp,ncomp,Ny,Nx), (ncomp,Ny,Nx) or (Ny,Nx) ndmap
             An enmap containing the inverse (co-)variance per pixel (zeros in
             unobserved region), in units (e.g. 1/uK^2) consistent with
-            the alms and theory_cls. If the icov_pix map in Gauss-Legendre
-            pixelization is provided, that will be used instead. IQ, IU, QU
-            elements can also be specified if icov is 4-dimensional.
-            Within ACT and SO, these are sometimes referred to as 'ivar' or
-            'div'
-        icov_pix : (ncomp,npix) or (npix,) array
-            An array containing the inverse variance per pixel (zeros in
-            unobserved region), in units (e.g. 1/uK^2) consistent with
-            the alms and theory_cls in Gauss-Legendre
-            pixelization. If this is not provided, the provided icov
-            map will be reprojected.
+            the alms and theory_cls. IQ, IU, QU elements can also be specified
+            if icov_pix is 4-dimensional. Within ACT and SO, these are sometimes 
+            referred to as 'ivar' or 'div'. Can also be a map in Gauss-Legendre
+            or HEALPix pixelization. In those cases last dimensions should be 
+            'npix' instead of 'Ny,Nx'.
+        mask_bool : (ncomp,Ny,Nx) or (Ny,Nx) ndmap
+            Boolean mask (True for observed pixels. Geometry must match that of
+            'icov_pix'. If not provided, will be determined from 'ivar'.
         cov_noise_ell : (ncomp,ncomp,nells) or (ncomp,nells) array
             Power spectrum of flattened (ivar_pix-weighted) noise in units
             (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
-            noise that deviates from the white noise described by the icov_pix maps
+            noise that deviates from the white noise described by the icov maps
             as function of multipole.
         minfo : sharp.map_info object
-            Metainfo for inverse noise covariance icov_pix.
+            Metainfo for inverse noise covariance icov_pix in case a Gauss-Legendre
+            is provided.
         include_te : bool
             Whether or not to jointly filter T,E,B maps by accounting for the
             signal TE correlation. If True, the returned alms will be optimally
             filtered, but the "T" and "E" maps will not be pure-T and pure-E.
         rtol_icov: float, optional
             Elements below rtol_icov times the median of nonzero elements 
-            are set to zero in the reprojected icov_pix map.
+            are set to zero in the reprojected icov map.
         order: int, optional
-            The order of spline interpolation when transforming icov to GL
+            The order of spline interpolation when transforming icov_pix to GL
             pixelization.
         """
 
@@ -71,28 +67,55 @@ class CGPixFilter(object):
 
         if ncomp!=1 and ncomp!=3: raise Exception
 
-        if icov_pix is None:
-            if icov.ndim==2:
-                # If only T icov is provided, assume Q,U icov is 0.5x
-                icov = icov[None] * np.asarray([1.,0.5,0.5][:ncomp])[:,None,None]
-            elif icov.ndim==3:
-                if icov.shape[0]!=ncomp: raise Exception
-            elif icov.ndim==4:
-                if icov.shape[0]!=ncomp or icov.shape[1]!=ncomp: raise Exception
-            else:
-                raise ValueError
-            if np.any(np.logical_not(np.isfinite(icov))): raise Exception
-            icov_pix, minfo = map_utils.enmap2gauss(icov, 2 * lmax, area_pow=1, mode='nearest',order=order)
-        else:
-            if minfo is None:
-                warnings.warn(f"optfilt: No minfo for icov_guess specified. Using 2x {lmax}.")
-                minfo = map_utils.get_enmap_minfo(icov.shape,icov.wcs,2 * lmax)
-
         if np.any(np.logical_not(np.isfinite(icov_pix))): raise Exception
 
+        if isinstance(icov_pix, enmap.ndmap):
+            icov_pix, minfo = map_utils.enmap2gauss(icov_pix, 2 * lmax, area_pow=1,
+                                                mode='nearest', order=order)
+            if mask_bool is not None:
+                mask_bool, _ = map_utils.enmap2gauss(mask_bool.astype(np.float32),
+                                                     2 * lmax, area_pow=0,
+                                                     mode='nearest', order=1)                
+        elif minfo is None:
+            # Assume map is HEALPix.
+            icov_pix, minfo = map_utils.healpix2gauss(icov_pix, 2 * lmax, area_pow=1)
+            if mask_bool is not None:
+                mask_bool, _ = map_utils.healpix2gauss(mask_bool.astype(np.float32),
+                                                       2 * lmax, area_pow=1)
+        if icov_pix.ndim == 1:
+            # If only T icov is provided, assume Q,U icov is 0.5x
+            icov_pix = icov_pix[np.newaxis] * np.asarray([1.,0.5,0.5][:ncomp])[:,np.newaxis]
+        elif icov_pix.ndim == 2:
+            if icov_pix.shape[0] != ncomp: raise Exception
+        elif icov_pix.ndim == 3:
+            if icov_pix.shape[0] != ncomp or icov_pix.shape[1] != ncomp: raise Exception
+        else:
+            raise ValueError
+        if np.any(np.logical_not(np.isfinite(icov_pix))): raise Exception
         icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=rtol_icov)
         if np.any(icov_pix<0): raise Exception
 
+        if mask_bool is None:
+            mask_bool = np.zeros((ncomp, icov_pix.shape[-1]), dtype=bool)
+            if icov_pix.ndim == 2:
+                mask_bool[:] = icov_pix.astype(bool)
+            else:
+                for cidx in range(ncomp):
+                    mask_bool[cidx] = icov_pix[cidx,cidx].astype(bool)
+        elif mask_bool.ndim == 2 and mask_bool.shape[0] != 1:
+            if mask_bool.shape[0] != ncomp: raise Exception
+        elif mask_bool.ndim == 1:
+            mask_bool = mask_bool[np.newaxis,:]
+        mask_bool = mask_bool.astype(bool, copy=False)
+
+        if mask_bool.ndim == 1:
+            ivar *= mask_bool
+        elif mask_bool.ndim == 2:
+            if ivar.ndim == 2:
+                ivar *= mask_bool
+            else:
+                ivar *= np.einsum('ak, bk -> abk', mask_bool, mask_bool)
+            
         tlmax = theory_cls['TT'].size - 1
         if not(tlmax>=lmax): raise Exception
         cov_ell = np.zeros((ncomp, ncomp, tlmax + 1))
@@ -127,15 +150,14 @@ class CGPixFilter(object):
 
         self.icov_ell = icov_ell
         self.icov_pix = icov_pix
+        self.mask_bool = mask_bool
         self.icov_noise_ell = icov_noise_ell
         self.minfo = minfo
         self.b_ell = b_ell
         self.ncomp = ncomp
 
-    def filter(self,alm,
-               benchmark=False,verbose=True,
-               niter=None,ainfo=None,
-               stype='pcg_pinv',err_tol=1e-15):
+    def filter(self,alm, benchmark=False, verbose=True, niter=None, niter_masked_cg=5, 
+               lmax_masked_cg=3000, ainfo=None, stype='pcg_pinv', err_tol=1e-15):
         """
         Filter a map using a pixel-space instrument noise model
         and a harmonic space signal model.
@@ -154,13 +176,19 @@ class CGPixFilter(object):
             Input data alms (already masked and beam convolved, so M B a).
         niter : int
             The number of Conjugate Gradient iterations to be performed. The default
-            is 35, but this may be too small (unconverged filtering) or too large 
+            is 15, but this may be too small (unconverged filtering) or too large 
             (wasted iterations) for your application. Test before deciding on 
             this parameter.
         stype : str
             The type of pre-conditioner to use. 
-            Choose from 'cg', 'cg_scaled', 'pcg_harm' and 'pcg_pinv'.
+            Choose from 'cg', 'pcg_harm' and 'pcg_pinv'.
             The default is 'pcg_pinv'.
+        niter_masked_cg : int
+            Number of initial iterations using (an expensive) preconditioner for the
+            masked pixels.
+        lmax_masked_cg : int
+            Band-limit for preconditioner for masked solver. Should be set to multipole
+            where SNR becomes smaller 1.
         ainfo : sharp.alm_info object
             Metainfo for internally used alms. Will be determined from the alm
             size if not specified.
@@ -190,7 +218,6 @@ class CGPixFilter(object):
 
         """
 
-        x0 = None
         if np.any(np.logical_not(np.isfinite(alm))): raise Exception
         if alm.ndim==1:
             alm = alm[None]
@@ -199,27 +226,45 @@ class CGPixFilter(object):
             if self.ncomp!=alm.shape[0]: raise Exception
         else:
             raise ValueError
+            
         ainfo = sharp.alm_info(nalm=alm.shape[-1]) if ainfo is None else ainfo
-        if stype == 'cg' or stype == 'cg_scaled':
-            prec = None
-        elif stype == 'pcg_harm':
-            prec = 'harmonic'
+        solver = solvers.CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
+                                              self.icov_pix, self.minfo, b_ell=self.b_ell,
+                                              draw_constr=False, 
+                                              icov_noise_flat_ell=self.icov_noise_ell)
+        
+        if stype == 'pcg_harm':
+            itau = map_utils.get_isotropic_ivar(self.icov_pix, self.minfo)
+            if self.icov_noise_ell is not None:
+                nell = self.icov_noise_ell.shape[-1]
+                sqrt_icnf = mat_utils.matpow(self.icov_noise_ell, 0.5)
+                itau = itau[:,:,np.newaxis] * np.ones(itau.shape + (nell,))
+                itau = np.einsum('ijl, jkl, kol -> iol', sqrt_icnf, itau, sqrt_icnf)
+
+            prec_main = preconditioners.HarmonicPreconditioner(
+                ainfo, self.icov_ell, b_ell=self.b_ell, itau=itau)
+
         elif stype == 'pcg_pinv':
-            prec = 'pinv'
-        if stype == 'cg_scaled':
-            solver = solvers.CGWienerScaled.from_arrays(alm, ainfo, self.icov_ell, 
-                                                        self.icov_pix, self.minfo, 
-                                                        b_ell=self.b_ell,
-                                                        draw_constr=False, 
-                                                        prec=None, x0=x0)
-        else:
-            solver = solvers.CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
-                                          self.icov_pix, self.minfo, b_ell=self.b_ell,
-                                          draw_constr=False, 
-                                          icov_noise_flat_ell=self.icov_noise_ell,
-                                          prec=prec, x0=x0)
+            if self.icov_noise_ell is not None:
+                raise NotImplementedError('icov_noise_ell not implemented for '
+                                          'pinv, use harmonic preconditioner for now.')
+            prec_main = preconditioners.PseudoInvPreconditioner(
+                ainfo, self.icov_ell, self.icov_pix, self.minfo, [0, 2], b_ell=self.b_ell)
+
+        prec_masked_cg = preconditioners.MaskedPreconditionerCG(
+            ainfo, self.icov_ell, [0, 2], self.mask_bool, self.minfo,
+            lmax=lmax_masked_cg, nsteps=15)
+
+        prec_masked_mg = preconditioners.MaskedPreconditioner(
+            ainfo, self.icov_ell[0:1,0:1], 0, self.mask_bool[0], self.minfo,
+            min_pix=10000, n_jacobi=1, lmax_r_ell=6000)
+
+        solver.add_preconditioner(prec_main)
+        solver.add_preconditioner(prec_masked_cg)
+        solver.init_solver()
+        
         errors = []
-        errors.append( np.nan)
+        errors.append(np.nan)
         if benchmark:
             warnings.warn("optfilt: Benchmarking is turned on. This can significantly slow down the filtering.")
             b_copy = solver.b.copy()
@@ -232,14 +277,22 @@ class CGPixFilter(object):
             itnums.append(0)
             if verbose: print('|b| :', np.sqrt(solver.dot(b_copy, b_copy)))
 
-
         if niter is None:
-            niter = 35
+            niter = 15
             warnings.warn(f"optfilt: Using the default number of iterations {niter}.")
 
-        for idx in range(niter):
+        for idx in range(niter_masked_cg + niter):
+            if idx == niter_masked_cg:
+                solver.reset_preconditioner()
+                solver.add_preconditioner(prec_main)
+                solver.add_preconditioner(prec_masked_mg)
+                solver.init_solver(x0=x0)
+
             solver.step()
-            errors.append( solver.err )
+            if idx >= niter_masked_cg:
+                errors.append(solver.err * solver.err[niter_masked_cg-1])
+            else:
+                errors.append(solver.err)
             if benchmark:
                 if (idx+1)%benchmark==0:
                     chisqs.append( solver.get_chisq() )
@@ -265,8 +318,8 @@ class CGPixFilter(object):
             output['itnums'] = itnums
         return output
 
-def cg_pix_filter(alm,theory_cls, b_ell, lmax,
-                  icov=None,icov_pix=None, cov_noise_ell=None, minfo=None,
+def cg_pix_filter(alm, theory_cls, b_ell, lmax,
+                  icov_pix=None, mask_bool=None, cov_noise_ell=None, minfo=None,
                   include_te=False, niter=None, stype='pcg_pinv', ainfo=None,
                   benchmark=None, verbose=True, err_tol=1e-15, rtol_icov=1e-2,
                   order=1):
@@ -301,20 +354,17 @@ def cg_pix_filter(alm,theory_cls, b_ell, lmax,
         resolution of the Gauss-Legendre pixelization geometry. If icov_pix
         is provided instead of icov, this lmax must correspond to the lmax
         of the icov_pix map.
-    icov : (ncomp,ncomp,Ny,Nx), (ncomp,Ny,Nx) or (Ny,Nx) ndmap
+    icov_pix : (ncomp,ncomp,Ny,Nx), (ncomp,Ny,Nx) or (Ny,Nx) ndmap
         An enmap containing the inverse (co-)variance per pixel (zeros in
         unobserved region), in units (e.g. 1/uK^2) consistent with
-        the alms and theory_cls. If the icov_pix map in Gauss-Legendre
-        pixelization is provided, that will be used instead. IQ, IU, QU
-        elements can also be specified if icov is 4-dimensional.
-        Within ACT and SO, these are sometimes referred to as 'ivar' or
-        'div'
-    icov_pix : (ncomp,npix) or (npix,) array
-        An array containing the inverse variance per pixel (zeros in
-        unobserved region), in units (e.g. 1/uK^2) consistent with
-        the alms and theory_cls in Gauss-Legendre
-        pixelization. If this is not provided, the provided icov
-        map will be reprojected.
+        the alms and theory_cls. IQ, IU, QU elements can also be specified
+        if icov_pix is 4-dimensional. Within ACT and SO, these are sometimes 
+        referred to as 'ivar' or 'div'. Can also be a map in Gauss-Legendre
+        or HEALPix pixelization. In those cases last dimensions should be 
+        'npix' instead of 'Ny,Nx'.
+    mask_bool : (ncomp,Ny,Nx) or (Ny,Nx) ndmap
+        Boolean mask (True for observed pixels. Geometry must match that of
+        'icov_pix'. If not provided, will be determined from 'ivar'.
     cov_noise_ell : (ncomp,ncomp,nells) or (ncomp,nells) array
         Power spectrum of flattened (ivar_pix-weighted) noise in units
         (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
@@ -331,7 +381,7 @@ def cg_pix_filter(alm,theory_cls, b_ell, lmax,
         filtered, but the "T" and "E" maps will not be pure-T and pure-E.
     niter : int
         The number of Conjugate Gradient iterations to be performed. The default
-        is 35, but this may be too small (unconverged filtering) or too large 
+        is 15, but this may be too small (unconverged filtering) or too large 
         (wasted iterations) for your application. Test before deciding on 
         this parameter.
     stype : str
@@ -341,6 +391,12 @@ def cg_pix_filter(alm,theory_cls, b_ell, lmax,
     ainfo : sharp.alm_info object
         Metainfo for internally used alms. Will be determined from the alm
         size if not specified.
+    niter_masked_cg : int
+        Number of initial iterations using (an expensive) preconditioner for the
+        masked pixels.
+    lmax_masked_cg : int
+        Band-limit for preconditioner for masked solver. Should be set to multipole
+        where SNR becomes smaller 1.
     verbose : bool
         Whether or not to print information and progress.
     benchmark: int
@@ -378,7 +434,8 @@ def cg_pix_filter(alm,theory_cls, b_ell, lmax,
         raise ValueError
 
     cgobj = CGPixFilter(ncomp,theory_cls=theory_cls, b_ell=b_ell, lmax=lmax,
-                        icov=icov, icov_pix=icov_pix, cov_noise_ell=cov_noise_ell,
+                        icov_pix=icov_pix, mask_bool=mask_bool, cov_noise_ell=cov_noise_ell,
                         minfo=minfo, include_te=include_te, rtol_icov=rtol_icov,order=order)
     return cgobj.filter(alm,benchmark=benchmark, verbose=verbose, ainfo=ainfo,
-                        niter=niter,stype=stype, err_tol=err_tol)
+                        niter_masked_cg=niter_masked, lmax_masked_cg=lmax_masked_cg,
+                        niter=niter, stype=stype, err_tol=err_tol)
