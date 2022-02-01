@@ -1,14 +1,14 @@
 import numpy as np
 import warnings
 
-from pixell import curvedsky, sharp, utils
+from pixell import curvedsky, sharp, utils, enmap
 
-from optweight import map_utils, mat_utils, solvers
+from optweight import map_utils, mat_utils, solvers, preconditioners
 
 class CGPixFilter(object):
     def __init__(self, ncomp, theory_cls, b_ell, lmax,
                  icov_pix=None, mask_bool=None, cov_noise_ell=None, minfo=None,
-                 include_te=False, rtol_icov=1e-2, order=1):
+                 include_te=False, rtol_icov=1e-2, order=1, swap_bm=True):
         """
         Prepare to filter maps using a pixel-space instrument noise model
         and a harmonic space signal model. The initialization does a slow
@@ -61,6 +61,9 @@ class CGPixFilter(object):
         order: int, optional
             The order of spline interpolation when transforming icov_pix to GL
             pixelization.
+        swap_bm : bool, optional
+           Swap the order of the beam and mask operations. Helps convergence
+           with large beams and high SNR data.
         """
 
         if np.any(np.logical_not(np.isfinite(b_ell))): raise Exception
@@ -93,7 +96,6 @@ class CGPixFilter(object):
             raise ValueError
         if np.any(np.logical_not(np.isfinite(icov_pix))): raise Exception
         icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=rtol_icov)
-        if np.any(icov_pix<0): raise Exception
 
         if mask_bool is None:
             mask_bool = np.zeros((ncomp, icov_pix.shape[-1]), dtype=bool)
@@ -108,13 +110,14 @@ class CGPixFilter(object):
             mask_bool = mask_bool[np.newaxis,:]
         mask_bool = mask_bool.astype(bool, copy=False)
 
-        if mask_bool.ndim == 1:
-            ivar *= mask_bool
-        elif mask_bool.ndim == 2:
-            if ivar.ndim == 2:
-                ivar *= mask_bool
-            else:
-                ivar *= np.einsum('ak, bk -> abk', mask_bool, mask_bool)
+        if not swap_bm:
+            if mask_bool.ndim == 1:
+                icov_pix *= mask_bool
+            elif mask_bool.ndim == 2:
+                if icov_pix.ndim == 2:
+                    icov_pix *= mask_bool
+                else:
+                    icov_pix *= np.einsum('ak, bk -> abk', mask_bool, mask_bool)
             
         tlmax = theory_cls['TT'].size - 1
         if not(tlmax>=lmax): raise Exception
@@ -155,6 +158,7 @@ class CGPixFilter(object):
         self.minfo = minfo
         self.b_ell = b_ell
         self.ncomp = ncomp
+        self.swap_bm = swap_bm
 
     def filter(self,alm, benchmark=False, verbose=True, niter=None, niter_masked_cg=5, 
                lmax_masked_cg=3000, ainfo=None, stype='pcg_pinv', err_tol=1e-15):
@@ -228,10 +232,12 @@ class CGPixFilter(object):
             raise ValueError
             
         ainfo = sharp.alm_info(nalm=alm.shape[-1]) if ainfo is None else ainfo
+        mask_pix = self.mask_bool.astype(np.float32) if self.swap_bm else None
         solver = solvers.CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
                                               self.icov_pix, self.minfo, b_ell=self.b_ell,
-                                              draw_constr=False, 
-                                              icov_noise_flat_ell=self.icov_noise_ell)
+                                              draw_constr=False, mask_pix=mask_pix,
+                                              icov_noise_flat_ell=self.icov_noise_ell,
+                                              swap_bm=self.swap_bm)
         
         if stype == 'pcg_harm':
             itau = map_utils.get_isotropic_ivar(self.icov_pix, self.minfo)
@@ -267,15 +273,14 @@ class CGPixFilter(object):
         errors.append(np.nan)
         if benchmark:
             warnings.warn("optfilt: Benchmarking is turned on. This can significantly slow down the filtering.")
-            b_copy = solver.b.copy()
             chisqs = []
             residuals = []
             ps_c_ells = []
             itnums = []
-            chisqs.append( solver.get_chisq() )
-            residuals.append( solver.get_residual() )
+            chisqs.append(solver.get_chisq())
+            residuals.append(solver.get_residual())
             itnums.append(0)
-            if verbose: print('|b| :', np.sqrt(solver.dot(b_copy, b_copy)))
+            if verbose: print('|b| :', np.sqrt(solver.dot(solver.b0, solver.b0)))
 
         if niter is None:
             niter = 15
@@ -285,21 +290,24 @@ class CGPixFilter(object):
             if idx == niter_masked_cg:
                 solver.reset_preconditioner()
                 solver.add_preconditioner(prec_main)
-                solver.add_preconditioner(prec_masked_mg)
-                solver.init_solver(x0=x0)
+                solver.add_preconditioner(prec_masked_mg, sel=np.s_[0])
+                solver.b_vec = solver.b0
+                solver.init_solver(x0=solver.x)
 
             solver.step()
             if idx >= niter_masked_cg:
-                errors.append(solver.err * solver.err[niter_masked_cg-1])
+                errors.append(solver.err * errors[niter_masked_cg-1])
             else:
                 errors.append(solver.err)
             if benchmark:
                 if (idx+1)%benchmark==0:
-                    chisqs.append( solver.get_chisq() )
-                    residuals.append( solver.get_residual() )
-                    ps_c_ells.append( ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:]) )
+                    chisq = solver.get_chisq()
+                    residual = solver.get_residual()
+                    chisqs.append(chisq)
+                    residuals.append(residual)
+                    ps_c_ells.append(ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:]))
                     itnums.append(idx)
-                    print(f"optfilt benchmark: /t {chisq/ alm.size / 2 if benchmark else ''} /t "
+                    print(f"optfilt benchmark: \t {chisq if benchmark else ''} \t "
                           f"{residual if benchmark else ''}")
             if verbose: print(f"optfilt step {solver.i} / {niter},  error {errors[-1]:.2e}")
             if solver.err < err_tol: 
@@ -321,8 +329,9 @@ class CGPixFilter(object):
 def cg_pix_filter(alm, theory_cls, b_ell, lmax,
                   icov_pix=None, mask_bool=None, cov_noise_ell=None, minfo=None,
                   include_te=False, niter=None, stype='pcg_pinv', ainfo=None,
-                  benchmark=None, verbose=True, err_tol=1e-15, rtol_icov=1e-2,
-                  order=1):
+                  niter_masked_cg=7, lmax_masked_cg=3000, benchmark=None, 
+                  verbose=True, err_tol=1e-15, rtol_icov=1e-2, order=1,
+                  swap_bm=True):
     """
     Filter a map using a pixel-space instrument noise model
     and a harmonic space signal model.
@@ -411,10 +420,12 @@ def cg_pix_filter(alm, theory_cls, b_ell, lmax,
     order: int, optional
         The order of spline interpolation when transforming icov to GL
         pixelization.
+    swap_bm : bool, optional
+        Swap the order of the beam and mask operations. Helps convergence
+        with large beams and high SNR data.
 
     Returns
     -------
-
     output : dict
         A dictionary that maps the following keys to the corresponding products.
         - 'walm': (ncomp,nalm) array containing the Wiener filtered alms.
@@ -437,5 +448,5 @@ def cg_pix_filter(alm, theory_cls, b_ell, lmax,
                         icov_pix=icov_pix, mask_bool=mask_bool, cov_noise_ell=cov_noise_ell,
                         minfo=minfo, include_te=include_te, rtol_icov=rtol_icov,order=order)
     return cgobj.filter(alm,benchmark=benchmark, verbose=verbose, ainfo=ainfo,
-                        niter_masked_cg=niter_masked, lmax_masked_cg=lmax_masked_cg,
+                        niter_masked_cg=niter_masked_cg, lmax_masked_cg=lmax_masked_cg,
                         niter=niter, stype=stype, err_tol=err_tol)
