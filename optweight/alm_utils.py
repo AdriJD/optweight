@@ -290,6 +290,8 @@ def rand_alm_wav(cov_wav, ainfo, w_ell, spin, adjoint=False):
         Wavelet kernels.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
+    adjoint : bool, optional
+        Compute Kt Yt N^0.5 rand_pix instead of Kt Yt W N^0.5 rand_pix.
 
     Returns
     -------
