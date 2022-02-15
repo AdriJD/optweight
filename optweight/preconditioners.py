@@ -22,12 +22,17 @@ class HarmonicPreconditioner(operators.MatVecAlm):
         Inverse noise covariance. If diagonal, only the diagonal suffices. Only
         needed when `itau` or `icov_wav` are not given.
     minfo : sharp.map_info object, optional
-        Metainfo for inverse noise covariance. Needed if `icov_pix` is provided.
+        Metainfo for inverse noise covariance. Needed if `icov_pix` and/or 
+        mask_pix are provided.
     icov_wav : wavtrans.Wav object, optional
         Wavelet block matrix representing the inverse noise covariance. Only
         needed when `itau` or `icov_pix` are not given.
     w_ell : (nwav, nell) array, optional
         Wavelet kernels. Needed when `icov_wav` is given.
+    mask_pix : (npol, npix) array, optional
+        Pixel mask used in `itau` computation. Needed when the provided 
+        icov_pix/wav are not masked like the data are. If provided, also 
+        requires minfo.
     b_ell : (npol, nell) array, optional
         Beam window function.
 
@@ -37,7 +42,7 @@ class HarmonicPreconditioner(operators.MatVecAlm):
     '''
 
     def __init__(self, ainfo, icov_ell, itau=None, icov_pix=None, minfo=None, 
-                 icov_wav=None, w_ell=None, b_ell=None):
+                 icov_wav=None, w_ell=None, mask_pix=None, b_ell=None):
 
         npol, nell = icov_ell.shape[-2:]
 
@@ -45,9 +50,10 @@ class HarmonicPreconditioner(operators.MatVecAlm):
             if icov_pix is None and icov_wav is None:
                 raise ValueError('itau, icov_pix and icov_wav cannot all be None')                
             if icov_wav is None:
-                itau = map_utils.get_isotropic_ivar(icov_pix, minfo)            
-            elif icov_pic is None:
-                itau = map_utils.get_ivar_ell(icov_wav, w_ell)                
+                itau = map_utils.get_isotropic_ivar(icov_pix, minfo, mask=mask_pix)
+            elif icov_pix is None:
+                itau = map_utils.get_ivar_ell(icov_wav, w_ell, mask=mask_pix, 
+                                              minfo_mask=minfo)
             else:
                 raise ValueError('icov_pix and icov_wav cannot both be given.')
         elif icov_pix is not None or icov_wav is not None:
@@ -107,6 +113,9 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         Beam window function.
     cov_pix : (npol, npol, npix) or (npol, npix) array, optional
         Noise covariance. If diagonal, only the diagonal suffices.
+    mask_pix : (npol, pix) array, optional
+        Pixel mask used in `itau` computation. Needed when the provided 
+        icov_pix is not masked like the data are.
 
     Methods
     -------
@@ -119,7 +128,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         npol, nell = icov_ell.shape[-2:]
 
         if itau is None:
-            itau = map_utils.get_isotropic_ivar(icov_pix, minfo)
+            itau = map_utils.get_isotropic_ivar(icov_pix, minfo, mask=mask_pix)
 
         if itau.ndim == 2:
             itau = itau[:,:,np.newaxis]
@@ -221,7 +230,8 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         npol, nell = icov_ell.shape[-2:]
 
         if itau_ell is None:
-            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
+            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell, mask=mask_pix, 
+                                              minfo_mask=minfo_mask)
 
         if itau_ell.ndim != 3:
             raise ValueError(

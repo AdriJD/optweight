@@ -648,7 +648,7 @@ def inv_qweight_map(imap, minfo, inplace=False, qweight=False):
 
     return out
 
-def get_isotropic_ivar(icov_pix, minfo):
+def get_isotropic_ivar(icov_pix, minfo, mask=None):
     '''
     Compute the isotropic inverse variance for an inverse 
     covariance matrix diagonal in pixel space.
@@ -658,19 +658,33 @@ def get_isotropic_ivar(icov_pix, minfo):
     icov_pix : (npol, npol, npix) or (npol, npix) array
         Inverse covariance matrix.
     minfo : sharp.map_info object
-        Metainfo spefying pixelization of covariance matrix.
+        Metainfo specifying pixelization of covariance matrix.
+    mask : (npol, npix) array, optional
+        Sky mask, usually 1 for observed pixels, 0 for unobserved, but 
+        can be apodized.
     
     Returns
     -------
-    var_iso : (npol, npol) array
-        Isotropic variance. Note that only the diagonal is calculated.
+    ivar_iso : (npol, npol) array
+        Isotropic inverse variance. Note that only the diagonal is
+        calculated.
 
     Notes
     -----
-    See eq. A1 in Seljebotn et al. (1710.00621).
+    See eq. A1 in Seljebotn et al. (1710.00621). If you have N_pix^-1
+    then N_{ell m ell' m'} = Yt N_pix^-1 Y. ivar_iso is the scalar that 
+    approximates 1 / N_{ell m ell' m'}.
     '''
 
     wcov = inv_qweight_map(icov_pix, minfo, inplace=False)
+
+    if mask is not None:
+        if wcov.ndim == 2:
+            wcov *= mask
+        else:
+            mask = mat_utils.atleast_nd(mask, 2)
+            sqrt_mask = np.sqrt(mask)
+            wcov *= np.einsum('ap, bp -> abp', sqrt_mask, sqrt_mask)
 
     # Set off-diagonal elements to zero, I only understand diagonal for now.
     numerator = np.sum(wcov ** 2, axis=-1)
@@ -682,7 +696,7 @@ def get_isotropic_ivar(icov_pix, minfo):
     elif icov_pix.ndim == 3:
         return np.diag(np.diag(numerator) / np.diag(denominator))
 
-def get_ivar_ell(icov_wav, w_ell):
+def get_ivar_ell(icov_wav, w_ell, mask=None, minfo_mask=None):
     '''
     Compute the inverse variance spectrum for an inverse 
     covariance matrix diagonal in wavelet space.
@@ -693,6 +707,10 @@ def get_ivar_ell(icov_wav, w_ell):
         Inverse covariance matrix.
     w_ell : (nwav, nell) array
         Wavelet kernels.
+    mask : (npol, npix) array, optional
+        Sky mask, usually 1 for observed pixels, 0 for unobserved.
+    minfo_mask : sharp.map_info object, optional
+        Meta info for mask, only required if mask if given.
     
     Returns
     -------
@@ -711,8 +729,15 @@ def get_ivar_ell(icov_wav, w_ell):
     itaus = np.zeros((npol, npol, w_ell.shape[0]))
 
     for jidx in range(w_ell.shape[0]):
+        
+        if mask is not None:
+            mask_j = gauss2gauss(mask, minfo_mask, icov_wav.minfos[jidx,jidx],
+                                 order=1, area_pow=0)
+        else:
+            mask_j = None
+
         itaus[:,:,jidx] = get_isotropic_ivar(
-            icov_wav.maps[jidx,jidx], icov_wav.minfos[jidx,jidx])
+            icov_wav.maps[jidx,jidx], icov_wav.minfos[jidx,jidx], mask=mask_j)
 
     ivar_ell = np.einsum('ijk, kl -> ijl', itaus, w_ell ** 2,
                          optimize=True)
