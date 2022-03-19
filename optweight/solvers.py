@@ -321,7 +321,7 @@ class CGWiener(utils.CG):
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                        draw_constr=False, spin=None, swap_bm=False):
+                        draw_constr=False, spin=None, swap_bm=False, icov_noise_ell=None):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -354,14 +354,24 @@ class CGWiener(utils.CG):
         swap_bm : bool, optional
             If set, swap the order of the beam and mask operations. Helps convergence
             with large beams and high SNR data.
+        icov_noise_ell : (npol, npol, nell) or (npol, nell) array, optional
+            Inverse noise covariance (with fsky correction). If diagonal, only the 
+            diagonal suffices. Will update noise model to iN_ell^0.5 iN_wav iN_ell^0.5,
+            so make sure iN_wav corresponds to the inverse noise covariance after
+            flattening by iN_ell^0.5.
         '''
 
         if spin is None:
             spin = sht.default_spin(alm_data.shape)
 
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
-        icov_noise = operators.WavMatVecAlm(
-            ainfo, icov_wav, w_ell, spin)
+
+        if icov_noise_ell is None:
+            icov_noise = operators.WavMatVecAlm(
+                ainfo, icov_wav, w_ell, spin)
+        else:
+            icov_noise = operators.EllWavEllMatVecAlm(
+                ainfo, icov_wav, w_ell, icov_noise_ell, spin, power_x=0.5)
 
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)
@@ -378,6 +388,10 @@ class CGWiener(utils.CG):
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
             rand_inoise = alm_utils.rand_alm_wav(icov_wav, ainfo, w_ell,
                                                  spin, adjoint=True)
+            if icov_noise_ell is not None:
+                sqrt_icov_noise = operators.EllMatVecAlm(ainfo, icov_noise_ell,
+                                                         power=0.5, inplace=True)
+                sqrt_icov_noise(rand_inoise)
         else:
             rand_isignal = None
             rand_inoise = None

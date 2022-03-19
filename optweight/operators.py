@@ -171,6 +171,66 @@ class PixMatVecAlm(MatVecAlm):
 
         return out
 
+class EllWavEllMatVecAlm(MatVecAlm):
+    '''
+    Calculate X_ell^q M_wav^p X_ell^q alm for X and M diagonal in the multipole and 
+    wavelet-pixel domain, respectively. Both matrices should be positive semi-definite
+    symmetric in other axes.
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    m_wav : wavtrans.Wav object
+        Wavelet block matrix.
+    w_ell : (nwav, nell) array
+        Wavelet kernels.
+    x_ell : (npol, npol, nell) array or (npol, nell) array
+        A matrix, either symmetric but dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    power_m : int, float, optional
+        Power of M matrix.
+    power_x : int, float, optional
+        Power of X matrix.
+    adjoint : bool, optional
+        If set, calculate Kt Yt W M W Y K instead of Kt Yt M Y K.
+
+    Methods
+    -------
+    call(alm) : Apply the operator to a set of alms.
+    '''
+
+    def __init__(self, ainfo, m_wav, w_ell, x_ell, spin, power_m=1, power_x=1,
+                 adjoint=False):
+
+        self.x_ell_op = EllMatVecAlm(ainfo, x_ell, power=power_x, inplace=False)
+        self.m_wav_op = WavMatVecAlm(ainfo, m_wav, w_ell, spin, power=power_m,
+                                     adjoint=adjoint)
+        
+    def call(self, alm):
+        '''
+        Apply the operator to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+
+        alm = self.x_ell_op(alm)
+        alm = self.m_wav_op(alm)
+        alm = self.x_ell_op(alm)
+
+        return alm
+        
 class WavMatVecAlm(MatVecAlm):
     '''
     Apply wavelet block matrix to input alm.

@@ -46,3 +46,27 @@ class TestPreconditioners(unittest.TestCase):
 
         np.testing.assert_allclose(alm_out / alm_out_sp, np.ones_like(alm),
                                    rtol=1e-4)
+
+    def test_get_itau_ell_harm(self):
+        
+        nell = 4
+        npol = 3
+        w_ell = np.zeros((2, nell), dtype=np.float32)
+        w_ell[0,:2] = 1
+        w_ell[1,2:] = 0.1
+        
+        icov_ell = np.ones((npol, nell), dtype=np.float32)
+        itau_ell = preconditioners.get_itau_ell_harm(icov_ell, w_ell)
+        
+        self.assertEqual(itau_ell.shape, (npol, npol, nell))
+        self.assertEqual(itau_ell.dtype, np.float32)
+        
+        itau_ell_exp = np.asarray([1, 1, 0.01, 0.01]) * np.eye(npol)[:,:,np.newaxis]
+        itau_ell_exp.astype(np.float32)
+
+        np.testing.assert_allclose(itau_ell, itau_ell_exp)
+
+        # Full input matrix, should still only use diagonal.
+        icov_ell = np.ones((npol, npol, nell), dtype=np.float32)
+        itau_ell = preconditioners.get_itau_ell_harm(icov_ell, w_ell)
+        np.testing.assert_allclose(itau_ell, itau_ell_exp)

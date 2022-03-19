@@ -35,29 +35,51 @@ class HarmonicPreconditioner(operators.MatVecAlm):
         requires minfo.
     b_ell : (npol, nell) array, optional
         Beam window function.
+    icov_noise_ell : (npol, npol, nell) or (npol, nell) array, optional
+        Inverse noise covariance (with fsky correction). If diagonal, only the 
+        diagonal suffices. Used for iN_ell^0.5 iN_wav iN_ell^0.5 noise model. 
+        If provided, `mask_pix` will be ignored, w_ell needs to be given.
 
     Methods
     -------
     call(alm) : Apply the preconditioner to a set of alms.
+
+    Notes
+    -----
+    This class is starting to become a bit complicated. There are four modes:
+    1) itau is provided
+    2) itau not provided, but icov_pix + minfo + (optionally mask_pix) are
+    3) itau not provided, but icov_wav + w_ell + (optionally mask_pix and minfo) are
+    4) itau not provided, but icov_noise_ell + w_ell are.
     '''
 
     def __init__(self, ainfo, icov_ell, itau=None, icov_pix=None, minfo=None, 
-                 icov_wav=None, w_ell=None, mask_pix=None, b_ell=None):
+                 icov_wav=None, w_ell=None, mask_pix=None, b_ell=None,
+                 icov_noise_ell=None):
 
         npol, nell = icov_ell.shape[-2:]
 
         if itau is None:
-            if icov_pix is None and icov_wav is None:
-                raise ValueError('itau, icov_pix and icov_wav cannot all be None')                
-            if icov_wav is None:
-                itau = map_utils.get_isotropic_ivar(icov_pix, minfo, mask=mask_pix)
-            elif icov_pix is None:
+
+            if icov_pix is None and icov_wav is None and icov_noise_ell is None:
+                raise ValueError('provide atleast itau or icov_{pix/wav/noise_ell}')
+
+            if icov_wav is not None:
+                assert icov_pix is None, 'icov_wav given, icov_pix is not None'
+                assert icov_noise_ell is None, 'icov_wav given, icov_noise_ell is not None'
                 itau = map_utils.get_ivar_ell(icov_wav, w_ell, mask=mask_pix, 
                                               minfo_mask=minfo)
-            else:
-                raise ValueError('icov_pix and icov_wav cannot both be given.')
-        elif icov_pix is not None or icov_wav is not None:
-            raise ValueError('if itau is provided, icov_pix/wav should be None.')
+            if icov_pix is not None:
+                assert icov_wav is None, 'icov_pix given, icov_wav is not None'
+                assert icov_noise_ell is None, 'icov_pix given, icov_noise_ell is not None'
+                itau = map_utils.get_isotropic_ivar(icov_pix, minfo, mask=mask_pix)
+            if icov_noise_ell is not None:
+                assert icov_wav is None, 'icov_noise_ell given, icov_wav is not None'
+                assert icov_pix is None, 'icov_noise_ell given, icov_pix is not None'
+                itau = get_itau_ell_harm(icov_noise_ell, w_ell)
+
+        elif icov_pix is not None or icov_wav is not None or icov_noise_ell is not None:
+            raise ValueError('itau is provided but icov_{pix/wav/noise_ell} are not None.')
 
         if itau.ndim == 1:
             itau = itau * np.eye(npol)
@@ -214,9 +236,15 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
     minfo_mask : sharp.map_info object, optional
         Metainfo for pixel mask covariance.
     itau_ell : (npol, npol, nell) array
-        Isotropic noise (co)variance. Inferred from icov_wav if not provided.
+        Isotropic noise (co)variance. Inferred from icov_wav or icov_noise_ell 
+        if not provided.
     b_ell : (npol, nell) array, optional
         Beam window function.
+    icov_noise_ell : (npol, npol, nell) or (npol, nell) array, optional
+        Inverse noise covariance (with fsky correction). If diagonal, only the 
+        diagonal suffices. Will update noise model to iN_ell^0.5 iN_wav iN_ell^0.5,
+        so make sure iN_wav corresponds to the inverse noise covariance after
+        flattening by iN_ell^0.5.
 
     Methods
     -------
@@ -225,13 +253,17 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
     
     def __init__(self, ainfo, icov_ell, icov_wav, w_ell, spin,
                  mask_pix=None, minfo_mask=None, itau_ell=None,
-                 b_ell=None):
+                 b_ell=None, icov_noise_ell=None):
 
         npol, nell = icov_ell.shape[-2:]
 
         if itau_ell is None:
-            itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell, mask=mask_pix, 
-                                              minfo_mask=minfo_mask)
+
+            if icov_noise_ell is None:
+                itau_ell = map_utils.get_ivar_ell(icov_wav, w_ell, mask=mask_pix, 
+                                                  minfo_mask=minfo_mask)
+            if icov_noise_ell is not None:
+                itau_ell = get_itau_ell_harm(icov_noise_ell, w_ell)
 
         if itau_ell.ndim != 3:
             raise ValueError(
@@ -250,7 +282,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
                 ainfo, mask_pix, minfo_mask, spin, power=-1,
                 use_weights=True)
 
-        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau_ell, b_ell)        
+        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau_ell, b_ell)
         self.harmonic_prec = operators.EllMatVecAlm(ainfo, op, -1, inplace=True)
         
         self.icov_signal = operators.EllMatVecAlm(
@@ -262,8 +294,13 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         self.ivar_noise_iso = operators.EllMatVecAlm(
             ainfo, itau_ell, inplace=True)
 
-        self.pcov_noise = operators.WavMatVecAlm(
-            ainfo, icov_wav, w_ell, spin, power=-1, adjoint=True)
+        if icov_noise_ell is None:
+            self.pcov_noise = operators.WavMatVecAlm(
+                ainfo, icov_wav, w_ell, spin, power=-1, adjoint=True)
+        else:
+            self.pcov_noise = operators.EllWavEllMatVecAlm(
+                ainfo, icov_wav, w_ell, icov_noise_ell, spin, power_m=-1,
+                power_x=-0.5, adjoint=True)
 
     def call(self, alm):
         '''
@@ -435,9 +472,9 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         self.verbose = verbose
 
         if lmax is not None:
+            if lmax > self.ainfo.lmax:    
+                lmax = self.ainfo.lmax
             icov_ell = icov_ell[...,:lmax+1].copy()
-            if lmax > ainfo.lmax:
-                raise ValueError(f'lmax {lmax} has be be <= ainfo.lmax {ainfo.lmax}')
         else:
             lmax = self.ainfo.lmax
 
@@ -519,3 +556,37 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         alm_utils.add_to_alm(alm, alm_lowres, self.ainfo, self.ainfo_lowres)
 
         return alm
+
+def get_itau_ell_harm(icov_ell, w_ell):
+    '''
+    Compute inverse variance per wavelet band.
+
+    Parameters
+    ----------
+    icov_ell : (npol, npol, nell) array or (npol, nell) array
+        Inverse covariance, If diagonal, only the diagonal suffices.
+    w_ell : (nwav, nell) array
+        Wavelet kernels.
+    
+    Returns
+    -------
+    itau_ell : (npol, npol, nell) array
+        Inverse variance spectrum. Note that only the diagonal 
+        is calculated.
+    '''
+
+    icov_ell = mat_utils.full_matrix(mat_utils.atleast_nd(icov_ell, 2))    
+    itau_ell = np.zeros_like(icov_ell)
+    npol = itau_ell.shape[0]
+
+    for widx in range(w_ell.shape[0]):
+        
+        w_ell_sq = w_ell[widx] ** 2
+        sum_w_ell_sq = np.sum(w_ell_sq)
+        
+        for pidx in range(npol):
+
+            a_j = np.sum(icov_ell[pidx,pidx] * w_ell_sq) / sum_w_ell_sq
+            itau_ell[pidx,pidx] += a_j * w_ell_sq
+
+    return itau_ell
