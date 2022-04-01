@@ -72,6 +72,24 @@ class TestMapUtils(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(arc_len, np.asarray(arc_len_exp))
 
+    def test_get_cc_minfo(self):
+        
+        lmax = 5
+        minfo = map_utils.get_cc_minfo(lmax)
+        
+        # We expect support for polynomial in cos(theta) of order lmax,
+        n_theta = lmax + 1
+        n_phi = lmax + 1
+        
+        self.assertTrue(np.all(minfo.nphi == lmax + 1))
+        theta_exp = np.linspace(0, np.pi, n_theta)
+        np.testing.assert_allclose(minfo.theta, theta_exp, atol=1e-7)
+        np.testing.assert_array_almost_equal(minfo.phi0, np.zeros(n_theta))
+
+        offsets_exp = np.arange(n_theta) * n_phi
+        np.testing.assert_array_almost_equal(minfo.offsets, offsets_exp)
+        np.testing.assert_array_almost_equal(minfo.stride, np.ones(n_theta))
+
     def test_get_equal_area_gauss_minfo(self):
         
         lmax = 9
@@ -917,3 +935,16 @@ class TestMapUtilsIO(unittest.TestCase):
         self.assertTrue(0 < np.degrees(minfo.theta.min()) < 1)
         self.assertTrue(179 < np.degrees(minfo.theta.max()) < 180)
         
+    def test_minfo2wcs(self):
+
+        lmax = 10
+        minfo = map_utils.get_cc_minfo(lmax)        
+        wcs = map_utils.minfo2wcs(minfo)
+
+        self.assertAlmostEqual(wcs.wcs.cdelt[0] * (lmax + 1), -360.)
+        self.assertAlmostEqual(wcs.wcs.cdelt[1] * (lmax + 1), -180.)
+
+        # Test if GL map raises error.
+        minfo_gl = map_utils.get_gauss_minfo(lmax)
+        self.assertRaises(ValueError, map_utils.minfo2wcs, minfo_gl)
+

@@ -405,14 +405,18 @@ def _get_gauss_coords(map_info):
 
     return thetas, phis
 
-def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
+def get_minfo(mtype, nrings, nphi, theta_min=None, theta_max=None, return_arc_len=False):
     '''
-    Compute map_info metadata for a Gauss-Legendre grid.
+    Compute map_info metadata for a rectangular grid.
 
     Parameters
     ----------
-    lmax : int
-        Band limit supported by Gauss-Legendre grid.
+    mtype : str
+        Pick between "GL" (Gauss Legendre) or "CC" (Clenshaw Curtis).
+    nrings : int
+        Number of theta rings on full sky.
+    nphi : int
+        Number of nphi points for all rings.
     theta_min : float, optional
         Minimum colattitute of grid in radians.
     theta_max : float, optional
@@ -428,9 +432,12 @@ def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
         If return_arc_len is set: arc length of rings along the theta direction.
     '''
 
-    nrings = int(np.floor(lmax / 2)) + 1
-    nphi = lmax + 1
-    map_info = sharp.map_info_gauss_legendre(nrings, nphi)
+    if mtype == 'GL':
+        map_info = sharp.map_info_gauss_legendre(nrings, nphi)
+    elif mtype == 'CC':
+        map_info = sharp.map_info_clenshaw_curtis(nrings, nphi)
+    else:
+        raise ValueError(f'mtype : {mtype} not supported')
 
     if return_arc_len:
         arc_len = get_arc_len(map_info.theta, 0, np.pi)
@@ -457,7 +464,65 @@ def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
     if return_arc_len:
         return map_info, + arc_len,
 
-    return ret
+    return ret    
+
+def get_cc_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
+    '''
+    Compute map_info metadata for a Clenshaw Curtis grid.
+
+    Parameters
+    ----------
+    lmax : int
+        Band limit supported by Gauss-Legendre grid.
+    theta_min : float, optional
+        Minimum colattitute of grid in radians.
+    theta_max : float, optional
+        Maximum colattitute of grid in radians.
+    return_arc_len : bool, optional
+        If set, return arc length of each theta ring.
+
+    Returns
+    -------
+    map_info : sharp.map_info object
+        metadata of Gausss-Legendre grid.
+    arc_lengths : (ntheta) array
+        If return_arc_len is set: arc length of rings along the theta direction.
+    '''
+
+    nrings = lmax + 1
+    nphi = lmax + 1
+
+    return get_minfo('CC', nrings, nphi, theta_min=theta_min, theta_max=theta_max,
+                     return_arc_len=return_arc_len)
+
+def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
+    '''
+    Compute map_info metadata for a Gauss-Legendre grid.
+
+    Parameters
+    ----------
+    lmax : int
+        Band limit supported by Gauss-Legendre grid.
+    theta_min : float, optional
+        Minimum colattitute of grid in radians.
+    theta_max : float, optional
+        Maximum colattitute of grid in radians.
+    return_arc_len : bool, optional
+        If set, return arc length of each theta ring.
+
+    Returns
+    -------
+    map_info : sharp.map_info object
+        metadata of Gausss-Legendre grid.
+    arc_lengths : (ntheta) array
+        If return_arc_len is set: arc length of rings along the theta direction.
+    '''
+
+    nrings = int(np.floor(lmax / 2)) + 1
+    nphi = lmax + 1
+
+    return get_minfo('GL', nrings, nphi, theta_min=theta_min, theta_max=theta_max,
+                     return_arc_len=return_arc_len)
 
 def get_equal_area_gauss_minfo(lmax, theta_min=None, theta_max=None, 
                                gl_band=np.pi/8, ratio_pow=1.):
@@ -1047,7 +1112,7 @@ def minfo2lmax(minfo):
     Arguments
     ---------
     minfo : sharp.map_info object
-        Metainfo of map
+        Metainfo of map.
 
     Returns
     -------
@@ -1056,6 +1121,46 @@ def minfo2lmax(minfo):
     '''
     
     return int(0.5 * (np.max(minfo.nphi) - 1))
+
+def minfo2wcs(minfo):
+    '''
+    Determine CAR WCS object from map_info.
+
+    Arguments
+    ---------
+    minfo : sharp.map_info object
+        Metainfo of map.
+
+    Returns
+    -------
+    wcs : astropy.wcs.WCS object
+        The wcs object of the enmap geometry
+
+    Raises
+    ------
+    ValueError
+        If no WCS can be determined (i.e. for Gauss Legendre minfo).
+    '''
+
+    diff = np.diff(minfo.theta)
+    # CAR needs uniformly spaced theta coordinates.
+    if not np.allclose(diff, np.full(diff.size, diff[0])):
+        raise ValueError(f'Cannot determine CAR WCS for input minfo')
+        
+    dtheta = np.abs(minfo.theta[0] - minfo.theta[-1]) / minfo.theta.size
+    dphi = 2 * np.pi / minfo.nphi[0]
+    _, phis = _get_gauss_coords(minfo)
+
+    theta_idx_mid = minfo.theta.size // 2
+    phi_idx_mid = phis.size // 2
+
+    wcs   = wcsutils.WCS(naxis=2)
+    wcs.wcs.ctype = ["RA---CAR","DEC--CAR"]
+    wcs.wcs.cdelt = [-np.degrees(dphi), -np.degrees(dtheta)]
+    wcs.wcs.crval = np.degrees([phis[phi_idx_mid], np.pi / 2 - minfo.theta[theta_idx_mid]])
+    wcs.wcs.crpix = [phi_idx_mid, theta_idx_mid]
+
+    return wcs
 
 def copy_minfo(minfo):
     '''
