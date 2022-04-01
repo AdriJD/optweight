@@ -934,6 +934,40 @@ class TestMapUtilsIO(unittest.TestCase):
             minfo.theta > np.radians(0)) & (minfo.theta < np.radians(180))))
         self.assertTrue(0 < np.degrees(minfo.theta.min()) < 1)
         self.assertTrue(179 < np.degrees(minfo.theta.max()) < 180)
+
+    def test_get_enmap_minfo_cc(self):
+        
+        # Same but now with CC grid.
+
+        lmax = 180
+
+        # Create cut sky enmap geometry
+        ny, nx = 360, 720
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec_cut = np.radians([-60, 30])
+        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+
+        minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, mtype='CC')
+
+        # Test if all thetas are inside band, +/- 1 degree because of low res.
+        self.assertTrue(np.all((
+            minfo.theta > np.radians(59)) & (minfo.theta < np.radians(151))))
+        
+        # Redo with 10 deg pad
+        minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, pad=np.radians(10),
+                                          mtype='CC')
+        self.assertTrue(np.all((
+            minfo.theta > np.radians(49)) & (minfo.theta < np.radians(161))))
+        self.assertTrue(49 < np.degrees(minfo.theta.min()) < 52)
+        self.assertTrue(159 < np.degrees(minfo.theta.max()) < 161)
+
+        # Redo with large pad.
+        minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, pad=np.radians(90), 
+                                          mtype='CC')
+        self.assertTrue(np.all((
+            minfo.theta > np.radians(0)) & (minfo.theta < np.radians(180))))
+        self.assertTrue(0 < np.degrees(minfo.theta.min()) < 1)
+        self.assertTrue(179 < np.degrees(minfo.theta.max()) < 180)
         
     def test_minfo2wcs(self):
 

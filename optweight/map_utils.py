@@ -891,7 +891,7 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
 
     return icov_pix
 
-def get_enmap_minfo(shape, wcs, lmax, pad=None):
+def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
     '''
     Compute map_info metadata for a Gauss-Legendre grid
     given a cylindrical enmap shape and wcs.
@@ -907,6 +907,8 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None):
     pad : float, optional
         Amount of extra space [radians] in the theta (collatitude) 
         direction above and below region.
+    mtype : str
+        Pick between "GL" (Gauss Legendre) or "CC" (Clenshaw Curtis).
 
     Returns
     -------
@@ -917,6 +919,8 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None):
     ------
     NotImplementedError
         If enmap is not cylindrical.
+    ValueError
+        If mtype is not understood.
     '''
 
     if not wcsutils.is_cyl(wcs):
@@ -944,7 +948,12 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None):
         theta_min = max(0, theta_min - pad)
         theta_max = min(np.pi, theta_max + pad)
 
-    return get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
+    if mtype == 'GL':
+        return get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
+    elif mtype == 'CC':
+        return get_cc_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
+    else:
+        raise ValueError(f'mtype : {mtype} not supported')
 
 def select_mask_edge(mask, minfo):
     '''
