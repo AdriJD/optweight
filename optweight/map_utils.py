@@ -94,7 +94,7 @@ def equal_area_gauss_copy_2d(imap, minfo):
     
     idx_max = np.argmax(minfo.nphi)
         
-    omap = np.zeros(imap.shape[:-1] + (minfo.theta.size, minfo.nphi[idx_max]),
+    omap = np.zeros(imap.shape[:-1] + (minfo.nrow, minfo.nphi[idx_max]),
                      dtype=imap.dtype)
     
     # Determine phi coordinates in omap.
@@ -104,7 +104,7 @@ def equal_area_gauss_copy_2d(imap, minfo):
                             endpoint=False)
                             
     # Loop over thetas
-    for tidx in range(minfo.theta.size):
+    for tidx in range(minfo.nrow):
 
         # Determine phi coords in this ring of imap.
         nphi = minfo.nphi[tidx]
@@ -566,7 +566,7 @@ def get_equal_area_gauss_minfo(lmax, theta_min=None, theta_max=None,
     nphi_reduced = np.zeros_like(minfo.nphi)
     weight_reduced = np.zeros_like(minfo.weight)
 
-    for tidx in range(minfo.theta.size):
+    for tidx in range(minfo.nrow):
 
         area_pix = minfo.weight[tidx]
 
@@ -1156,11 +1156,11 @@ def minfo2wcs(minfo):
     if not np.allclose(diff, np.full(diff.size, diff[0])):
         raise ValueError(f'Cannot determine CAR WCS for input minfo')
         
-    dtheta = np.abs(minfo.theta[0] - minfo.theta[-1]) / minfo.theta.size
+    dtheta = np.abs(minfo.theta[0] - minfo.theta[-1]) / minfo.nrow
     dphi = 2 * np.pi / minfo.nphi[0]
     _, phis = _get_gauss_coords(minfo)
 
-    theta_idx_mid = minfo.theta.size // 2
+    theta_idx_mid = minfo.nrow // 2
     phi_idx_mid = phis.size // 2
 
     wcs   = wcsutils.WCS(naxis=2)

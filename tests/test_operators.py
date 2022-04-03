@@ -8,6 +8,7 @@ from optweight import wavtrans
 from optweight import sht
 from optweight import alm_utils
 from optweight import noise_utils
+from optweight import dft
 
 class TestOperators(unittest.TestCase):
     
@@ -451,6 +452,36 @@ class TestOperators(unittest.TestCase):
         np.testing.assert_allclose(omap[0:1], omap_exp)
         np.testing.assert_allclose(imap[0:1], omap_exp)
         self.assertTrue(np.shares_memory(imap, omap))
+
+    def test_FMatVecAlm(self):
+
+        # This function should do Yt W F^(-1) M F Y. So if we make 
+        # M = 1, we should get an identity operation.
+
+        lmax = 10
+        spin = [0, 2]
+        ainfo = sharp.alm_info(lmax)
+        minfo = sharp.map_info_clenshaw_curtis(2 * lmax + 1)
+
+        # Create smaller patch for 2D power spectrum.
+        ny = 6
+        nx = 11
+        shape, wcs = enmap.geometry([0,0], res=10, deg=True, shape=(ny, nx))
+        lwcs = dft.lwcs_real(shape, wcs)
+        m_k = enmap.ones((3, minfo.nrow, minfo.nphi[0] // 2 + 1), 
+                         lwcs)
+        
+        alm = np.arange(1, 1 + 3 * ainfo.nelem).reshape(3, ainfo.nelem)
+        alm = alm.astype(np.complex128)
+        alm[:,lmax+1:] += 1j * alm[:,lmax+1:]
+        # Set ell=0, 1 pol elements to zero.
+        alm[1:,:2] = 0
+        alm[1:,lmax+1] = 0
+
+        op = operators.FMatVecAlm(ainfo, m_k, minfo, spin, power=2)
+        alm_out = op(alm)
+
+        np.testing.assert_allclose(alm_out, alm)
 
     def test_add_operators(self):
         

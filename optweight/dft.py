@@ -36,7 +36,7 @@ def rfft(emap, fmap, normalize=True, adjoint=False):
     if norm != 1:
         fmap *= norm
 
-def irfft(fmap, omap=None, normalize=True, adjoint=False, destroy_input=False):
+def irfft(fmap, omap, normalize=True, adjoint=False, destroy_input=False):
     '''
     Complex-to-real FFT.
 
@@ -78,7 +78,7 @@ def laxes_real(shape, wcs):
     Arguments
     ---------
     shape : tuple
-        Shape of geomtry.
+        Shape of geometry.
     wcs : astropy.wcs.WCS object
         WCS object describing geometry.
 
@@ -103,7 +103,7 @@ def lmap_real(shape, wcs, dtype=np.float64):
     Arguments
     ---------
     shape : tuple
-        Shape of geomtry.
+        Shape of geometry.
     wcs : astropy.wcs.WCS object
         WCS object describing geometry.
     dtype : type, optional
@@ -130,7 +130,7 @@ def modlmap_real(shape, wcs, dtype=np.float64):
     Arguments
     ---------
     shape : tuple
-        Shape of geomtry.
+        Shape of geometry.
     wcs : astropy.wcs.WCS object
         WCS object describing geometry.
     dtype : type, optional
@@ -155,7 +155,7 @@ def lwcs_real(shape, wcs):
     Arguments
     ---------
     shape : tuple
-        Shape of geomtry.
+        Shape of geometry.
     wcs : astropy.wcs.WCS object
         WCS object describing geometry.
 
@@ -167,9 +167,7 @@ def lwcs_real(shape, wcs):
 
     lres = 2 * np.pi / enmap.extent(shape, wcs, signed=True)
     ny = shape[-2]
-    nx = shape[-1] // 2 + 1
-    lres[-1] *= (nx / shape[-1])
-
+    
     return wcsutils.explicit(crpix=[0,ny//2+1], crval=[0,0], cdelt=lres[::-1])
 
 def lbin(fmap, lmod, bsize=None):

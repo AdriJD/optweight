@@ -1,9 +1,10 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-from pixell import sharp
+from pixell import sharp, enmap
 
-from optweight import sht, wavtrans, alm_utils, type_utils, alm_c_utils, mat_utils, map_utils
+from optweight import (sht, dft, wavtrans, alm_utils, type_utils, alm_c_utils,
+                       mat_utils, map_utils)
 
 class MatVecAlm(ABC):
     '''Template for all matrix-vector operators working on alm input.'''
@@ -626,6 +627,111 @@ class PixEllPixMatVecMap(MatVecMap):
                 np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
             else:
                 out *= self.m_pix
+
+        return out
+
+class FMatVecAlm(MatVecAlm):
+    '''
+    Calculate Yt W M Y alm for M diagonal in the Fourier domain and
+    positive semi-definite symmetric in other axes.
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    m_k : (npol, npol, nly, nlx) array or (npol, nly, nlx) ndmap
+        Matrix, diagonal in 2D Fourier domain, either dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed. WCS should correspond to 
+        Fourier space and fftshift should have been applied to Y axis such that (ly, lx) = 0
+        lies at ny // 2 + 1, 0.
+    minfo_cc : sharp.map_info object
+        Metainfo for pixelization of (Clenshaw Curtis) map used for SHTs.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be compatible with npol.
+    power : int, float, optional
+        Power of matrix.
+    inplace : bool, optional
+        Perform operation in place.
+    adjoint : bool, optional
+        If set, calculate Yt M W Y instead of Yt W M Y.
+
+    Methods
+    -------
+    call(alm) : Apply the operator to a set of alms.
+    '''
+
+    def __init__(self, ainfo, m_k, minfo_cc, spin, power=1, inplace=False,
+                 adjoint=False):
+
+        lwcs_in = m_k.wcs
+
+        m_k = mat_utils.atleast_nd(m_k, 3)
+        m_k = m_k.copy()
+
+        self.npol = m_k.shape[0]
+        
+        if m_k.ndim == 4:
+            self.op = 'ijyx, jyx -> iyx'
+        elif m_k.ndim == 3:
+            self.op = 'iyx, iyx -> iyx'
+        else:
+            raise ValueError(f'm_k.ndim = {m_k.ndim} is not supported.')
+
+        if power != 1:
+            m_k_flat = m_k.reshape(m_k.shape[:-2] + (np.prod(m_k.shape[-2:]),))
+            m_k_flat = mat_utils.matpow(m_k_flat, power, return_diag=True,
+                                        inplace=True)
+            
+        self.tmp_map = enmap.zeros((self.npol, minfo_cc.nrow, minfo_cc.nphi[0]),
+                                   map_utils.minfo2wcs(minfo_cc), dtype=m_k.dtype)
+
+        ft_shape = (minfo_cc.nrow, minfo_cc.nphi[0] // 2 + 1)
+        self.ft_map = np.zeros((self.npol,) + ft_shape,
+                          dtype=type_utils.to_complex(m_k.dtype))
+
+        # Project m_k onto fourier space spanned by CC map.
+        lwcs = dft.lwcs_real(self.tmp_map.shape, self.tmp_map.wcs)
+        m_k = enmap.ndmap(m_k, wcs=lwcs_in)
+        
+        self.m_k_full = enmap.project(m_k, m_k.shape[:-2] + ft_shape, lwcs,
+                                      order=1, mode='nearest')
+        self.m_k_full = np.fft.ifftshift(self.m_k_full, axes=[-2])
+        self.lwcs = lwcs
+        self.ainfo = ainfo
+        self.minfo_cc = minfo_cc
+        self.spin = spin
+        self.inplace = inplace
+        self.adjoint = adjoint
+
+    def call(self, alm):
+        '''
+        Apply the operator to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+
+        if self.inplace:
+            out = alm
+        else:
+            out = alm.copy()
+
+        tmp_map_view = map_utils.view_1d(self.tmp_map, self.minfo_cc)
+
+        sht.alm2map(out, tmp_map_view, self.ainfo, self.minfo_cc, self.spin,
+                    adjoint=self.adjoint)
+        dft.rfft(self.tmp_map, self.ft_map)        
+        np.einsum(self.op, self.m_k_full, self.ft_map, optimize=True, out=self.ft_map)
+        dft.irfft(self.ft_map, self.tmp_map)
+        sht.map2alm(tmp_map_view, out, self.minfo_cc, self.ainfo, self.spin,
+                    adjoint=self.adjoint)
 
         return out
 
