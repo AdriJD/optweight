@@ -5,13 +5,13 @@ import numpy as np
 
 from pixell import fft, enmap, wcsutils
 
-def rfft(emap, fmap, normalize=True, adjoint=False):
+def rfft(imap, fmap, normalize=True, adjoint=False):
     '''
     Real-to-complex FFT.
 
     Parameters
     ----------
-    emap : (..., ny, nx) ndmap
+    imap : (..., ny, nx) ndmap
         Map to transform.
     fmap : (..., ny, nx//2+1) complex ndmap
         Output buffer.
@@ -21,18 +21,28 @@ def rfft(emap, fmap, normalize=True, adjoint=False):
         normalize by sky area.
     adjoint : bool, optional
         Compute adjoint of the complex-to-real FFT.
+
+    Raises
+    ------
+    ValueError
+        If input and output map have inconsistent shapes.
     '''
 
-    fmap = fft.rfft(emap, fmap, axes=[-2, -1])
+    ny, nx = imap.shape[-2:]
+    if fmap.shape != imap.shape[:-2] + (ny, nx // 2 + 1):
+        raise ValueError(
+            f'Inconsistent shapes: imap : {imap.shape}, fmap : {fmap.shape}')
+
+    fmap = fft.rfft(imap, fmap, axes=[-2, -1])
     norm = 1
 
     if normalize:
-        norm /= np.prod(emap.shape[-2:]) ** 0.5
+        norm /= np.prod(imap.shape[-2:]) ** 0.5
     if normalize in ["phy","phys","physical"]:
         if adjoint:
-            norm /= emap.pixsize() ** 0.5
+            norm /= imap.pixsize() ** 0.5
         else:
-            norm *= emap.pixsize() ** 0.5
+            norm *= imap.pixsize() ** 0.5
     if norm != 1:
         fmap *= norm
 
@@ -54,7 +64,17 @@ def irfft(fmap, omap, normalize=True, adjoint=False, destroy_input=False):
         Compute the adjoint of the real-to-complex FFT.
     destroy_input : bool, optional
         If set, input `fmap` array might be overwritten.
+
+    Raises
+    ------
+    ValueError
+        If input and output map have inconsistent shapes.
     '''
+
+    ny, nx = omap.shape[-2:]
+    if fmap.shape != omap.shape[:-2] + (ny, nx // 2 + 1):
+        raise ValueError(
+            f'Inconsistent shapes: fmap : {fmap.shape}, omap : {omap.shape}')
 
     if not destroy_input:
         fmap = fmap.copy()

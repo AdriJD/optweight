@@ -632,7 +632,7 @@ class PixEllPixMatVecMap(MatVecMap):
 
 class FMatVecAlm(MatVecAlm):
     '''
-    Calculate Yt W M Y alm for M diagonal in the Fourier domain and
+    Calculate Yt W F^-1 M F Y alm for M diagonal in the Fourier domain and
     positive semi-definite symmetric in other axes.
 
     Parameters
@@ -643,7 +643,7 @@ class FMatVecAlm(MatVecAlm):
         Matrix, diagonal in 2D Fourier domain, either dense in first two axes or diagonal,
         in which case only the diagonal elements are needed. WCS should correspond to 
         Fourier space and fftshift should have been applied to Y axis such that (ly, lx) = 0
-        lies at ny // 2 + 1, 0.
+        lies at (lny // 2 + 1, 0).
     minfo_cc : sharp.map_info object
         Metainfo for pixelization of (Clenshaw Curtis) map used for SHTs.
     spin : int, array-like
@@ -653,7 +653,7 @@ class FMatVecAlm(MatVecAlm):
     inplace : bool, optional
         Perform operation in place.
     adjoint : bool, optional
-        If set, calculate Yt M W Y instead of Yt W M Y.
+        If set, calculate Yt M F^-1 W F Y instead of Yt W F^-1 M F Y.
 
     Methods
     -------
