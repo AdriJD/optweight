@@ -8,14 +8,16 @@ class CGWiener(utils.CG):
     '''
     Construct a CG solver for x in the equation system A x = b where:
 
-        A : S^-1 + B M N^-1 M B,
+        A : S^-1 + B Ft M N^-1 M F B,
         x : the Wiener filtered version of the input,
-        b : B M N^-1 a,
+        b : B Ft M N^-1 a,
 
     and
 
         a    : input vector (masked and beam-convolved sky + noise),
         B    : beam convolution operator,
+        F    : filter operator,
+        Ft   : adjoint filter operator,
         M    : mask operator,
         N^-1 : inverse noise covariance,
         S^-1 : inverse signal covariance.
@@ -23,8 +25,8 @@ class CGWiener(utils.CG):
     When the class instance is provided with random draws from the inverse noise
     and signal covariance, the solver will instead solve A x = b where:
 
-        x : constrained realisation drawn from P(s |a, (B M N^-1 M B)^-1, S),
-        b : B M N^-1 a + w_s + B w_n,
+        x : constrained realisation drawn from P(s |a, (B Ft M N^-1 M F B)^-1, S),
+        b : B Ft M N^-1 a + w_s + B w_n,
 
     where:
 
@@ -44,6 +46,8 @@ class CGWiener(utils.CG):
     beam : callable, optional
         Callable that takes alm_data-shaped alm array as input and applies the
         beam window function.
+    filt : tuple of callable, optional
+        Tuple containing filter and filter_adjoint operators.
     mask : callable, optional
         Callable that takes alm_data-shaped alm array as input and applies the
         pixel mask.
@@ -52,22 +56,32 @@ class CGWiener(utils.CG):
     rand_inoise : array, optional
         Draw from inverse noise covariance as SH coefficients in alm_data shape.
     swap_bm : bool, optional
-        If set, swap the order of the beam and mask operations. Helps convergence
+        If set, swap the order of the beam/filter and mask operations. Helps convergence
         with large beams and high SNR data.
     '''
 
-    def __init__(self, alm_data, icov_signal, icov_noise, beam=None, mask=None,
-                 rand_isignal=None, rand_inoise=None, swap_bm=False):
+    def __init__(self, alm_data, icov_signal, icov_noise, beam=None, filt=None,
+                 mask=None, rand_isignal=None, rand_inoise=None, swap_bm=False):
 
         self.alm_data = alm_data
         self.icov_signal = icov_signal
         self.icov_noise = icov_noise
+
         if beam is None:
             beam = lambda alm: alm
         self.beam = beam
+
+        if filt is None:
+            self.filt = lambda alm : alm
+            self.filt_adjoint = lambda alm : alm
+        else:
+            self.filt = filt[0]
+            self.filt_adjoint = filt[1]
+
         if mask is None:
             mask = lambda alm: alm
         self.mask = mask
+
         self.rand_isignal = rand_isignal
         self.rand_inoise = rand_inoise
         self.swap_bm = swap_bm
@@ -132,7 +146,7 @@ class CGWiener(utils.CG):
 
     def a_matrix(self, alm):
         '''
-        Apply the A (= S^-1 + B M N^-1 M B) matrix to input alm.
+        Apply the A (= S^-1 + B Ft M N^-1 M F B) matrix to input alm.
 
         Parameters
         ----------
@@ -148,17 +162,21 @@ class CGWiener(utils.CG):
         if self.swap_bm:
             alm_noise = self.mask(alm.copy())
             alm_noise = self.beam(alm_noise)
+            alm_noise = self.filt(alm_noise)
         else:
             alm_noise = self.beam(alm.copy())
+            alm_noise = self.filt(alm_noise)
             alm_noise = self.mask(alm_noise)
 
         alm_noise = self.icov_noise(alm_noise)
 
         if self.swap_bm:
+            alm_noise = self.filt_adjoint(alm_noise)
             alm_noise = self.beam(alm_noise)
             alm_noise = self.mask(alm_noise)
         else:
             alm_noise = self.mask(alm_noise)
+            alm_noise = self.filt_adjoint(alm_noise)
             alm_noise = self.beam(alm_noise)
 
         alm_signal = self.icov_signal(alm.copy())
@@ -182,10 +200,12 @@ class CGWiener(utils.CG):
 
         alm = self.icov_noise(alm.copy())
         if self.swap_bm:
+            alm = self.filt_adjoint(alm)
             alm = self.beam(alm)
             alm = self.mask(alm)
         else:
             alm = self.mask(alm)
+            alm = self.filt_adjoint(alm)
             alm = self.beam(alm)
 
         return alm
@@ -208,9 +228,9 @@ class CGWiener(utils.CG):
 
         alm = self.get_b_vec(alm)
         if self.swap_bm:
-            alm += self.mask(self.beam(self.rand_inoise.copy()))
+            alm += self.mask(self.beam(self.filt_adjoint(self.rand_inoise.copy())))
         else:
-            alm += self.beam(self.mask(self.rand_inoise.copy()))
+            alm += self.beam(self.filt_adjoint(self.mask(self.rand_inoise.copy())))
         alm += self.rand_isignal
 
         return alm
@@ -230,8 +250,8 @@ class CGWiener(utils.CG):
 
         x_w = self.get_wiener()
         out = self.dot(x_w, self.icov_signal(x_w))
-        out += self.dot(self.beam(self.mask(self.alm_data - x_w)),
-                        self.icov_noise(self.beam(self.mask(self.alm_data - x_w))))
+        out += self.dot(self.beam(self.filt_adjoint(self.mask(self.alm_data - x_w))),
+                self.icov_noise(self.beam(self.filt(self.mask(self.alm_data - x_w)))))
         return out
 
     def get_residual(self):
@@ -243,7 +263,7 @@ class CGWiener(utils.CG):
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,
                     b_ell=None, mask_pix=None, draw_constr=False, spin=None,
-                    icov_noise_flat_ell=None, swap_bm=False):
+                    icov_noise_flat_ell=None, swap_bm=False, kfilt=None, minfo_kfilt=None):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -277,6 +297,11 @@ class CGWiener(utils.CG):
         swap_bm : bool, optional
             If set, swap the order of the beam and mask operations. Helps convergence
             with large beams and high SNR data.
+        kfilt : (npol, npol, ky, kx) or (npol, ky, kx) ndmap, optional
+            Fourier filter, WCS should correspond to Fourier space and fftshift should 
+            have been applied to Y axis such that (ly, lx) = 0 lies at (lny // 2 + 1, 0).
+        minfo_kfilt : sharp.map_info object, optional
+            Metainfo for Clenshaw Curtis map used for Fourier filter.
         '''
 
         if spin is None:
@@ -296,6 +321,12 @@ class CGWiener(utils.CG):
         else:
             beam = None
 
+        if kfilt is not None:
+            filt = (operators.FMatVecAlm(ainfo, kfilt, minfo_kfilt, spin),
+                    operators.FMatVecAlm(ainfo, kfilt, minfo_kfilt, spin, adjoint=True))
+        else:
+            filt = None
+
         if mask_pix is not None:
             mask = operators.PixMatVecAlm(
                 ainfo, mask_pix, minfo, spin, use_weights=True)
@@ -314,14 +345,15 @@ class CGWiener(utils.CG):
             rand_isignal = None
             rand_inoise = None
 
-        return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
+        return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam, filt=filt,
                    mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
                    swap_bm=swap_bm)
 
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                        draw_constr=False, spin=None, swap_bm=False, icov_noise_ell=None):
+                        draw_constr=False, spin=None, swap_bm=False, icov_noise_ell=None,
+                        kfilt=None, minfo_kfilt=None):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
@@ -359,6 +391,11 @@ class CGWiener(utils.CG):
             diagonal suffices. Will update noise model to iN_ell^0.5 iN_wav iN_ell^0.5,
             so make sure iN_wav corresponds to the inverse noise covariance after
             flattening by iN_ell^0.5.
+        kfilt : (npol, npol, ky, kx) or (npol, ky, kx) ndmap, optional
+            Fourier filter, WCS should correspond to Fourier space and fftshift should 
+            have been applied to Y axis such that (ly, lx) = 0 lies at (lny // 2 + 1, 0).
+        minfo_kfilt : sharp.map_info object, optional
+            Metainfo for Clenshaw Curtis map used for Fourier filter.
         '''
 
         if spin is None:
@@ -378,6 +415,12 @@ class CGWiener(utils.CG):
         else:
             beam = None
 
+        if kfilt is not None:
+            filt = (operators.FMatVecAlm(ainfo, kfilt, minfo_kfilt, spin),
+                    operators.FMatVecAlm(ainfo, kfilt, minfo_kfilt, spin, adjoint=True))
+        else:
+            filt = None
+
         if mask_pix is not None:
             mask = operators.PixMatVecAlm(
                 ainfo, mask_pix, minfo_mask, spin, use_weights=True)
@@ -396,7 +439,7 @@ class CGWiener(utils.CG):
             rand_isignal = None
             rand_inoise = None
 
-        return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam,
+        return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam, filt=filt,
                    mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
                    swap_bm=swap_bm)
 
@@ -404,14 +447,17 @@ class CGWienerScaled(CGWiener):
     '''
     Construct a CG solver for x in the equation system A x = b where:
 
-        A : 1 + S^1/2 B N^-1 B S^1/2,
+        A : 1 + S^1/2 B Ft M N^-1 M F B S^1/2,
         x : the Wiener filtered version of the input scaled by S^-1/2,
-        b : S^1/2 B N^-1 a,
+        b : S^1/2 B Ft M N^-1 a,
 
     and
 
         a     : input vector (beam-convolved sky + noise),
         B     : beam convolution operator,
+        F    : filter operator,
+        Ft   : adjoint filter operator,
+        M    : mask operator,
         N^-1  : inverse noise covariance,
         S^1/2 : square root of signal covariance.
 
@@ -419,7 +465,7 @@ class CGWienerScaled(CGWiener):
     and signal covariance, the solver will instead solve A x = b where:
 
         x : constrained realisation drawn from P(s |a, B^-1 N B^-1, S) scaled by S^-1/2,
-        b : B N^-1 a + w_s + S^1/2 B w_n,
+        b : B Ft M N^-1 a + w_s + S^1/2 B Ft M w_n,
 
     where:
 
@@ -442,6 +488,8 @@ class CGWienerScaled(CGWiener):
     beam : callable, optional
         Callable that takes alm_data-shaped alm array as input and applies the
         beam window function.
+    filt : tuple of callable, optional
+        Tuple containing filter and filter_adjoint operators.
     rand_isignal : array, optional
         Draw from inverse signal covariance as SH coefficients in alm_data shape.
     rand_inoise : array, optional
@@ -452,17 +500,17 @@ class CGWienerScaled(CGWiener):
     '''
 
     def __init__(self, alm_data, icov_signal, icov_noise, sqrt_cov_signal, beam=None,
-                 mask=None, rand_isignal=None, rand_inoise=None, swap_bm=False):
+                 filt=None, mask=None, rand_isignal=None, rand_inoise=None, swap_bm=False):
 
         self.sqrt_cov_signal = sqrt_cov_signal
 
-        CGWiener.__init__(self, alm_data, icov_signal, icov_noise, beam=beam,
+        CGWiener.__init__(self, alm_data, icov_signal, icov_noise, beam=beam, filt=filt,
                           mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
                           swap_bm=swap_bm)
 
     def a_matrix(self, alm):
         '''
-        Apply the A (= (1 + S^1/2 B M N^-1 M B S^1/2)) matrix to input alm.
+        Apply the A (= (1 + S^1/2 B Ft M N^-1 M F B S^1/2)) matrix to input alm.
 
         Parameters
         ----------
@@ -479,15 +527,19 @@ class CGWienerScaled(CGWiener):
         if self.swap_bm:
             alm_noise = self.mask(alm_noise)
             alm_noise = self.beam(alm_noise)            
+            alm_noise = self.filt(alm_noise)
         else:
             alm_noise = self.beam(alm_noise)
+            alm_noise = self.filt(alm_noise)
             alm_noise = self.mask(alm_noise)
         alm_noise = self.icov_noise(alm_noise)
         if self.swap_bm:
+            alm_noise = self.filt_adjoint(alm_noise)
             alm_noise = self.beam(alm_noise)
             alm_noise = self.mask(alm_noise)
         else:
             alm_noise = self.mask(alm_noise)
+            alm_noise = self.filt_adjoint(alm_noise)
             alm_noise = self.beam(alm_noise)
         alm_noise = self.sqrt_cov_signal(alm_noise)
 
@@ -497,7 +549,7 @@ class CGWienerScaled(CGWiener):
 
     def get_b_vec(self, alm):
         '''
-        Convert input alm to the b (= S^1/2 B M N^-1 a) vector (not in place).
+        Convert input alm to the b (= S^1/2 B Ft M N^-1 a) vector (not in place).
 
         Parameters
         ----------
@@ -512,10 +564,12 @@ class CGWienerScaled(CGWiener):
 
         alm = self.icov_noise(alm.copy())
         if self.swap_bm:
+            alm = self.filt_adjoint(alm)
             alm = self.beam(alm)
             alm = self.mask(alm)
         else:
             alm = self.mask(alm)
+            alm = self.filt_adjoint(alm)
             alm = self.beam(alm)
         alm = self.sqrt_cov_signal(alm)
 
@@ -539,9 +593,11 @@ class CGWienerScaled(CGWiener):
 
         alm = self.get_b_vec(alm)
         if self.swap_bm:
-            alm += self.sqrt_cov_signal(self.mask(self.beam(self.rand_inoise.copy())))
+            alm += self.sqrt_cov_signal(self.mask(self.beam(self.filt_adjoint(
+                self.rand_inoise.copy()))))
         else:
-            alm += self.sqrt_cov_signal(self.beam(self.mask(self.rand_inoise.copy())))
+            alm += self.sqrt_cov_signal(self.beam(self.filt_adjoint(self.mask(
+                self.rand_inoise.copy()))))
         alm += self.sqrt_cov_signal(self.rand_isignal.copy())
 
         return alm

@@ -653,7 +653,7 @@ class FMatVecAlm(MatVecAlm):
     inplace : bool, optional
         Perform operation in place.
     adjoint : bool, optional
-        If set, calculate Yt M F^-1 W F Y instead of Yt W F^-1 M F Y.
+        If set, calculate Yt F^-1 M F W Y instead of Yt W F^-1 M F Y.
 
     Methods
     -------
