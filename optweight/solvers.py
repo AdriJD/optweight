@@ -246,7 +246,7 @@ class CGWiener(utils.CG):
         return self.icov_signal(self.x.copy())
 
     def get_chisq(self):
-        '''Return x^dagger S^-1 x + (a - x)^dagger B M N^-1 M B (a - x).'''
+        '''Return x^dagger S^-1 x + (a - x)^dagger B M N^-1 M B (a - x) at current state.'''
 
         x_w = self.get_wiener()
         out = self.dot(x_w, self.icov_signal(x_w))
@@ -255,10 +255,15 @@ class CGWiener(utils.CG):
         return out
 
     def get_residual(self):
-        '''Return sqrt[(A(x) - b)^dagger (A(x) - b)]'''
+        '''Return sqrt[(A(x) - b)^dagger (A(x) - b)] at current state'''
 
         r = self.A(self.x) - self.b0
         return np.sqrt(self.dot(r, r))
+
+    def get_qform(self):
+        '''Return 0.5 * x^dagger A x - x^dagger b at current state.'''
+
+        return 0.5 * self.dot(self.x, self.A(self.x)) - self.dot(self.x, self.b0)
 
     @classmethod
     def from_arrays(cls, alm_data, ainfo, icov_ell, icov_pix, minfo, *extra_args,

@@ -145,7 +145,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
     '''
 
     def __init__(self, ainfo, icov_ell, icov_pix, minfo, spin,
-                 itau=None, b_ell=None, cov_pix=None):
+                 itau=None, b_ell=None, cov_pix=None, mask_pix=None):
 
         npol, nell = icov_ell.shape[-2:]
 
