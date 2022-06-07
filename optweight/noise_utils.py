@@ -6,8 +6,11 @@ import healpy as hp
 
 from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht
 
+FWHM_FACT_0 = 2
+
 def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
-                     minfo_features=None, wav_template=None, fwhm_fact=2):
+                     minfo_features=None, wav_template=None, fwhm_fact=2,
+                     fwhm_pivot=1000):
     '''
     Estimate wavelet-based covariance matrix given noise alms.
     
@@ -35,6 +38,10 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
     fwhm_fact : float, optional
         Factor determining smoothing scale at each wavelet scale:
         FWHM = fact * pi / lmax, where lmax is the max wavelet ell.
+    fwhm_pivot : int, optional
+        Above this scale, use fwhm_fact for each wavelet. Between
+        0 and fwhm_pivot, linearly interpolate from 2 to fwhm_fact.
+        By default 1000. 
         
     Returns
     -------
@@ -56,6 +63,13 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
 
     cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(alm.dtype))
 
+    # Get fwhm_fact(l) callable
+    def _fwhm_fact(l):
+        if 0 <= l and l < fwhm_pivot:
+            return FWHM_FACT_0 + l * (fwhm_fact - FWHM_FACT_0) / fwhm_pivot
+        else:
+            return fwhm_fact
+
     for jidx in range(w_ell.shape[0]):
         # No off-diagonal elements for now.
         index = (jidx, jidx)
@@ -67,7 +81,8 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         else:
             features_j = None
 
-        fwhm = fwhm_fact * np.pi / map_utils.minfo2lmax(minfo)
+        _lmax = map_utils.minfo2lmax(minfo)
+        fwhm = _fwhm_fact(_lmax) * np.pi / _lmax
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo,
                                    kernel_ell=w_ell[jidx], diag=diag,
                                    features=features_j, fwhm=fwhm)
