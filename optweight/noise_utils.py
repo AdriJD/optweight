@@ -6,11 +6,8 @@ import healpy as hp
 
 from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht
 
-FWHM_FACT_0 = 2
-
 def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
-                     minfo_features=None, wav_template=None, fwhm_fact=2,
-                     fwhm_pivot=1000):
+                     minfo_features=None, wav_template=None, fwhm_fact=2):
     '''
     Estimate wavelet-based covariance matrix given noise alms.
     
@@ -35,13 +32,12 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         (nwav) wavelet vector used for alm2wav operation, used as 
         template for cut sky wavelet maps. Will determine minfos
         of output wavelet matrix.
-    fwhm_fact : float, optional
+    fwhm_fact : scalar or callable, optional, optional
         Factor determining smoothing scale at each wavelet scale:
         FWHM = fact * pi / lmax, where lmax is the max wavelet ell.
-    fwhm_pivot : int, optional
-        Above this scale, use fwhm_fact for each wavelet. Between
-        0 and fwhm_pivot, linearly interpolate from 2 to fwhm_fact.
-        By default 1000. 
+        Can also be a function specifying this factor for a given
+        ell. Function must accept a single scalar ell value and 
+        return one.
         
     Returns
     -------
@@ -65,8 +61,8 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
 
     # Get fwhm_fact(l) callable
     def _fwhm_fact(l):
-        if 0 <= l and l < fwhm_pivot:
-            return FWHM_FACT_0 + l * (fwhm_fact - FWHM_FACT_0) / fwhm_pivot
+        if callable(fwhm_fact):
+            return fwhm_fact(l)
         else:
             return fwhm_fact
 
