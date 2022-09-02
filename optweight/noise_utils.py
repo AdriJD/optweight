@@ -163,7 +163,8 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
             if features is not None:
                 smooth_locally(cov_pix[idxs], minfo, w_ell, features, 0, inplace=True)
             else:
-                map_utils.lmul_pix(cov_pix[idxs], b_ell, minfo, 0, inplace=True)
+                if fwhm > 0:
+                    map_utils.lmul_pix(cov_pix[idxs], b_ell, minfo, 0, inplace=True)
         else:
             # Fill lower triangular. Works because idxs loop is in row-major order.
             cov_pix[idxs] = cov_pix[(idxs[1],idxs[0])+idxs[2:]]
