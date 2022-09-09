@@ -4,7 +4,7 @@ Filter 2D data (e.g. CMB or weak lensing data) on the curved sky in a statically
 
 #### Features
 * Noise models that can be either diagonal in the pixel domain, or diagonal in a wavelet domain to allow for sparially varying noise correlation over pixels. The signal covariance is assumed to be diagonal in the harmonic domain.
-* Multiple preconditioners including the pseudo-inverse preconditioner by [Seljeboth et al., A&A 627 A98 (2019)](https://www.aanda.org/articles/aa/abs/2019/07/aa32037-17/aa32037-17.html).
+* Multiple preconditioners including the pseudo-inverse preconditioner by [Seljebotn et al., A&A 627 A98 (2019)](https://www.aanda.org/articles/aa/abs/2019/07/aa32037-17/aa32037-17.html).
 
 ### Dependencies
 
