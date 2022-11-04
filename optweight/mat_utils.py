@@ -1,9 +1,27 @@
 import numpy as np
 
 from pixell import utils
-from enlib import array_ops
 
 from optweight import wavtrans, type_utils
+        
+def _select_eigpow():
+    '''Determine at runtime if we will use enlib or pixell's eigpow '''
+    try:
+        from enlib import array_ops
+        array_ops.eigpow(np.ones((1, 1)), 1)
+        eigpow_fun = array_ops.eigpow
+    except:
+        # Enlib failed so call pixell's eigpow.
+        def eigpow_fun(*args, **kwargs):
+            kwargs.pop('copy')
+            arr = args[0]
+            args = list(args)
+            if utils.is_int_valued(args[1]):
+                args[1] += 1e-15 # Making sure pow is not an int. Ugly hack.
+            arr[:] = utils.eigpow(*tuple(args), **kwargs)
+            return arr
+    return eigpow_fun
+_eigpow_fun = _select_eigpow()
 
 def symm2triu(mat, axes, return_axis=False):
     '''
@@ -349,7 +367,7 @@ def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=10000):
             matf_tmp = matf[:,:,matslice].astype(dtype_internal, copy=False)
 
             # You know that axes are [0,1] in this case.
-            array_ops.eigpow(matf_tmp, power, axes=[0,1], copy=False)
+            _eigpow_fun(matf_tmp, power, axes=[0,1], copy=False)
             matf[:,:,matslice] = matf_tmp.astype(dtype_in, copy=False)
 
     return mat

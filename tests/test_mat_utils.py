@@ -208,7 +208,7 @@ class TestMatUtils(unittest.TestCase):
         mat_diag_out = mat_utils.matpow(mat_diag, -1)
 
         np.testing.assert_allclose(mat_full_out, mat_diag_out)
-        
+
         mat_diag_out_diag = mat_utils.matpow(mat_diag, -1, return_diag=True)        
         mat_diag_out_diag_exp = np.ones((3, 1))
         mat_diag_out_diag_exp[1] = 0
@@ -317,7 +317,7 @@ class TestMatUtils(unittest.TestCase):
 
         e, _ = np.linalg.eig(out[:,:,0])
         # We can tolerate some negative values as long as they are close to zero.
-        self.assertTrue(np.all(e >= 0) | np.all(np.abs(e[e<0]) < 1e-16))
+        self.assertTrue(np.all(e >= 0) | np.all(np.abs(e[e<0]) < 1e-14))
 
         out_exp = mat.copy()
         out_exp[:,:,0] = np.asarray([[1.05, 1, 1.05],[1, 1, 1],[1.05, 1, 1.05]])

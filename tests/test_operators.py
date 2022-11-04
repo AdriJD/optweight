@@ -130,7 +130,7 @@ class TestOperators(unittest.TestCase):
         alm_out = matvec_alm(alm)
 
         np.testing.assert_array_almost_equal(alm_out, alm_exp)
-        np.testing.assert_array_equal(alm, alm_exp)
+        np.testing.assert_array_almost_equal(alm, alm_exp)
         self.assertTrue(np.shares_memory(alm, alm_out))
 
     def test_matvec_pow_pix_alm(self):
