@@ -388,7 +388,7 @@ class MaskedPreconditioner(operators.MatVecAlm):
         self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
                                            self.spin, min_pix=min_pix,
                                            lmax_r_ell=lmax_r_ell)
-        self.r_ell = multigrid.lowpass_filter(lmax_r_ell)[:self.lmax+1]
+        self.r_ell = multigrid.lowpass_filter(lmax_r_ell, lmax=self.lmax)
         self.mask_unobs = self.levels[0].mask_unobs
         self.minfo = self.levels[0].minfo
 
