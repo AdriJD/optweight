@@ -161,7 +161,7 @@ class CGPixFilter(object):
         self.swap_bm = swap_bm
 
     def filter(self,alm, benchmark=False, verbose=True, niter=None, niter_masked_cg=5, 
-               lmax_masked_cg=3000, ainfo=None, stype='pcg_pinv', err_tol=1e-15):
+               lmax_masked_cg=3000, ainfo=None, stype='pcg_pinv', err_tol=1e-15, draw_constr=False):
         """
         Filter a map using a pixel-space instrument noise model
         and a harmonic space signal model.
@@ -235,7 +235,7 @@ class CGPixFilter(object):
         mask_pix = self.mask_bool.astype(np.float32) if self.swap_bm else None
         solver = solvers.CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
                                               self.icov_pix, self.minfo, b_ell=self.b_ell,
-                                              draw_constr=False, mask_pix=mask_pix,
+                                              draw_constr=draw_constr, mask_pix=mask_pix,
                                               icov_noise_flat_ell=self.icov_noise_ell,
                                               swap_bm=self.swap_bm)
         
