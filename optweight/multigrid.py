@@ -230,8 +230,7 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
                              f'in one or more of the masks : {nmasked_per_pol}')
 
         if idx == 0:
-            r_ell = np.zeros(lmax_level + 1)
-            r_ell[:lmax_r_ell+1] = lowpass_filter(lmax_r_ell, lmax=lmax_level)
+            r_ell = lowpass_filter(lmax_r_ell, lmax=lmax_level)
             d_ell = icov_ell[:,:,:lmax_level+1] * r_ell ** 2
         else:
             r_ell = noise_utils._band_limit_gauss_beam(
