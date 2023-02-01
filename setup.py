@@ -1,6 +1,10 @@
 from numpy.distutils.core import setup, Extension, build_src
 from distutils.errors import DistutilsError
 from Cython.Build import cythonize
+
+import Cython.Compiler.Options
+Cython.Compiler.Options.annotate = True
+
 import numpy as np
 import os
 import subprocess as sp
@@ -11,8 +15,15 @@ opj = os.path.join
 path = str(Path(__file__).parent.absolute())
 
 compile_opts = {
-    'extra_compile_args': ['-shared', '-std=c99', '-g', '-Wall'],
+    'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall'],
     'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib')]}
+
+compile_opts_mat = {
+    'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall', '-fopenmp', '-Ofast'],
+    'extra_link_args' : ['-fopenmp']}
+#    'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall', '-openmp' '-O3' '-ffast-math'],
+#    'extra_link_args' : ['-openmp']}
+
 
 compiler_directives = {'language_level' : 3}
 
@@ -34,10 +45,16 @@ ext_modules = [Extension('optweight.alm_c_utils',
                          library_dirs=[opj(path, 'lib')],
                          include_dirs=[opj(path, 'include'),
                                        np.get_include()],
-                         **compile_opts)]
+                         **compile_opts),
+               Extension('optweight.mat_c_utils',
+                         [opj(path, 'cython', 'mat_c_utils.pyx')],
+                         library_dirs=[opj(path, 'lib')],
+                         include_dirs=[opj(path, 'include'),
+                                       np.get_include()],
+                         **compile_opts_mat)]
 
 setup(name='optweight',
       packages=['optweight'],
       cmdclass=cmdclass,
-      ext_modules=cythonize(ext_modules,
+      ext_modules=cythonize(ext_modules, annotate=True,
                             compiler_directives=compiler_directives))
