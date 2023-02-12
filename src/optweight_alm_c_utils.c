@@ -173,7 +173,6 @@ void lmul_inplace_dp(const double *restrict lmat,
 
 	  for (int jdx=0; jdx<ncomp; jdx++){
 
-	    int astart_j = jdx * nelem;
 	    int matstart = (idx * ncomp + jdx) * nell;       
 	    alm[astart_i + mstart + ell] += lmat[matstart + ell] 
                * tmp[jdx];
@@ -225,7 +224,6 @@ void trunc_alm_dp(const double _Complex *restrict alm,
 
   int nelem = get_nelem(lmax);
   int nelem_out = get_nelem(lmax_out);
-  int nell_out = lmax_out + 1;
 
   #pragma omp parallel
   {
@@ -414,7 +412,6 @@ void lmul_inplace_sp(const float *restrict lmat,
 
 	  for (int jdx=0; jdx<ncomp; jdx++){
 
-	    int astart_j = jdx * nelem;
 	    int matstart = (idx * ncomp + jdx) * nell;       
 	    alm[astart_i + mstart + ell] += lmat[matstart + ell] 
                * tmp[jdx];
@@ -466,7 +463,6 @@ void trunc_alm_sp(const float _Complex *restrict alm,
 
   int nelem = get_nelem(lmax);
   int nelem_out = get_nelem(lmax_out);
-  int nell_out = lmax_out + 1;
 
   #pragma omp parallel
   {
