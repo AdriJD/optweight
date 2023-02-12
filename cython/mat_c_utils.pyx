@@ -1,3 +1,5 @@
+cimport cmat_c_utils
+
 from cython.parallel import parallel, prange, threadid
 from cython import boundscheck, wraparound
 from libc.stdlib cimport malloc, free
@@ -59,6 +61,26 @@ def eigpow2(imat, power, lim, lim0):
 
     cdef float [::1] imat_ = imat.reshape(-1)
     _eigpow_core_rsp(&imat_[0], power, lim, lim0, nsamp, ncomp)
+
+    return imat
+
+def eigpow3(imat, power, lim, lim0):
+    '''
+    Port of Enlib's eigpow code. Raises a positive (semi)definite 
+    matrix to an arbitrairy real power.
+
+    Parameters
+    ----------
+    imat : (nsamp, ncomp, ncomp) array
+            
+        
+    '''
+
+    ncomp = imat.shape[1]
+    nsamp = imat.shape[0]
+
+    cdef float [::1] imat_ = imat.reshape(-1)
+    cmat_c_utils._eigpow_core_rsp_c(&imat_[0], power, lim, lim0, nsamp, ncomp)
 
     return imat
 
@@ -132,8 +154,8 @@ cdef void _eigpow_core_rsp(float *imat, float power, float lim, float lim0,
              max_idx = isamax(&ncomp, eigs, &eigval_step)
              maxval = eigs[max_idx - 1]
 
-             #thread_id = threadid()   
-             #printf("thread %d %d %f\n", thread_id, max_idx, maxval)
+             thread_id = threadid()   
+             #printf("thread %d %d\n", thread_id, idx)
 
              #printf("lim0 %f\n", lim0)
 
@@ -165,10 +187,10 @@ cdef void _eigpow_core_rsp(float *imat, float power, float lim, float lim0,
                  # Compute V^T D (= V^T E^power V = A^T = A).
                  sgemm(transa, transb, &ncomp, &ncomp, &ncomp, &alpha, vecs, &ncomp, tmp, &ncomp, &beta,
                        &imat[idx * ncomp * ncomp], &ncomp)
-	     
+             
 
         free(tmp)
         free(vecs)
         free(eigs)
         free(work)
-        
+

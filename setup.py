@@ -17,6 +17,7 @@ path = str(Path(__file__).parent.absolute())
 compile_opts = {
     'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall'],
     'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib')]}
+    #'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib'), '-L$(MKLROOT)/lib/intel64', '-Wl,--no-as-needed', '-lmkl_intel_lp64', '-lmkl_sequential', '-lmkl_core', '-lpthread']}
 
 compile_opts_mat = {
     'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall', '-fopenmp', '-Ofast'],
@@ -48,6 +49,7 @@ ext_modules = [Extension('optweight.alm_c_utils',
                          **compile_opts),
                Extension('optweight.mat_c_utils',
                          [opj(path, 'cython', 'mat_c_utils.pyx')],
+                         libraries=['optweight_c_utils'],                         
                          library_dirs=[opj(path, 'lib')],
                          include_dirs=[opj(path, 'include'),
                                        np.get_include()],
