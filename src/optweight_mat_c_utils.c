@@ -38,8 +38,8 @@ void _eigpow_core_rsp(float *imat, const float power, const float lim,
                          vecs, eigval_step);
              ssyev("V", "U", &ncomp, vecs, &ncomp, eigs, work, &lwork, &info);	     
 
-             // Find max eigenvalue.
-	     maxval = find_max_sp(eigs, ncomp);
+             // Find max eigenvalue. We know eigenvalues are in ascending order.
+	     maxval = eigs[ncomp - 1];
 	     
              if (maxval < lim0){
                  // Set input matrix to zero.
@@ -113,8 +113,8 @@ void _eigpow_core_rdp(double *imat, const double power, const double lim,
                          vecs, eigval_step);
              dsyev("V", "U", &ncomp, vecs, &ncomp, eigs, work, &lwork, &info);	     
 
-             // Find max eigenvalue.
-	     maxval = find_max_dp(eigs, ncomp);
+             // Find max eigenvalue. We know eigenvalues are in ascending order.
+	     maxval = eigs[ncomp - 1];
 	     
              if (maxval < lim0){
                  // Set input matrix to zero.
@@ -154,28 +154,4 @@ void _eigpow_core_rdp(double *imat, const double power, const double lim,
         free(eigs);
         free(work);
     }
-}
-
-float find_max_sp(const float *arr, const int n_elements){
-
-    float maxval = 0;
-    
-    for (int idx=0; idx<n_elements; idx++){
-	if (arr[idx] > maxval){
-	    maxval = arr[idx];
-	}
-    }
-    return maxval;
-}
-
-float find_max_dp(const double *arr, const int n_elements){
-
-    double maxval = 0;
-    
-    for (int idx=0; idx<n_elements; idx++){
-	if (arr[idx] > maxval){
-	    maxval = arr[idx];
-	}
-    }
-    return maxval;
 }
