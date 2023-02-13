@@ -17,28 +17,34 @@ class TestMatCUtils_32(unittest.TestCase):
 
         # First single matrix.
         imat = np.asarray([[5, -4, 0], [-4, 5, 0], [0, 0, 9]], dtype=self.dtype)
+        imat_copy = imat.copy()
         omat_exp = np.asarray([[2, -1, 0], [-1, 2, 0], [0, 0, 3]], dtype=self.dtype)
 
         omat = mat_c_utils.eigpow(imat, 0.5)
+        np.testing.assert_allclose(imat, imat_copy)
         np.testing.assert_allclose(omat, omat_exp, rtol=self.rtol)
 
         omat = mat_c_utils.eigpow(imat, 1)
         np.testing.assert_allclose(omat, imat, rtol=self.rtol)
+        self.assertFalse(np.shares_memory(imat, omat))
         
         # Now several matrices.
         imat = np.ones((3, 3, 2), dtype=self.dtype)
         imat *= np.asarray([[5, -4, 0], [-4, 5, 0], [0, 0, 9]])[:,:,np.newaxis]
         imat[:,:,1] *= 2
+        imat_copy = imat.copy()        
         omat_exp = np.ones((3, 3, 2), dtype=self.dtype)
         omat_exp *= np.asarray([[2, -1, 0], [-1, 2, 0], [0, 0, 3]])[:,:,np.newaxis]
         omat_exp[:,:,1] *= np.sqrt(2)
         
         omat = mat_c_utils.eigpow(imat, 0.5)
+        np.testing.assert_allclose(imat, imat_copy)
         np.testing.assert_allclose(omat, omat_exp, rtol=self.rtol)
 
         omat = mat_c_utils.eigpow(imat, 1)
         np.testing.assert_allclose(omat, imat, rtol=self.rtol)
-
+        self.assertFalse(np.shares_memory(imat, omat))
+                         
     def test_eigpow_c_err(self):
 
         # Wrong dim.
@@ -76,6 +82,15 @@ class TestMatCUtils_32(unittest.TestCase):
         
         np.testing.assert_allclose(omat, omat_exp, rtol=self.rtol)
 
+        # Test with single negative eigenvalue.
+        imat = np.asarray(
+            [[1, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=self.dtype)
+        omat_exp = np.asarray(
+            [[1, 0, 0], [0, 0, 0], [0, 0, 1]], dtype=self.dtype)        
+        omat = mat_c_utils.eigpow(imat, -1)
+        
+        np.testing.assert_allclose(omat, omat_exp, rtol=self.rtol)
+        
 class TestMatCUtils_64(TestMatCUtils_32):
 
     @classmethod

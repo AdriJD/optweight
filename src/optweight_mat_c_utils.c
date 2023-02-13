@@ -4,6 +4,7 @@
 #include <math.h>
 #include <omp.h>
 #include <mkl.h>
+#include "optweight_mat_c_utils.h"
 
 void _eigpow_core_rsp(float *imat, const float power, const float lim,
 		      const float lim0, const int nsamp,
@@ -16,7 +17,6 @@ void _eigpow_core_rsp(float *imat, const float power, const float lim,
         float *tmp = malloc(ncomp * ncomp * sizeof(float));
         float *eigs = malloc(ncomp * sizeof(float));
 
-	int max_idx;
 	int eigval_step = 1;
 	int matsize = ncomp * ncomp;	
 	long long int info;
@@ -39,8 +39,7 @@ void _eigpow_core_rsp(float *imat, const float power, const float lim,
              ssyev("V", "U", &ncomp, vecs, &ncomp, eigs, work, &lwork, &info);	     
 
              // Find max eigenvalue.
-	     max_idx = cblas_isamax(ncomp, eigs, eigval_step);
-             maxval = eigs[max_idx];
+	     maxval = find_max_sp(eigs, ncomp);
 	     
              if (maxval < lim0){
                  // Set input matrix to zero.
@@ -93,7 +92,6 @@ void _eigpow_core_rdp(double *imat, const double power, const double lim,
         double *tmp = malloc(ncomp * ncomp * sizeof(double));
         double *eigs = malloc(ncomp * sizeof(double));
 
-	int max_idx;
 	int eigval_step = 1;
 	int matsize = ncomp * ncomp;	
 	long long int info;
@@ -116,8 +114,7 @@ void _eigpow_core_rdp(double *imat, const double power, const double lim,
              dsyev("V", "U", &ncomp, vecs, &ncomp, eigs, work, &lwork, &info);	     
 
              // Find max eigenvalue.
-	     max_idx = cblas_idamax(ncomp, eigs, eigval_step);
-             maxval = eigs[max_idx];
+	     maxval = find_max_dp(eigs, ncomp);
 	     
              if (maxval < lim0){
                  // Set input matrix to zero.
@@ -157,4 +154,28 @@ void _eigpow_core_rdp(double *imat, const double power, const double lim,
         free(eigs);
         free(work);
     }
+}
+
+float find_max_sp(const float *arr, const int n_elements){
+
+    float maxval = 0;
+    
+    for (int idx=0; idx<n_elements; idx++){
+	if (arr[idx] > maxval){
+	    maxval = arr[idx];
+	}
+    }
+    return maxval;
+}
+
+float find_max_dp(const double *arr, const int n_elements){
+
+    double maxval = 0;
+    
+    for (int idx=0; idx<n_elements; idx++){
+	if (arr[idx] > maxval){
+	    maxval = arr[idx];
+	}
+    }
+    return maxval;
 }

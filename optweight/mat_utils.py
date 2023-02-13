@@ -2,27 +2,8 @@ import numpy as np
 
 from pixell import utils
 
-from optweight import wavtrans, type_utils
+from optweight import wavtrans, type_utils, mat_c_utils
         
-def _select_eigpow():
-    '''Determine at runtime if we will use enlib or pixell's eigpow '''
-    try:
-        from enlib import array_ops
-        array_ops.eigpow(np.ones((1, 1)), 1)
-        eigpow_fun = array_ops.eigpow
-    except:
-        # Enlib failed so call pixell's eigpow.
-        def eigpow_fun(*args, **kwargs):
-            kwargs.pop('copy')
-            arr = args[0]
-            args = list(args)
-            if utils.is_int_valued(args[1]):
-                args[1] += 1e-15 # Making sure pow is not an int. Ugly hack.
-            arr[:] = utils.eigpow(*tuple(args), **kwargs)
-            return arr
-    return eigpow_fun
-_eigpow_fun = _select_eigpow()
-
 def symm2triu(mat, axes, return_axis=False):
     '''
     Return copy with only the upper-triangular elements of matrix.
@@ -237,7 +218,7 @@ def flattened_view(mat, axes, return_flat_axes=False):
         return mat_view
             
 def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
-           inplace=False, chunksize=10000):
+           inplace=False, chunksize=100_000):
     '''
     Raise positive semidefinite matrix to a given power.
 
@@ -313,7 +294,7 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
 
     mat = mat.reshape(shape_in)
 
-    # If axes were specified, there is not need for full matrix.
+    # If axes were specified, there is no need for full matrix.
     # When doing inplace, also don't expand into full matrix.
     if not return_diag and axes is None and not inplace:
         mat = full_matrix(mat)
@@ -324,7 +305,7 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
     
     return mat
 
-def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=10000):
+def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=100_000):
     '''
     Wrapper around eigpow that allows to divide up the problem in chunks
     to reduce memory usage.
@@ -367,7 +348,7 @@ def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=10000):
             matf_tmp = matf[:,:,matslice].astype(dtype_internal, copy=False)
 
             # You know that axes are [0,1] in this case.
-            _eigpow_fun(matf_tmp, power, axes=[0,1], copy=False)
+            matf_tmp = mat_c_utils.eigpow(matf_tmp, power) # Always makes copy.
             matf[:,:,matslice] = matf_tmp.astype(dtype_in, copy=False)
 
     return mat

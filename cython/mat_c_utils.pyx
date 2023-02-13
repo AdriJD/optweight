@@ -51,7 +51,11 @@ def eigpow(imat, power, lim=None, lim0=None):
         lim = 1e-6
 	
     # Transpose and copy matrix. Assume worth it to reduce cache misses later.
-    imat = np.ascontiguousarray(np.transpose(imat, (2, 0, 1)))
+    imat = np.transpose(imat, (2, 0, 1))
+    # Check to make sure we always copy input even if above kept C order.
+    if imat.flags['C_CONTIGUOUS']:
+        imat = imat.copy()
+    imat = np.ascontiguousarray(imat)
     
     if imat.dtype == np.float32:
         _eigpow_sp(imat, power, lim, lim0, nsamp, ncomp)

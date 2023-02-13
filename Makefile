@@ -30,7 +30,7 @@ $(ODIR)/optweight_alm_c_utils.o:
 	$(CC) $(CFLAGS) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_alm_c_utils.c -I${IDIR} -fPIC
 
 $(ODIR)/optweight_mat_c_utils.o:
-	$(CC) $(CFLAGS) $(CFLAGS_MKL) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_mat_c_utils.c $(LINK_MKL) -lgomp -fPIC
+	$(CC) $(CFLAGS) $(CFLAGS_MKL) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_mat_c_utils.c $(LINK_MKL) -lgomp -I${IDIR} -fPIC
 
 clean:
 	rm -rf $(LDIR)
