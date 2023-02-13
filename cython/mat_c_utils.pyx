@@ -29,6 +29,7 @@ def eigpow(imat, power, lim=None, lim0=None):
     ValueError
         If lim, lim0 are < 0.
         If input shape is wrong.
+	if input dtype is not real dtype.
     '''
 
     ishape = imat.shape
@@ -52,30 +53,24 @@ def eigpow(imat, power, lim=None, lim0=None):
     # Transpose and copy matrix. Assume worth it to reduce cache misses later.
     imat = np.ascontiguousarray(np.transpose(imat, (2, 0, 1)))
     
-    cdef float [::1] imat_ = imat.reshape(-1)
-    cmat_c_utils._eigpow_core_rsp_c(&imat_[0], power, lim, lim0, nsamp, ncomp)
+    if imat.dtype == np.float32:
+        _eigpow_sp(imat, power, lim, lim0, nsamp, ncomp)
+    elif imat.dtype == np.float64:
+        _eigpow_dp(imat, power, lim, lim0, nsamp, ncomp)
+    else:
+        raise ValueError(f'Input dtype : {imat.dtype} not supported')
 
     omat = np.ascontiguousarray(np.transpose(imat, (1, 2, 0))).view()
     omat.shape = ishape # Will crash if this needs copy (should not happen).
 
     return omat
 
-def eigpow3(imat, power, lim, lim0):
-    '''
-    Port of Enlib's eigpow code. Raises a positive (semi)definite 
-    matrix to an arbitrairy real power.
-
-    Parameters
-    ----------
-    imat : (nsamp, ncomp, ncomp) array
-            
-        
-    '''
-
-    ncomp = imat.shape[1]
-    nsamp = imat.shape[0]
+def _eigpow_sp(imat, power, lim, lim0, nsamp, ncomp):
 
     cdef float [::1] imat_ = imat.reshape(-1)
-    cmat_c_utils._eigpow_core_rsp_c(&imat_[0], power, lim, lim0, nsamp, ncomp)
+    cmat_c_utils._eigpow_core_rsp(&imat_[0], power, lim, lim0, nsamp, ncomp)
 
-    return imat
+def _eigpow_dp(imat, power, lim, lim0, nsamp, ncomp):
+
+    cdef double [::1] imat_ = imat.reshape(-1)
+    cmat_c_utils._eigpow_core_rdp(&imat_[0], power, lim, lim0, nsamp, ncomp)

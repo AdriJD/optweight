@@ -10,6 +10,7 @@ class TestMatCUtils_32(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dtype = np.float32
+        cls.ctype = np.complex64
         cls.rtol = 1e-5
     
     def test_eigpow_c(self):
@@ -48,6 +49,10 @@ class TestMatCUtils_32(unittest.TestCase):
         imat = np.zeros((3, 2, 2), dtype=self.dtype)
         self.assertRaises(ValueError, mat_c_utils.eigpow, imat, 1)
 
+        # Wrong dtype.
+        imat = np.zeros((3, 2, 2), dtype=self.ctype)
+        self.assertRaises(ValueError, mat_c_utils.eigpow, imat, 1)
+        
     def test_eigpow_c_lim(self):
 
         # Test default lim0.
@@ -70,3 +75,12 @@ class TestMatCUtils_32(unittest.TestCase):
         omat = mat_c_utils.eigpow(imat, 1)
         
         np.testing.assert_allclose(omat, omat_exp, rtol=self.rtol)
+
+class TestMatCUtils_64(TestMatCUtils_32):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dtype = np.float64
+        cls.ctype = np.complex128
+        cls.rtol = 1e-7
+        

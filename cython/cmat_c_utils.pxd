@@ -1,7 +1,13 @@
 cdef extern from "optweight_mat_c_utils.h":
-    void _eigpow_core_rsp_c(float *imat,
-                            float power,
-                            float lim,
-                            float lim0,
-                            int nsamp,
-                            int ncomp);
+    void _eigpow_core_rsp(float *imat,
+                          const float power,
+                          const float lim,
+                          const float lim0,
+                          const int nsamp,
+                          const long long int ncomp);
+    void _eigpow_core_rdp(double *imat,
+                          const double power,
+                          const double lim,
+                          const double lim0,
+                          const int nsamp,
+                          const long long int ncomp);			    
