@@ -6,7 +6,7 @@
 #include <mkl.h>
 
 void _eigpow_core_rsp_c(float *imat, float power, float lim, float lim0,
-                        int nsamp, int ncomp){
+                        int nsamp, const long long int ncomp){
     
 #pragma omp parallel 
     {
@@ -16,13 +16,13 @@ void _eigpow_core_rsp_c(float *imat, float power, float lim, float lim0,
         float *eigs = malloc(ncomp * sizeof(float));
 
 	int max_idx;
-	int info;
-        int lwork = -1;
+	int eigval_step = 1;
+	int matsize = ncomp * ncomp;	
+	long long int info;
+        long long int lwork = -1;
 	float maxval;
 	float meig;
 	float worksize;
-	int eigval_step = 1;
-	int matsize = ncomp * ncomp;
 
 	// Initial call with lwork=-1 to determine size of work array.
         ssyev("V", "U", &ncomp, vecs, &ncomp, eigs, &worksize,

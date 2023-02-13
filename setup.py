@@ -17,14 +17,10 @@ path = str(Path(__file__).parent.absolute())
 compile_opts = {
     'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall'],
     'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib')]}
-    #'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib'), '-L$(MKLROOT)/lib/intel64', '-Wl,--no-as-needed', '-lmkl_intel_lp64', '-lmkl_sequential', '-lmkl_core', '-lpthread']}
 
 compile_opts_mat = {
-    'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall', '-fopenmp', '-Ofast'],
-    'extra_link_args' : ['-fopenmp']}
-#    'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall', '-openmp' '-O3' '-ffast-math'],
-#    'extra_link_args' : ['-openmp']}
-
+    'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall'],
+    'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib')]}
 
 compiler_directives = {'language_level' : 3}
 
