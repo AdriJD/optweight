@@ -24,7 +24,7 @@ CFLAGS_MKL = -DMKL_ILP64  -m64  -I"${MKLROOT}/include"
 all: $(LDIR)/liboptweight.so 
 
 $(LDIR)/liboptweight.so: $(ODIR)/optweight_alm_c_utils.o $(ODIR)/optweight_mat_c_utils.o
-	$(CC) -shared -o $(LDIR)/liboptweight_c_utils.so -fPIC ${ODIR}/optweight_alm_c_utils.o ${ODIR}/optweight_mat_c_utils.o -I${IDIR} $(LINK_MKL) -lgomp
+	$(CC) ${OMPFLAG} -shared -o $(LDIR)/liboptweight_c_utils.so -fPIC ${ODIR}/optweight_alm_c_utils.o ${ODIR}/optweight_mat_c_utils.o -I${IDIR} $(LINK_MKL) -lgomp
 
 $(ODIR)/optweight_alm_c_utils.o:
 	$(CC) $(CFLAGS) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_alm_c_utils.c -I${IDIR} -fPIC
