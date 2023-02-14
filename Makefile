@@ -18,8 +18,8 @@ OPTFLAG = -O3 -ffast-math -march=native
 
 # We explicitely link to the sequential version of MKL, because we want to avoid nested parallelization.
 # We will do the openMP threading ourselves in the outer loops of the C scripts.
-LINK_MKL = -L$(MKLROOT)/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
-CFLAGS_MKL = -DMKL_ILP64  -m64  -I"${MKLROOT}/include"
+LINK_MKL = -L${MKLROOT}/lib/intel64 -lmkl_rt -Wl,--no-as-needed -lpthread -lm -ldl
+CFLAGS_MKL = -m64  -I"${MKLROOT}/include"
 
 all: $(LDIR)/liboptweight.so 
 

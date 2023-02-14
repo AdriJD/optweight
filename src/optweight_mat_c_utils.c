@@ -7,20 +7,19 @@
 #include "optweight_mat_c_utils.h"
 
 void _eigpow_core_rsp(float *imat, const float power, const float lim,
-		      const float lim0, const int nsamp,
-		      const long long int ncomp){
+		      const float lim0, const int nsamp, int ncomp){
     
 #pragma omp parallel 
     {
-		
+	mkl_set_num_threads_local(1); // Force sequential lapack and blas.
         float *vecs = malloc(ncomp * ncomp * sizeof(float));
         float *tmp = malloc(ncomp * ncomp * sizeof(float));
         float *eigs = malloc(ncomp * sizeof(float));
 
 	int eigval_step = 1;
 	int matsize = ncomp * ncomp;	
-	long long int info;
-        long long int lwork = -1;
+	int info;
+        int lwork = -1;
 	float maxval;
 	float meig;
 	float worksize;
@@ -78,24 +77,24 @@ void _eigpow_core_rsp(float *imat, const float power, const float lim,
         free(vecs);
         free(eigs);
         free(work);
+	mkl_set_num_threads_local(0); // Go back to default.
     }
 }
 
 void _eigpow_core_rdp(double *imat, const double power, const double lim,
-		      const double lim0, const int nsamp,
-		      const long long int ncomp){
+		      const double lim0, const int nsamp, const int ncomp){
     
 #pragma omp parallel 
     {
-		
+	mkl_set_num_threads_local(1); // Force sequential lapack and blas.
         double *vecs = malloc(ncomp * ncomp * sizeof(double));
         double *tmp = malloc(ncomp * ncomp * sizeof(double));
         double *eigs = malloc(ncomp * sizeof(double));
 
 	int eigval_step = 1;
 	int matsize = ncomp * ncomp;	
-	long long int info;
-        long long int lwork = -1;
+	int info;
+        int lwork = -1;
 	double maxval;
 	double meig;
 	double worksize;
@@ -153,5 +152,6 @@ void _eigpow_core_rdp(double *imat, const double power, const double lim,
         free(vecs);
         free(eigs);
         free(work);
+	mkl_set_num_threads_local(0); // Go back to default.
     }
 }
