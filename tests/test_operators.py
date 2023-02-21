@@ -520,3 +520,193 @@ class TestOperators(unittest.TestCase):
         out_exp[2] = 3
 
         np.testing.assert_array_equal(out, out_exp)
+
+    def test_PixMatVecMap(self):
+        
+        m_pix = np.arange(12).reshape(2, 2, 3)
+        power = 1
+        op = operators.PixMatVecMap(m_pix, power)
+
+        imap = np.arange(6).reshape(2, 3)
+        imap_copy = imap.copy()
+        omap_exp = np.einsum('ijk, jk -> ik', m_pix, imap)
+        omap = op(imap)
+        np.testing.assert_allclose(omap, omap_exp)
+        np.testing.assert_allclose(imap, imap_copy)
+        self.assertFalse(np.shares_memory(imap, omap))
+
+    def test_PixMatVecMap_diag(self):
+        
+        m_pix = np.arange(6).reshape(2, 3)
+        power = 1
+        op = operators.PixMatVecMap(m_pix, power)
+
+        imap = m_pix + 1
+        imap_copy = imap.copy()
+        omap_exp = m_pix * imap
+        omap = op(imap)
+        np.testing.assert_allclose(omap, omap_exp)
+        np.testing.assert_allclose(imap, imap_copy)
+        self.assertFalse(np.shares_memory(imap, omap))
+
+    def test_PixMatVecMap_inplace(self):
+
+        m_pix = np.arange(12).reshape(2, 2, 3)
+        power = 1
+        op = operators.PixMatVecMap(m_pix, power, inplace=True)
+
+        imap = np.arange(6).reshape(2, 3)
+        imap_copy = imap.copy()
+        omap_exp = np.einsum('ijk, jk -> ik', m_pix, imap)
+        omap = op(imap)
+        np.testing.assert_allclose(imap, omap_exp)
+        np.testing.assert_allclose(omap, omap_exp)
+        self.assertTrue(np.shares_memory(imap, omap))
+        
+        m_pix = np.arange(6).reshape(2, 3)
+        power = 1
+        op = operators.PixMatVecMap(m_pix, power, inplace=True)
+
+        imap = m_pix + 1
+        imap_copy = imap.copy()
+        omap_exp = m_pix * imap
+        omap = op(imap)
+        np.testing.assert_allclose(imap, omap_exp)
+        np.testing.assert_allclose(omap, omap_exp)
+        self.assertTrue(np.shares_memory(imap, omap))
+
+    def test_YMatVecAlm(self):
+
+        lmax = 4
+        spin = [0, 2]
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
+        
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        imap = np.zeros((3, minfo.npix))
+        omap_exp = imap.copy()
+        sht.alm2map(alm, omap_exp, ainfo, minfo, spin)        
+
+        op = operators.YMatVecAlm(ainfo, minfo, spin)
+        omap = op(alm)
+
+        np.testing.assert_allclose(omap, omap_exp)
+
+    def test_YMatVecAlm_inplace(self):
+
+        lmax = 4
+        spin = [0, 2]
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
+        
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        imap = np.zeros((3, minfo.npix))
+        omap_exp = imap.copy()
+        omap = imap.copy()
+        sht.alm2map(alm, omap_exp, ainfo, minfo, spin)        
+
+        op = operators.YMatVecAlm(ainfo, minfo, spin)
+        omap2 = op(alm, omap=omap)
+
+        np.testing.assert_allclose(omap, omap_exp)
+        self.assertTrue(np.shares_memory(omap, omap2))
+        
+    def test_YMatVecAlm_qweight(self):
+
+        lmax = 4
+        spin = [0, 2]
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
+        
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        imap = np.zeros((3, minfo.npix))
+        omap_exp = imap.copy()
+        sht.alm2map(alm, omap_exp, ainfo, minfo, spin, adjoint=True)
+
+        op = operators.YMatVecAlm(ainfo, minfo, spin, qweight=True)
+        omap = op(alm)
+
+        np.testing.assert_allclose(omap, omap_exp)
+
+    def test_YTWMatVecMap(self):
+
+        lmax = 4
+        spin = [0, 2]
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
+        
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        imap = np.zeros((3, minfo.npix))    
+        sht.alm2map(alm, imap, ainfo, minfo, spin)        
+
+        oalm_exp = np.zeros_like(alm)
+        sht.map2alm(imap, oalm_exp, minfo, ainfo, spin)
+
+        op = operators.YTWMatVecMap(minfo, ainfo, spin)
+        oalm = op(imap)
+
+        np.testing.assert_allclose(oalm, oalm_exp)
+
+    def test_YTWMatVecMap_inplace(self):
+
+        lmax = 4
+        spin = [0, 2]
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
+        
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        imap = np.zeros((3, minfo.npix))    
+        sht.alm2map(alm, imap, ainfo, minfo, spin)        
+
+        oalm_exp = np.zeros_like(alm)
+        oalm = np.zeros_like(alm)
+        sht.map2alm(imap, oalm_exp, minfo, ainfo, spin)
+
+        op = operators.YTWMatVecMap(minfo, ainfo, spin)
+        oalm2 = op(imap, oalm=oalm)
+
+        np.testing.assert_allclose(oalm, oalm_exp)
+        self.assertTrue(np.shares_memory(oalm, oalm2))
+
+    def test_YTWMatVecMap_qweight(self):
+
+        lmax = 4
+        spin = [0, 2]
+
+        ainfo = sharp.alm_info(lmax)
+        alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
+        
+        nrings = lmax + 1
+        nphi = 2 * lmax + 1
+        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+
+        imap = np.zeros((3, minfo.npix))    
+        sht.alm2map(alm, imap, ainfo, minfo, spin)        
+
+        oalm_exp = np.zeros_like(alm)
+        sht.map2alm(imap, oalm_exp, minfo, ainfo, spin, adjoint=True)
+
+        op = operators.YTWMatVecMap(minfo, ainfo, spin, qweight=False)
+        oalm = op(imap)
+
+        np.testing.assert_allclose(oalm, oalm_exp)

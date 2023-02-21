@@ -9,33 +9,177 @@ from optweight import (sht, dft, wavtrans, alm_utils, type_utils, alm_c_utils,
 class MatVecAlm(ABC):
     '''Template for all matrix-vector operators working on alm input.'''
 
-    def __call__(self, alm):
-        return self.call(alm)
+    def __call__(self, alm, *args, **kwargs):
+        return self.call(alm, *args, **kwargs)
 
     @abstractmethod
-    def call(self, alm):
+    def call(self, alm, *args, **kwargs):
         pass
 
 class MatVecMap(ABC):
     '''Template for all matrix-vector operators working on pixelized maps as input.'''
 
-    def __call__(self, imap):
-        return self.call(imap)
+    def __call__(self, imap, *args, **kwargs):
+        return self.call(imap, *args, **kwargs)
 
     @abstractmethod
-    def call(self, imap):
+    def call(self, imap, *args, **kwargs):
         pass
 
 class MatVecWav(ABC):
     '''Template for all matrix-vector operators working on wavelet input.'''
 
-    def __call__(self, wav):
-        return self.call(wav)
+    def __call__(self, wav, *args, **kwargs):
+        return self.call(wav, *args, **kwargs)
 
     @abstractmethod
-    def call(self, wav):
+    def call(self, wav, *args, **kwargs):
         pass
 
+class YMatVecAlm(MatVecAlm):
+    '''
+    Calculate Y a for input spherical harmonic coefficients a.
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    minfo : sharp.map_info object
+        Metainfo for pixelization of output map.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    qweight : bool, optional
+        If True, compute W Y a, where W are quadrature weights.
+
+    Methods
+    -------
+    call : Apply the operator to a set of alms.
+    '''
+
+    def __init__(self, ainfo, minfo, spin, qweight=False):
+
+        self.ainfo = ainfo
+        self.minfo = minfo
+        self.spin = spin
+        self.qweight = qweight
+
+    def _get_omap(self, preshape, dtype):
+
+        return np.zeros(preshape + (self.minfo.npix,), dtype=dtype)
+
+    def call(self, alm, omap=None):
+        '''
+        Parameters
+        ----------
+        alm : (..., npol, nelem) complex array
+            Input alm.
+        omap : (..., npol, npix) array, optional
+            Output map, will be overwritten.
+
+        Returns
+        -------
+        omap : (..., npol, npix) array
+            Output map.
+        '''
+
+        if omap is None:
+            preshape = alm.shape[:-1]
+            dtype = type_utils.to_real(alm.dtype)
+            omap = self._get_omap(preshape, dtype)
+
+        sht.alm2map(alm, omap, self.ainfo, self.minfo, self.spin,
+                    adjoint=self.qweight)
+        return omap
+
+class YTWMatVecMap(MatVecMap):
+    '''
+    Calculate Y^T W m for input map m, where Y^T is adjoint SHT and 
+    W are quadrature weights.
+
+    Parameters
+    ----------
+    minfo : sharp.map_info object
+        Metainfo for pixelization of input map.
+    ainfo : sharp.alm_info object
+        Metainfo for output alms.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    qweight : bool, optional
+        If False, compute Y^T a, 
+
+    Methods
+    -------
+    call : Apply the operator to a set of maps.
+    '''
+
+    def __init__(self, minfo, ainfo, spin, qweight=True):
+
+        self.minfo = minfo
+        self.ainfo = ainfo
+        self.spin = spin
+        self.qweight = qweight
+
+    def _get_oalm(self, preshape, dtype):
+
+        return np.zeros(preshape + (self.ainfo.nelem,), dtype=dtype)
+
+    def call(self, imap, oalm=None):
+        '''
+        Parameters
+        ----------
+        imap : (..., npol, npix) array
+            Input map.
+        oalm : (..., npol, nelem) complex array, optional
+            Output alm, will be overwritten!
+
+        Returns
+        -------
+        oalm : (..., npol, nelem) complex array
+            Output alm.
+        '''
+
+        if oalm is None:
+            preshape = imap.shape[:-1]
+            dtype = type_utils.to_complex(imap.dtype)
+            oalm = self._get_oalm(preshape, dtype)
+
+        sht.map2alm(imap, oalm, self.minfo, self.ainfo, self.spin,
+                    adjoint=not self.qweight)
+        return oalm
+
+class PixMatVecMap(MatVecMap):
+    '''
+    Calculate M^p m for input map m and M diagonal in the pixel
+    domain and positive semi-definite symmetric in other axes.
+
+    Parameters
+    ----------
+    m_pix : (npol, npol, npix) array or (npol, npix) array
+        Matrix diagonal in pixel domain, either dense in first two
+        axes or diagonal,    
+    power : int, float, optional
+        Power of matrix.
+    inplace : bool, optional
+        Perform operation in place.
+
+    Methods
+    -------
+    call : Apply the operator to a set of maps.
+    '''
+
+    def __init__(self, m_pix, power, inplace=False):
+        
+        if power != 1:
+            m_pix = mat_utils.matpow(m_pix, power)
+        self.m_pix = m_pix
+        self.inplace = inplace
+    
+    def call(self, imap):
+        
+        return mat_utils.matvec(self.m_pix, imap, inplace=self.inplace)
+    
 class EllMatVecAlm(MatVecAlm):
     '''
     Calculate M^p alm for M diagonal in the harmonic domain and

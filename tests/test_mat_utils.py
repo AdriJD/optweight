@@ -576,3 +576,74 @@ class TestMatUtils(unittest.TestCase):
         np.testing.assert_allclose(mat_out, mat_exp)
         self.assertEqual(mat_out.dtype, mat.dtype)
         self.assertTrue(np.shares_memory(mat_out, mat))        
+
+    def test_matvec(self):
+
+        mat = np.asarray([3])
+        vec = np.asarray([2])
+        vec_exp = np.asarray([6])
+        vec_out = mat_utils.matvec(mat, vec, inplace=False)
+        np.testing.assert_allclose(vec_out, vec_exp)
+        
+        mat = np.arange(4).reshape(2, 2)
+        vec = np.arange(1, 3)
+        vec_exp = np.einsum('ij, j -> i', mat, vec)
+        vec_out = mat_utils.matvec(mat, vec, inplace=False)
+        np.testing.assert_allclose(vec_out, vec_exp)
+        
+        mat = np.arange(12).reshape(2, 2, 3)
+        vec = np.arange(6).reshape(2, 3)
+        vec_exp = np.einsum('ijk, jk -> ik', mat, vec)
+        vec_out = mat_utils.matvec(mat, vec, inplace=False)
+        np.testing.assert_allclose(vec_out, vec_exp)
+
+    def test_matvec_diag(self):
+        
+        mat = np.arange(4).reshape(2, 2)
+        vec = np.arange(1, 5).reshape(2, 2)
+        vec_exp = mat * vec
+        vec_out = mat_utils.matvec(mat, vec, inplace=False)
+        np.testing.assert_allclose(vec_out, vec_exp)
+        
+        mat = np.arange(12).reshape(2, 2, 3)
+        vec = mat + 1
+        vec_exp = mat * vec        
+        vec_out = mat_utils.matvec(mat, vec, inplace=False)
+        np.testing.assert_allclose(vec_out, vec_exp)
+
+    def test_matvec_inplace(self):
+        
+        mat = np.asarray([3])
+        vec = np.asarray([2])
+        vec_in = vec.copy()
+        vec_exp = np.asarray([6])
+        vec_out = mat_utils.matvec(mat, vec, inplace=True)
+        self.assertTrue(np.shares_memory(vec_out, vec))
+        np.testing.assert_allclose(vec, vec_exp)
+        
+        mat = np.arange(4).reshape(2, 2)
+        vec = np.arange(1, 3)
+        vec_in = vec.copy()
+        vec_exp = np.einsum('ij, j -> i', mat, vec)
+        vec_out = mat_utils.matvec(mat, vec, inplace=True)
+        self.assertTrue(np.shares_memory(vec_out, vec))
+        np.testing.assert_allclose(vec, vec_exp)
+
+        mat = np.arange(12).reshape(2, 2, 3)
+        vec = mat + 1
+        vec_exp = mat * vec        
+        vec_out = mat_utils.matvec(mat, vec, inplace=True)
+        self.assertTrue(np.shares_memory(vec_out, vec))
+        np.testing.assert_allclose(vec, vec_exp)
+
+    def test_matvec_err(self):
+        
+        # Non square matrix.
+        mat = np.ones((1, 2, 3))
+        vec = np.ones((2, 3))
+        self.assertRaises(ValueError, mat_utils.matvec, mat, vec)
+
+        # Mismatch.
+        mat = np.ones((2, 2, 2, 2, 3))
+        vec = np.ones((2, 3))
+        self.assertRaises(ValueError, mat_utils.matvec, mat, vec)

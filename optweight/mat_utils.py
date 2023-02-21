@@ -460,3 +460,62 @@ def atleast_nd(mat, ndim, append=False):
         axes -= axes.size
 
     return np.expand_dims(mat, tuple(axes))
+
+def matvec(mat, vec, inplace=False):
+    '''
+    Perform matrix-vector operation. If matrix and vector
+    have the same shape, matrix is assumed to be diagonal.
+
+    Parameters
+    ----------
+    mat : (a, b, ..., a, b, ..., N) array or (a, b, ..., N) array
+        Matrix, assumed to be diagonal in last axis, e.g. pixels.
+        Assumed to be square in leading dimensions. If same shape
+        as `vec`, assumed to be diagonal in all axes.
+    vec : (a, b, ..., N)
+        Input vector.
+
+    Returns
+    -------
+    out : (a, b, ..., N) array
+        Output vector.
+
+    Raises
+    ------
+    ValueError
+        If input shapes do not match.
+    '''
+    
+    # Check input shape.
+    if mat.shape != vec.shape:
+        shape_in = vec.shape
+        
+        # In case input does not have last dimension.
+        vec = atleast_nd(vec, 2, append=True)
+        mat = atleast_nd(mat, 3, append=True)
+
+        # Leading dims/shape.
+        ldim = mat.ndim - 1
+        lshape = mat.shape[:-1]
+        if lshape[:ldim//2] != lshape[ldim//2:]:
+            raise ValueError(f'matrix shape : {mat.shape} '
+            f'does not match up with vector shape : {vec.shape}')
+
+    if inplace:
+        out = vec
+    else:
+        out = np.zeros_like(vec)
+
+    if mat.shape == vec.shape:
+        return np.multiply(mat, vec, out=out)
+    else:
+        # Flatten all leading dims, so that we have
+        # (M x M x N) @ (M x N).
+        shape_orig = vec.shape
+        nsamp_lead = int(np.sqrt(np.prod(mat.shape[:-1])))
+        vec = np.reshape(vec, (nsamp_lead, shape_orig[-1]))
+        mat = np.reshape(mat, (nsamp_lead, nsamp_lead, shape_orig[-1]))
+
+        out = np.einsum('ijk, jk -> ik', mat, vec, out=out, 
+                        optimize=True)
+        return out.reshape(shape_in)
