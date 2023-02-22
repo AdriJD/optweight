@@ -835,7 +835,7 @@ def rand_wav(cov_wav):
                                  
     return rand_wav
 
-def round_icov_matrix(icov_pix, rtol=1e-2):
+def round_icov_matrix(icov_pix, rtol=1e-2, threshold=False):
     '''
     Set too small values in inverse covariance matrix to zero.
 
@@ -846,6 +846,8 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
     rtol : float, optional
         Elements below rtol times the median of nonzero elements 
         are set to zero.
+    threshold : bool, optional
+        If set, set values to lowest allowed value instead of 0.
 
     Returns
     -------
@@ -883,11 +885,16 @@ def round_icov_matrix(icov_pix, rtol=1e-2):
         median = np.median(icov_pix[index][mask_nonzero])
         mask = icov_pix[index] < rtol * median
         
-        if ndim == 2:
-            icov_pix[index][mask] = 0
+        if threshold: 
+            val = rtol * median
         else:
-            icov_pix[:,pidx,mask] = 0
-            icov_pix[pidx,:,mask] = 0
+            val = 0
+
+        if ndim == 2:
+            icov_pix[index][mask] = val
+        else:
+            icov_pix[:,pidx,mask] = val
+            icov_pix[pidx,:,mask] = val
 
     return icov_pix
 

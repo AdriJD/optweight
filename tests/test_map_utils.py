@@ -453,7 +453,6 @@ class TestMapUtils(unittest.TestCase):
     def test_round_icov_matrix_diag(self):
         
         # Test if function also works if (npol, npix) array is given.
-
         npol = 3
         npix = 4
 
@@ -472,6 +471,26 @@ class TestMapUtils(unittest.TestCase):
         icov_pix_round = map_utils.round_icov_matrix(icov_pix)
         
         np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
+
+    def test_round_icov_matrix_threshold(self):
+        
+        # Test for threshold option.
+
+        npol = 1
+        npix = 4
+        icov_pix = np.ones((npol, npix))
+
+        icov_pix[0,2] = 1e-3
+
+        rtol = 1e-2        
+        val_exp = rtol * np.median(icov_pix)
+        
+        icov_pix_exp = np.ones_like(icov_pix)
+        icov_pix_exp[0,2] = val_exp
+        icov_pix_round = map_utils.round_icov_matrix(
+            icov_pix, rtol=rtol, threshold=True)
+        
+        np.testing.assert_allclose(icov_pix_round, icov_pix_exp)
 
     def test_round_icov_matrix_err(self):
         

@@ -28,7 +28,7 @@ def to_complex(dtype):
     elif dtype == np.float128:
         return np.complex256
     else:
-        raise ValueError('dtype" {} is not a supported complex type'.
+        raise ValueError('dtype" {} is not a supported real type'.
                          format(dtype))
 
 def to_real(dtype):
@@ -59,7 +59,7 @@ def to_real(dtype):
     elif dtype == np.complex256:
         return np.float128
     else:
-        raise ValueError('dtype" {} is not a supported real type'.
+        raise ValueError('dtype" {} is not a supported complex type'.
                          format(dtype))
 
 def is_seq_of_seq(obj):
