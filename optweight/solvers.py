@@ -90,7 +90,7 @@ class CGWienerMap(utils.CG):
             self.filt_adjoint = filt[1]
 
         if mask is None:
-            mask = lambda alm: alm
+            mask = lambda imap: imap
         self.mask = mask
 
         self.rand_isignal = rand_isignal
@@ -157,23 +157,37 @@ class CGWienerMap(utils.CG):
 
     def proj(self, alm):
 
-        # F M Y B
         
-        alm = self.beam(alm)
-        omap = self.sht(alm)
-        omap = self.mask(omap)
-        omap = self.filt(omap)
-        
+        if not self.swap_bm:
+            # F M Y B
+            alm = self.beam(alm)
+            omap = self.sht(alm)
+            omap = self.mask(omap)
+            omap = self.filt(omap)
+        else:
+            # F Y B (Yt W M Y)
+            alm = self.mask(alm)
+            alm = self.beam(alm)
+            omap = self.sht(alm)
+            omap = self.filt(omap)            
+
         return omap
         
     def proj_adjoint(self, imap):
 
-        # B Yt M Ft
-        omap = self.filt_adjoint(imap)
-        omap = self.mask(omap)
-        alm = self.sht_adjoint(omap)
-        alm = self.beam(alm)
-
+        if not self.swap_bm:
+            # B Yt M Ft
+            omap = self.filt_adjoint(imap)
+            omap = self.mask(omap)
+            alm = self.sht_adjoint(omap)
+            alm = self.beam(alm)
+        else:
+            # (Yt W M Y) B Yt Ft
+            omap = self.filt_adjoint(imap)
+            alm = self.sht_adjoint(omap)
+            alm = self.beam(alm)
+            alm = self.mask(alm)
+            
         return alm
 
     def a_matrix(self, alm):
@@ -306,7 +320,8 @@ class CGWienerMap(utils.CG):
 
     @classmethod
     def from_arrays(cls, imap, minfo, ainfo, icov_ell, icov_pix, *extra_args,
-                    b_ell=None, mask_pix=None, draw_constr=False, spin=None):
+                    b_ell=None, mask_pix=None, draw_constr=False, spin=None,
+                    swap_bm=False):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -333,6 +348,9 @@ class CGWienerMap(utils.CG):
         spin : int, array-like, optional
             Spin values for transform, should be compatible with npol. If not provided,
             value will be derived from npol: 1->0, 2->2, 3->[0, 2].
+        swap_bm : bool, optional
+            If set, swap the order of the beam and mask operations. Helps convergence
+            with large beams and high SNR data.
         '''
 
         if spin is None:
@@ -344,7 +362,6 @@ class CGWienerMap(utils.CG):
         #    ainfo, icov_pix, minfo, spin)
         icov_noise = operators.PixMatVecMap(icov_pix, 1, inplace=False)
 
-
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)
         else:
@@ -353,9 +370,11 @@ class CGWienerMap(utils.CG):
         filt = None
 
         if mask_pix is not None:
-            #mask = operators.PixMatVecAlm(
-            #    ainfo, mask_pix, minfo, spin, use_weights=True)
-            mask = operators.PixMatVecMap(mask_pix, 1, inplace=False)
+            if swap_bm:
+                mask = operators.PixMatVecAlm(
+                    ainfo, mask_pix, minfo, spin, use_weights=True)
+            else:
+                mask = operators.PixMatVecMap(mask_pix, 1, inplace=False)
         else:
             mask = None
 
@@ -372,7 +391,8 @@ class CGWienerMap(utils.CG):
                operators.YTWMatVecMap(minfo, ainfo, spin, qweight=False))
 
         return cls(imap, icov_signal, icov_noise, sht, beam=beam, filt=filt,
-                   mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise)
+                   mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
+                   swap_bm=swap_bm)
 
         #return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam, filt=filt,
         #           mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
