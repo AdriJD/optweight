@@ -157,7 +157,6 @@ class CGWienerMap(utils.CG):
 
     def proj(self, alm):
 
-        
         if not self.swap_bm:
             # F M Y B
             alm = self.beam(alm)
@@ -205,16 +204,6 @@ class CGWienerMap(utils.CG):
             Output alm array, corresponding to A(alm).
         '''
 
-        # alm = self.beam(alm.copy())
-        # alm = self.filt(alm)
-        # alm = self.mask(alm)
-
-        # alm = self.icov_noise(alm)
-        
-        # alm = self.mask(alm)
-        # alm = self.filt_adjoint(alm)
-        # alm = self.beam(alm)
-
         omap = self.proj(alm)
         omap = self.icov_noise(omap)
         oalm = self.proj_adjoint(omap)
@@ -238,18 +227,6 @@ class CGWienerMap(utils.CG):
             Output alm array, corresponding to b.
         '''
 
-        # alm = self.icov_noise(alm.copy())
-        # if self.swap_bm:
-        #     alm = self.filt_adjoint(alm)
-        #     alm = self.beam(alm)
-        #     alm = self.mask(alm)
-        # else:
-        #     alm = self.mask(alm)
-        #     alm = self.filt_adjoint(alm)
-        #     alm = self.beam(alm)
-
-        # return alm
-
         omap = self.icov_noise(imap)
         oalm = self.proj_adjoint(omap)
         
@@ -271,15 +248,6 @@ class CGWienerMap(utils.CG):
             Output alm array, corresponding to b.
         '''
 
-        # alm = self.get_b_vec(alm)
-        # if self.swap_bm:
-        #     alm += self.mask(self.beam(self.filt_adjoint(self.rand_inoise.copy())))
-        # else:
-        #     alm += self.beam(self.filt_adjoint(self.mask(self.rand_inoise.copy())))
-        # alm += self.rand_isignal
-
-        # return alm
-
         oalm = self.get_b_vec(alm)
         oalm += self.proj_adjoint(self.rand_inoise)
         oalm += self.rand_isignal
@@ -299,12 +267,6 @@ class CGWienerMap(utils.CG):
     def get_chisq(self):
         '''Return x^dagger S^-1 x + (a - x)^dagger B M N^-1 M B (a - x) at current state.'''
 
-        #x_w = self.get_wiener()
-        #out = self.dot(x_w, self.icov_signal(x_w))
-        #out += self.dot(self.beam(self.filt_adjoint(self.mask(self.alm_data - x_w))),
-        #        self.icov_noise(self.beam(self.filt(self.mask(self.alm_data - x_w)))))
-
-        #return out
         raise NotImplementedError
 
     def get_residual(self):
@@ -320,7 +282,7 @@ class CGWienerMap(utils.CG):
 
     @classmethod
     def from_arrays(cls, imap, minfo, ainfo, icov_ell, icov_pix, *extra_args,
-                    b_ell=None, mask_pix=None, draw_constr=False, spin=None,
+                    b_ell=None, mask_pix=None, minfo_mask=None, draw_constr=False, spin=None,
                     swap_bm=False):
         '''
         Initialize solver with arrays instead of callables.
@@ -357,9 +319,6 @@ class CGWienerMap(utils.CG):
             spin = sht.default_spin(alm_data.shape)
 
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
-
-        #icov_noise = operators.PixMatVecAlm(
-        #    ainfo, icov_pix, minfo, spin)
         icov_noise = operators.PixMatVecMap(icov_pix, 1, inplace=False)
 
         if b_ell is not None:
@@ -370,9 +329,11 @@ class CGWienerMap(utils.CG):
         filt = None
 
         if mask_pix is not None:
+            if minfo_mask is None:
+                minfo_mask = minfo
             if swap_bm:
                 mask = operators.PixMatVecAlm(
-                    ainfo, mask_pix, minfo, spin, use_weights=True)
+                    ainfo, mask_pix, minfo_mask, spin, use_weights=True)
             else:
                 mask = operators.PixMatVecMap(mask_pix, 1, inplace=False)
         else:
@@ -380,8 +341,6 @@ class CGWienerMap(utils.CG):
 
         if draw_constr:
             rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
-            #rand_inoise = alm_utils.rand_alm_pix(
-            #    icov_pix, ainfo, minfo, spin, adjoint=True)
             rand_inoise = map_utils.rand_map_pix(icov_pix)
         else:
             rand_isignal = None
@@ -394,9 +353,13 @@ class CGWienerMap(utils.CG):
                    mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
                    swap_bm=swap_bm)
 
-        #return cls(alm_data, icov_signal, icov_noise, *extra_args, beam=beam, filt=filt,
-        #           mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
-        #           swap_bm=swap_bm)
+    @classmethod
+    def from_arrays_fwav(cls, imap, minfo, ainfo, icov_ell, icov_wav, w_ell,
+                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
+                         draw_constr=False, spin=None, swap_bm=False, icov_noise_ell=None,
+                         kfilt=None, minfo_kfilt=None):
+
+        raise NotImplementedError
 
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,

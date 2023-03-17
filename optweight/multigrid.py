@@ -275,6 +275,7 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
 
     mask_out = map_utils.gauss2map(
         mask_bool.astype(np.float32), minfo, minfo_out, order=1)
+
     # Only includes pixels made out of 100% masked pixels in fine grid.
     mask_out[(mask_out > 0) & (mask_out < 1)] = 1.
     mask_out = mask_out.astype(bool)

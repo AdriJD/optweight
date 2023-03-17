@@ -569,4 +569,55 @@ def read_wav(fname, extra=None):
         return wav, extra_dict
     else:
         return wav
+
+def f2wav(fmap, wav, kernels):
+    '''
+    Convert 2D fourier coefficients to wavelet maps.
         
+    Parameters
+    ----------
+    fmap : (..., ny, nx//2+1) complex ndmap
+        Input fourier coefficients.
+    wav : wavtrans.Wav object
+        Wavelet container for output wavelet maps.
+    kernels : (nwav, ny, nx//2+1) complex ndmap
+        Wavelet kernels.
+
+    Returns
+    -------
+    wav : wavtrans.Wav object
+        Vector of wavelet maps.    
+    '''
+
+    for widx, kernel in enumerate(kernels):
+
+        dft.irfft(fmap * kernel, wav[widx:widx+1])
+
+    return wav
+
+def wav2f(wav, fmap, kernels):
+    '''
+    Convert vector of wavelet maps to 2D fourier coefficients.
+        
+    Parameters
+    ----------
+    wav : wavtrans.Wav object
+        Wavelet container for input wavelet maps.
+    fmap : (..., ny, nx//2+1) complex ndmap
+        Output buffer, will be overwritten!
+    kernels : (nwav, ny, nx//2+1) complex ndmap
+        Wavelet kernels.
+
+    Returns
+    -------
+    fmap : (..., ny, nx//2+1) complex ndmap
+        Output Fourier coefficients.
+    '''
+
+    fmap *= 0 
+
+    for widx, kernel in enumerate(kernels):
+        
+        tmp = fmap * 0
+        dft.rfft(wav[widx:widx+1], tmp)
+        fmap += tmp * kernel        
