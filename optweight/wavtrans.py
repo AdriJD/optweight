@@ -4,7 +4,8 @@ import os
 from pixell import sharp
 import h5py
 
-from optweight import alm_utils, sht, type_utils, type_utils, map_utils, wlm_utils
+from optweight import (alm_utils, sht, type_utils, type_utils, map_utils, 
+                       wlm_utils, dft)
 
 class Wav():
     '''
@@ -591,7 +592,7 @@ def f2wav(fmap, wav, kernels):
 
     for widx, kernel in enumerate(kernels):
 
-        dft.irfft(fmap * kernel, wav[widx:widx+1])
+        dft.irfft(fmap * kernel, wav.maps[widx])
 
     return wav
 
@@ -619,5 +620,7 @@ def wav2f(wav, fmap, kernels):
     for widx, kernel in enumerate(kernels):
         
         tmp = fmap * 0
-        dft.rfft(wav[widx:widx+1], tmp)
+        dft.rfft(wav.maps[widx], tmp)
         fmap += tmp * kernel        
+    
+    return fmap

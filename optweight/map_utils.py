@@ -900,7 +900,7 @@ def round_icov_matrix(icov_pix, rtol=1e-2, threshold=False):
 
 def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
     '''
-    Compute map_info metadata for a Gauss-Legendre grid
+    Compute map_info metadata for a Libsharp grid
     given a cylindrical enmap shape and wcs.
 
     Parameters
@@ -920,7 +920,7 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
     Returns
     -------
     map_info : sharp.map_info object
-        metadata of Gausss-Legendre grid.
+        metadata of grid.
 
     Raises
     ------

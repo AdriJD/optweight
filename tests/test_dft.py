@@ -53,6 +53,26 @@ class TestSHT(unittest.TestCase):
         self.assertEqual(imap.dtype, np.float32)
         self.assertEqual(omap.dtype, np.float32)
         self.assertEqual(fmap.dtype, np.complex64)
+
+    def test_irfft(self):
+        
+        # Test roundtrip.
+        ny = 10
+        nx = 11
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec = np.radians([-60, 40])
+        shape, wcs = enmap.band_geometry(dec, res=res, shape=(ny, nx), dims=(2,))
+        imap = enmap.zeros(shape, wcs)
+
+        fmap = np.ones(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)        
+        fmap[0, 3, 5] = 2 + 4j
+
+        dft.irfft(fmap, imap)
+
+        fmap_out = fmap * 0
+        dft.rfft(imap, fmap_out)
+        
+        np.testing.assert_allclose(fmap, fmap_out)
         
     def test_laxes_real(self):
         
