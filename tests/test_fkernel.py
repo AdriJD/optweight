@@ -37,7 +37,6 @@ class TestWlmUtils(unittest.TestCase):
         arr = np.ones(10) - 1.1
         self.assertRaises(ValueError, fkernel.digitize_1d, arr)
 
-
     def test_digitize_kernels(self):
         
         lamb = 3
@@ -59,7 +58,7 @@ class TestWlmUtils(unittest.TestCase):
         # Overlapping non-neighbouring kernels should crash.
         w_ell = np.ones((3, 5))
         self.assertRaises(ValueError, fkernel.digitize_kernels, w_ell)
-        
+
     def test_get_sd_kernels_fourier(self):
         
         lamb = 3
@@ -70,12 +69,30 @@ class TestWlmUtils(unittest.TestCase):
 
         modlmap = dft.modlmap_real(imap.shape, imap.wcs, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(
-            modlmap, lamb, digital=True, upsamp_fact=10)
+            modlmap, lamb, digital=False)
+
+        self.assertEqual(fkernels.shape, (5,) + modlmap.shape)
+
+        # Make sure inner product is one.
+        out_exp = np.ones(modlmap.shape)
+        np.testing.assert_allclose(np.sum(fkernels ** 2, axis=0), out_exp)        
+        
+    def test_get_sd_kernels_fourier_digital(self):
+        
+        lamb = 3
+        lmax = 30
+
+        imap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
+
+        modlmap = dft.modlmap_real(imap.shape, imap.wcs, dtype=np.float64)
+        fkernels = fkernel.get_sd_kernels_fourier(
+            modlmap, lamb, digital=True, oversample=10)
 
         self.assertEqual(fkernels.dtype, bool)
         self.assertEqual(fkernels.shape, (5,) + modlmap.shape)
         
         # Make sure kernels do not overlap.
         out_exp = np.ones(modlmap.shape)
-        np.testing.assert_array_equal(np.sum(fkernels, axis=0), out_exp)
-        
+        np.testing.assert_array_equal(np.sum(fkernels, axis=0), out_exp)        
+

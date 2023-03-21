@@ -56,11 +56,15 @@ def digitize_kernels(w_ell, upsamp_fact=10):
         If non-neighbours input wavelet kernels overlap.
     '''
 
-    EPS = 1e-8
-    if not (np.all(np.prod(w_ell[::2], axis=0) < EPS) or np.all(np.prod(w_ell[::2], axis=0) < EPS)):
-        raise ValueError('Input `w_ell` has overlapping non-neighbouring kernels')
-
     nwav = w_ell.shape[0]
+    
+    err = ValueError('Input `w_ell` has overlapping non-neighbouring kernels')
+    EPS = 1e-8
+    if nwav > 2 and not np.all(np.prod(w_ell[::2], axis=0) < EPS):
+        raise err
+    if nwav > 3 and not np.all(np.prod(w_ell[1::2], axis=0) < EPS):    
+        raise err
+
     lmax = w_ell.shape[-1] - 1
     ells = np.arange(0, lmax + 1, 1)
     ells_fine = np.linspace(0, lmax + 1, upsamp_fact * ells.size)
@@ -76,7 +80,8 @@ def digitize_kernels(w_ell, upsamp_fact=10):
         d_ell_fine[idx] = digitize_1d(w_ell_fine[idx])
 
     # Populate odd kernels.
-    d_ell_fine[1::2] *= np.logical_xor(True, np.sum(d_ell_fine[::2,:], axis=0)[np.newaxis,:] > 0.5)
+    d_ell_fine[1::2] *= np.logical_xor(
+        True, np.sum(d_ell_fine[::2,:], axis=0)[np.newaxis,:] > 0.5)
  
     for idx in range(1, nwav, 2):
         d_ell_fine[idx,w_ell_fine[idx] < 1e-5] = 0
@@ -119,8 +124,8 @@ def w_ell2fkernels(w_ell, ells, modlmap, interp_kind):
 
     return fkernels
 
-def get_sd_kernels_fourier(modlmap, lamb, j0=None, lmin=None, jmax=None, lmax_j=None,
-                           digital=True, upsamp_fact=10):
+def get_sd_kernels_fourier(modlmap, lamb, j0=None, lmin=None, jmax=None,
+                           lmax_j=None, digital=True, oversample=10):
     '''
     2D representation of the Scale-Discrete wavelet kernels for 2D Fourier wavelet
     transforms.
@@ -142,8 +147,9 @@ def get_sd_kernels_fourier(modlmap, lamb, j0=None, lmin=None, jmax=None, lmax_j=
         to jmax.
     digital : bool
         Produce digital (on/off) version of the kernels.
-    upsamp_fact : int
-        Upsample the kernels by this factor in ell. Only used when `digital` is set.
+    oversample : int
+        Oversample the SD kernels by this factor with respect to the Fourier ell
+        spacing. Only used when `digital` is set.
     
     Returns
     -------
@@ -157,16 +163,18 @@ def get_sd_kernels_fourier(modlmap, lamb, j0=None, lmin=None, jmax=None, lmax_j=
         lamb, lmax, j0=j0, lmin=lmin, jmax=jmax, lmax_j=lmax_j)
 
     if digital:
-        w_ell, ells = digitize_kernels(w_ell, upsamp_fact=upsamp_fact) 
+        delta_ell = np.mean([np.abs(modlmap[0,0] - modlmap[0,1]),
+                             np.abs(modlmap[0,0] - modlmap[1,0])])
+        upsamp_fact = max(1, int(np.round(oversample / delta_ell)))
+        w_ell, ells = digitize_kernels(w_ell, upsamp_fact=upsamp_fact)
     else:
         ells = np.arange(w_ell.shape[-1])
 
     if digital:
-        interp_kind = 'nearest'
         dtype = bool
     else:
-        interp_kind = 'linear'
         dtype = w_ell.dtype
 
+    interp_kind = 'nearest'
     return w_ell2fkernels(
         w_ell, ells, modlmap, interp_kind).astype(dtype, copy=False)

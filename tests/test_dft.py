@@ -172,3 +172,23 @@ class TestSHT(unittest.TestCase):
 
         np.testing.assert_allclose(bins, bins_exp)
         np.testing.assert_allclose(fbin, fbin_exp)
+
+    def test_cl2flat_roundtrip(self):
+                
+        ny = 6
+        nx = 11
+        shape, wcs = enmap.geometry([0,0], res=0.1, deg=True, shape=(ny, nx))
+        modlmap = dft.modlmap_real(shape, wcs, dtype=np.float64)
+
+        ells = np.linspace(modlmap.min(), modlmap.max(), 100)
+        c_ell = np.zeros((1, 1, ells.size))
+        c_ell[0,0,:] = (1 + (np.maximum(ells, 10) / 2000) ** -3.)
+
+        out_exp = np.zeros((1, 1) + modlmap.shape)
+        out_exp[:] = (1 + (np.maximum(modlmap, 10) / 2000) ** -3.)
+        
+        out = dft.cl2flat(c_ell, ells, modlmap)
+        
+        # This is not expected to be perfect match because the interpolation
+        # done by cl2flat.
+        np.testing.assert_allclose(out, out_exp, rtol=1e-2)

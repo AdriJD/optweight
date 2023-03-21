@@ -1,9 +1,13 @@
 '''
 Routines for real-to-complex and complex-to-real FFTs. Adapted from pixell and mnms.
+But differ at some critical point, mainly in the defintion of the flat sky lx.
 '''
 import numpy as np
+from scipy.interpolate import interp1d
 
 from pixell import fft, enmap, wcsutils
+
+from optweight import type_utils, mat_utils
 
 def rfft(imap, fmap, normalize=True, adjoint=False):
     '''
@@ -108,9 +112,15 @@ def laxes_real(shape, wcs):
         Wavenumbers in y direction.
     lx : (nlx) array
         Wavenumbers in x direction.
+
+    Notes
+    -----
+    This definition differs from the one used in pixell and mnms. We 
+    attempt no correction for sky curvature. Our `ly` only matches up 
+    with the harmonic `m` on the equator of a cylindrical pixelization.
     '''
 
-    step = enmap.extent(shape, wcs, signed=True, method='auto') / shape[-2:]
+    step = np.radians(wcs.wcs.cdelt[::-1])
     ly = np.fft.fftfreq(shape[-2], step[0]) * 2 * np.pi
     lx = np.fft.rfftfreq(shape[-1], step[1]) * 2 * np.pi
 
@@ -158,14 +168,14 @@ def modlmap_real(shape, wcs, dtype=np.float64):
 
     Returns
     -------
-    lmod : (nly, nlx) array
+    modlmap : (nly, nlx) array
        Map of absolute wavenumbers.
     '''
 
     slmap = lmap_real(shape, wcs, dtype=dtype)
-    lmod = np.sum(slmap ** 2, axis=0) ** 0.5
+    modlmap = np.sum(slmap ** 2, axis=0) ** 0.5
 
-    return lmod
+    return modlmap
 
 def lwcs_real(shape, wcs):
     '''
@@ -190,7 +200,7 @@ def lwcs_real(shape, wcs):
     
     return wcsutils.explicit(crpix=[0,ny//2+1], crval=[0,0], cdelt=lres[::-1])
 
-def lbin(fmap, lmod, bsize=None):
+def lbin(fmap, modlmap, bsize=None):
     '''
     Bin Fourier-space map into radial bins.
     
@@ -198,7 +208,7 @@ def lbin(fmap, lmod, bsize=None):
     ---------
     fmap : (..., nly, nlx) array.
         Input 2D Fourier map.
-    lmod : (nly, nlx) array
+    modlmap : (nly, nlx) array
         Map of absolute wavenumbers.
     bsize : float, optional
         Radial bin size. Defaults to resolution in ell of input map.
@@ -212,6 +222,162 @@ def lbin(fmap, lmod, bsize=None):
     '''
 
     if bsize is None:
-        bsize = min(abs(lmod[0,1]), abs(lmod[1,0]))
+        bsize = min(abs(modlmap[0,1]), abs(modlmap[1,0]))
 
-    return enmap._bin_helper(fmap, lmod, bsize)
+    return enmap._bin_helper(fmap, modlmap, bsize)
+
+def fmul(fmap, fmat2d=None, fmat1d=None, ells=None, modlmap=None,
+         out=None):
+    '''
+    Compute f'[...,i,ly,lx] = m[i,j,ly,lx] f[...,j,ly,lx] matrix
+    multiplication.
+    
+    Parameters
+    ----------
+    fmap : (..., nly, nlx) complex array.
+        Input 2D Fourier map.
+    fmat2d : (npol, npol, nly, nlx) or (npol, nly, nlx) array, optional
+        Matrix, if diagonal only the diagal suffices.
+    fmat1d : (npol, npol, nell) or (npol, nly, nell) array, optional
+        Matrix, if diagonal only the diagal suffices.
+    ells : (nell) array, optional
+        Array with multipoles, can be non-integer, needed for `fmat1d`.
+    modlmap : (nly, nlx) array
+        Map of absolute wavenumbers, needed for `fmat2d`.
+    out : (..., nly, nlx) array, optional
+        Output array.
+
+    Returns
+    -------
+    out : (..., nly, nlx) complex array
+        Result from matrix multiplication.
+    '''
+    
+    if fmat2d is not None and fmat1d is not None:
+        raise ValueError('Cannot have both fmat2d and fmat1d')
+
+    if fmat1d is not None:
+        fmat2d = cl2flat(fmat1d, ells, modlmap)
+        
+    return fmul_2d(fmap, fmat2d, out=out)
+
+def fmul_2d(fmap, fmat2d, out=None):
+    '''
+    Compute f'[...,i,ly,lx] = m[i,j,ly,lx] f[...,j,ly,lx] matrix
+    multiplication.
+    
+    Parameters
+    ----------
+    fmap : (npol, nly, nlx) complex array
+        Input array.
+    fmat2d : (npol, npol, nly, nlx) or (npol, nly, nlx) array
+        Matrix, if diagonal only the diagal suffices.
+    out : (npol, nly, nlx) complex array, optional
+        Output array. Will be overwritten!
+
+    Returns
+    -------
+    out : (npol, nly, nlx) complex array
+        Output array.
+    '''
+    
+    fmap = mat_utils.atleast_nd(fmap, 3)
+    npol = fmap.shape[0]
+    nly, nlx = fmap.shape[-2:]
+
+    if out is None:
+        out = fmap.copy()
+    else:
+        out[:] = fmap 
+
+    if fmat2d.shape == (npol, nly, nlx):        
+        out *= fmat2d
+    else:
+        out = np.einsum('ablk, blk -> alk', out=out, optimize=True)
+    
+    return out
+
+def cl2flat(c_ell, ells, modlmap):
+    '''
+    Interpolate a 1d function of multipole to a 2D map of Fourier
+    coefficients.
+
+    Parameters
+    ----------    
+    c_ell : (..., nell) array
+        Input power spectrum.
+    ells : (nell) array
+        Multipoles, can be non-integer.
+    modlmap : (nly, nlx) array
+        Map of absolute wavenumbers.
+
+    Returns
+    -------
+    out : (npol, nly, nlx) complex array
+        2D output array.    
+    
+    Raises
+    ------
+    ValueError
+        If input has to be extrapolated more than 5 ell bins.
+    '''
+
+    # Extrapolate the input to the output using nearest neighbor.
+    # This makes sure we don't change signs etc and turn a PSD
+    # matrix into a non-PSD matrix. A bit ugly, but better safe
+    # than sorry.
+
+    lmin_out = modlmap.min()
+    lmax_out = modlmap.max()
+
+    ell_start, ell_end = [], []
+    if ells[0] > lmin_out:
+        ell_start = np.asarray([lmin_out])
+        c_ell_start = c_ell[...,0]
+        c_ell = np.concatenate((c_ell_start[...,np.newaxis], c_ell), axis=-1)
+    if ells[-1] < lmax_out:
+        ell_end = np.asarray([lmax_out])
+        c_ell_end = c_ell[...,-1]
+        c_ell = np.concatenate((c_ell, c_ell_end[...,np.newaxis]), axis=-1)
+    ells = np.concatenate((ell_start, ells, ell_end))        
+
+    out = np.zeros(c_ell.shape[:-1] + modlmap.shape,
+                   dtype=type_utils.to_complex(c_ell.dtype))
+    cs = interp1d(ells, c_ell, kind='linear', assume_sorted=True,
+                  bounds_error=True)
+
+    return cs(modlmap)
+
+def calc_ps1d(fmap, wcs, modlmap, fmap2=None, bsize=None):
+    '''
+    Calculate 1D power spectrum from set of Fourier
+    coefficients.
+    
+    Parameters
+    ----------
+    fmap : (..., nly, nlx) complex array
+        Input 2D Fourier map.
+    wcs : astropy.wcs.WCS object
+        WCS object describing geometry of original map.
+    modlmap : (nly, nlx) array
+        Map of absolute wavenumbers.
+    fmap2 : (..., nly, nlx) complex array, optional
+        Second 2D Fourier map for cross-correlation.
+    bsize : float, optional
+        Radial bin size. Defaults to resolution in ell of input map.
+    
+    Returns
+    -------
+    ps1d : (..., nbin) array
+        Radially binned 1D power spectrum.
+    bins : (nbin) array
+        Bins.
+    '''
+
+    fmap = enmap.enmap(fmap, wcs=wcs, copy=False)
+    if fmap2:
+        fmap2 = enmap.enmap(fmap2, wcs=wcs, copy=False)
+
+    ps2d = enmap.calc_ps2d(fmap, harm2=fmap2)
+    return lbin(ps2d, modlmap, bsize=bsize)
+        
