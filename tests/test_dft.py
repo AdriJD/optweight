@@ -73,6 +73,31 @@ class TestSHT(unittest.TestCase):
         dft.rfft(imap, fmap_out)
         
         np.testing.assert_allclose(fmap, fmap_out)
+
+    def test_allocate_fmap(self):
+        
+        ny = 10
+        nx = 11
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec = np.radians([-60, 40])
+        shape, wcs = enmap.band_geometry(dec, res=res, shape=(ny, nx), dims=(2,))
+        
+        dtype = np.float32
+        omap = dft.allocate_fmap(shape, dtype)
+
+        ny_exp = shape[-2]
+        nx_exp = shape[-1] // 2 + 1
+
+        self.assertEqual(omap.shape, (2, ny_exp, nx_exp))
+        self.assertEqual(omap.dtype, np.complex64)
+        self.assertTrue(np.all(omap == 0))
+
+        omap = dft.allocate_fmap(shape, dtype, fill_value=1)
+        self.assertTrue(np.all(omap == 1))
+
+        dtype = np.float64
+        omap = dft.allocate_fmap(shape, dtype)
+        self.assertEqual(omap.dtype, np.complex128)
         
     def test_laxes_real(self):
         

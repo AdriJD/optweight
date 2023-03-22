@@ -142,12 +142,14 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
     else:
         cov_pix = np.einsum('abc, dec -> abdec', imap, imap, optimize=True)
 
+    # REMOVE!!
     if features is not None:
         lmax_w = map_utils.minfo2lmax(minfo)
         _, w_ell = minimum_w_ell_lambda(lmax_w, lmax_w // 2, (4 * lmax_w) // 5,
                                         return_w_ell=True)
         b_ell = None
     else: 
+        # ADD FFT OPTIONS
         b_ell = _band_limit_gauss_beam(map_utils.minfo2lmax(minfo), fwhm=fwhm)
         lmax_w = None
         w_ell = None
@@ -160,10 +162,12 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
         if idxs[0] <= idxs[1]:
             # Upper triangular part.
             # Only using spin 0 is an approximation, cov elements are not all spin-0.
+            # REMOVE!!!!!!!!!!
             if features is not None:
                 smooth_locally(cov_pix[idxs], minfo, w_ell, features, 0, inplace=True)
             else:
                 if fwhm > 0:
+                    # ADD FFT OPTIONS
                     map_utils.lmul_pix(cov_pix[idxs], b_ell, minfo, 0, inplace=True)
         else:
             # Fill lower triangular. Works because idxs loop is in row-major order.

@@ -1127,4 +1127,20 @@ class TestMapUtilsIO(unittest.TestCase):
 
         # Test if GL map raises error.
         minfo_gl = map_utils.get_gauss_minfo(lmax)
-        self.assertRaises(ValueError, map_utils.minfo2wcs, minfo_gl)
+        self.assertRaises(ValueError, map_utils.minfo2wcs, minfo_gl)        
+
+    def test_fmul_pix(self):
+
+        lmax = 10
+        minfo = map_utils.get_cc_minfo(lmax)        
+        imap = np.ones((2, minfo.npix))
+        
+        ny = minfo.nrow
+        nx = minfo.nphi[0]
+
+        fmat2d = np.full((ny, nx // 2 + 1), 2, dtype=np.complex128)
+        omap = map_utils.fmul_pix(imap, minfo, fmat2d)
+
+        omap_exp = imap * 2
+        np.testing.assert_allclose(omap, omap_exp)
+        

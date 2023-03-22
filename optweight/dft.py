@@ -95,6 +95,31 @@ def irfft(fmap, omap, normalize=True, adjoint=False, destroy_input=False):
     if norm != 1:
         omap *= norm
 
+def allocate_fmap(shape, dtype, fill_value=0):
+    '''
+    Allocate an array suitable for the output of rfft.
+
+    Parameters
+    ----------
+    shape : tuple
+        Input shape of enmap.
+    dtype : type, optional
+        Type of input map.
+    fill_value : scalar, optional
+        Value to fill new array with.
+
+    Returns
+    -------
+    omap : (..., ny, nx//2+1) complex array
+        New array for 2D Fourier coefficients.
+    '''
+    
+    preshape = shape[:-2]
+    ny, nx = shape[-2:]
+
+    return np.full(preshape + (ny, nx // 2 + 1), fill_value, 
+                   dtype=type_utils.to_complex(dtype))
+
 def laxes_real(shape, wcs):
     '''
     Compute ell_x and ell_y axes corresponding to a given enmap geometry.
@@ -243,7 +268,7 @@ def fmul(fmap, fmat2d=None, fmat1d=None, ells=None, modlmap=None,
     ells : (nell) array, optional
         Array with multipoles, can be non-integer, needed for `fmat1d`.
     modlmap : (nly, nlx) array
-        Map of absolute wavenumbers, needed for `fmat2d`.
+        Map of absolute wavenumbers, needed for `fmat1d`.
     out : (..., nly, nlx) array, optional
         Output array.
 
@@ -290,7 +315,7 @@ def fmul_2d(fmap, fmat2d, out=None):
     else:
         out[:] = fmap 
 
-    if fmat2d.shape == (npol, nly, nlx):        
+    if fmat2d.ndim in (2, 3):
         out *= fmat2d
     else:
         out = np.einsum('ablk, blk -> alk', out=out, optimize=True)

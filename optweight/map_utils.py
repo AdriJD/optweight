@@ -1,5 +1,6 @@
 '''
-A collection of functions for dealing with Gauss-Legendre pixelated maps.
+A collection of functions for dealing with Gauss-Legendre or other libsharp compatible 
+pixelated maps.
 '''
 import numpy as np
 from scipy.interpolate import (NearestNDInterpolator, RectBivariateSpline,
@@ -10,7 +11,7 @@ from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 import h5py
 
-from optweight import wavtrans, sht, mat_utils, type_utils, alm_c_utils
+from optweight import wavtrans, sht, mat_utils, type_utils, alm_c_utils, dft
 
 def view_2d(imap, minfo):
     '''
@@ -321,7 +322,6 @@ def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0):
         omap *= (minfo_out.weight ** area_pow)[:,np.newaxis]
     
     return view_1d(omap, minfo_out)
-
 def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
     '''
     Interpolate one Gauss-Legendre map to an equal-area GL map (or a generic 
@@ -1103,8 +1103,8 @@ def inpaint_nearest(imap, mask, minfo):
     '''
     Inpaint regions under mask using nearest neighbour.
 
-    Arguments
-    ---------    
+    Parameters
+    ----------    
     imap : (..., npix)
         Input map.
     mask : (..., npix) or (npix) bool array
@@ -1173,8 +1173,8 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
     '''
     Convert map to spherical harmonic domain, apply matrix and convert back.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     imap : (npol, npix)
         Input map.
     lmat : (npol, npol, nell) or (npol, nell) array
@@ -1212,13 +1212,58 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
 
     return omap
 
+def fmul_pix(imap, minfo, fmat2d=None, fmat1d=None, ells=None, modlmap=None,
+             inplace=False):
+    '''
+    Convert map to 2D Fourier domain, apply matrix and convert back.
+
+    Parameters
+    ----------
+    imap : (npol, npix)
+        Input map.
+    fmat2d : (npol, npol, nly, nlx) or (npol, nly, nlx) array, optional
+        Matrix, if diagonal only the diagal suffices.
+    fmat1d : (npol, npol, nell) or (npol, nly, nell) array, optional
+        Matrix, if diagonal only the diagal suffices.
+    ells : (nell) array, optional
+        Array with multipoles, can be non-integer, needed for `fmat1d`.
+    modlmap : (nly, nlx) array
+        Map of absolute wavenumbers, needed for `fmat1d`.
+    inplace : bool, optional
+        If set, use input map array for output.
+
+    Returns
+    -------
+    omap : (npol, npix)
+        Output map.
+    '''
+
+    imap = mat_utils.atleast_nd(imap, 2)
+    npol = imap.shape[0]
+
+    imap2d = view_2d(imap, minfo)
+    fmap = dft.allocate_fmap(imap2d.shape, imap2d.dtype)
+
+    dft.rfft(imap2d, fmap)
+    dft.fmul(fmap, fmat2d=fmat2d, fmat1d=fmat1d, ells=ells, modlmap=modlmap,
+             out=fmap)    
+
+    if inplace:
+        omap2d = imap2d
+    else:
+        omap2d = np.zeros_like(imap2d)
+        
+    dft.irfft(fmap, omap2d)
+
+    return view_1d(omap2d, minfo)
+
 def minfo2lmax(minfo):
     '''
     Determine lmax from map_info based on the max number of phi samples
     on the map's rings (usually the equator).
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     minfo : sharp.map_info object
         Metainfo of map.
 
@@ -1234,8 +1279,8 @@ def minfo2wcs(minfo):
     '''
     Determine CAR WCS object from map_info.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     minfo : sharp.map_info object
         Metainfo of map.
 
@@ -1274,8 +1319,8 @@ def copy_minfo(minfo):
     '''
     Return copy (new instance) of map info object.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     minfo : sharp.map_info object
         Object to be copied.
 
@@ -1293,8 +1338,8 @@ def minfo_is_equiv(minfo_1, minfo_2):
     '''
     Test whether two map info objects are equivalent.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     minfo_1 : sharp.map_info object
         First map info object.
     minfo_2 : sharp.map_info object
@@ -1322,8 +1367,8 @@ def write_minfo(fname, minfo):
     '''
     Write map info object to an hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     fname : str
         Path to file. Will append .hdf5 if no file extension is found.
     minfo : sharp.map_info object
@@ -1341,8 +1386,8 @@ def append_minfo_to_hdf(hfile, minfo):
     '''
     Add map info object datasets to provided hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     hfile : HDF5 file or group
         Writeable hdf file or group.
     minfo : sharp.map_info object
@@ -1360,8 +1405,8 @@ def read_minfo(fname):
     '''
     Read map info object from hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     fname : str
         Path to file.
 
@@ -1381,8 +1426,8 @@ def minfo_from_hdf(hfile):
     '''
     Extract map info object from hdf datasets.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     hfile : HDF5 file or group
         Hdf file or group.
     
@@ -1407,8 +1452,8 @@ def write_map(fname, imap, minfo, symm_axes=None):
     '''
     Write map and accompanying map info object to an hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     fname : str
         Path to file.  Will append .hdf5 if no file extension is found.
     imap : (..., npix) array
@@ -1432,8 +1477,8 @@ def append_map_to_hdf(hfile, imap, minfo, symm_axes=None):
     '''
     Add map dataset to provided hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     hfile : HDF5 file or group
         Writeable hdf file or group.
     imap : (..., npix) array
@@ -1468,8 +1513,8 @@ def read_map(fname):
     '''
     Read map and map info object from hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     fname : str
         Path to file.
 
@@ -1492,8 +1537,8 @@ def map_from_hdf(hfile):
     Extract map array from hdf datasets. If needed, expands 
     upper-triangular elemets to full symmetric matrix.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     hfile : HDF5 file or group
         Hdf file or group.
     
