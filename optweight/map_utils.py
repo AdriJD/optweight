@@ -962,6 +962,98 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
     else:
         raise ValueError(f'mtype : {mtype} not supported')
 
+def match_enmap_minfo(shape, wcs, mtype='CC'):
+    '''
+    Given a enmap in the Clenshaw-Curtis CAR variant, find the matching 
+    map_info object for libsharp.
+
+    Parameters
+    ----------
+    shape : tuple
+        The shape of the enmap geometry.
+    wcs : astropy.wcs.WCS object
+        The wcs object of the enmap geometry
+    mtype : string
+        The CAR variant. Right now only "CC" supported.
+
+    Returns
+    -------
+    map_info : sharp.map_info object
+        metadata of grid.
+
+    Raises
+    ------
+    NotImplementedError
+        If mtype is not understood.
+    ValueError
+        If input map does not span the whole sphere in RA.
+        If the input geometry does not confom to the Clenshaw-Curtis rule.    
+
+    Notes
+    -----
+    Different from the methods in pixell.curvedsky in the sense that we
+    don't modifiy the input map, e.g. flipping it horizontally, vertically,
+    but instead modify the libsharp's map info object if we need to flip something.
+    '''
+
+    if mtype != 'CC':
+        raise NotImplementedError('Only "CC" `mtype` is implemented for now.')
+            
+    # Determine number of y and x pixels on the full sky.
+    nx   = utils.nint(np.abs(360 / wcs.wcs.cdelt[0]))
+    if nx != shape[-1]:
+        raise ValueError(f'Input needs to span full range in phi, {shape[-1]}, {nx} ')
+    
+    # Add 1 because Clenshaw Curtis has a pixel on both poles.
+    ny = utils.nint(abs(180 / wcs.wcs.cdelt[1]) + 1)
+
+    phi0 = enmap.pix2sky(shape, wcs, [0,0])[1]
+
+    # Create full sky minfo.
+    stride_lon = np.sign(wcs.wcs.cdelt[0])
+    stride_lat = np.abs(np.sign(wcs.wcs.cdelt[1])) * nx
+    minfo = sharp.map_info_clenshaw_curtis(
+        ny, nphi=nx, phi0=phi0, stride_lon=stride_lon, stride_lat=stride_lat)
+
+    # Now find indices of first and last rings.
+    # This is also where you crash if you don't find a match.
+    ntheta = shape[-2]
+    theta = enmap.pix2sky(shape, wcs, [np.arange(ntheta),np.zeros(ntheta)])[0]
+    # Convert to colatitude, which is what libsharp uses.
+    theta = np.pi / 2 - theta
+
+    atol = 1e-6
+    idx_start = np.flatnonzero(np.abs(theta[0] - minfo.theta) < atol)
+    if idx_start.size != 1:
+        raise ValueError(f'Input geometry is not CC at atol = {atol}')
+
+    idx_end = np.flatnonzero(np.abs(theta[-1] - minfo.theta) < atol)
+    if idx_end.size != 1:
+        raise ValueError(f'Input geometry is not CC at atol = {atol}')
+
+    idx_start, idx_end = idx_start[0], idx_end[0]
+    slice2keep = np.s_[min(idx_start, idx_end):max(idx_start, idx_end)+1]
+    
+    if wcs.wcs.cdelt[0] > 0:
+        offsets2keep = minfo.offsets[slice2keep]-minfo.offsets[slice2keep][0] 
+    else:
+        offsets2keep = minfo.offsets[slice2keep]-minfo.offsets[slice2keep][0] + nx - 1
+        phi0 -= np.radians(wcs.wcs.cdelt[0])
+
+    theta2keep = minfo.theta[slice2keep]
+    weight2keep = minfo.weight[slice2keep]
+    stride = np.full(theta2keep.size, stride_lon)
+
+    if wcs.wcs.cdelt[1] > 0:
+        theta2keep = np.ascontiguousarray(theta2keep[::-1])
+        weight2keep = np.ascontiguousarray(weight2keep[::-1])
+
+    minfo_cut = sharp.map_info(theta2keep, nphi=nx, phi0=phi0,
+                               offsets=offsets2keep,
+                               stride=stride.astype(np.int32), weight=weight2keep)
+
+    return minfo_cut    
+
 def select_mask_edge(mask, minfo):
     '''
     Return boolean mask that is True for all pixels that are on the edge of

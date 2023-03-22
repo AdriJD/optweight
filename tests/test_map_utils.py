@@ -13,20 +13,20 @@ from optweight import map_utils, sht, wavtrans
 class TestMapUtils(unittest.TestCase):
 
     def test_get_gauss_minfo(self):
-        
+
         lmax = 5
         minfo = map_utils.get_gauss_minfo(lmax)
-        
+
         # We expect support for polynomial in cos(theta) of order lmax,
         # so lmax = 2 n - 1 -> n = 3.
         n_theta = int(lmax / 2) + 1
         n_phi = lmax + 1
         ct, ct_w = roots_legendre(n_theta)
-        
+
         self.assertTrue(np.all(minfo.nphi == lmax + 1))
         np.testing.assert_array_almost_equal(minfo.theta, np.arccos(ct)[::-1])
         np.testing.assert_array_almost_equal(
-            minfo.weight, ct_w[::-1] * 2 * np.pi / n_phi)        
+            minfo.weight, ct_w[::-1] * 2 * np.pi / n_phi)
         np.testing.assert_array_almost_equal(minfo.phi0, np.zeros(n_theta))
 
         offsets_exp = np.arange(n_theta) * n_phi
@@ -34,22 +34,22 @@ class TestMapUtils(unittest.TestCase):
         np.testing.assert_array_almost_equal(minfo.stride, np.ones(n_theta))
 
     def test_get_gauss_minfo_cutsky(self):
-        
+
         lmax = 5
         theta_min = np.pi / 3
         theta_max = 2 * np.pi / 3
         minfo = map_utils.get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
-        
+
         n_theta = 1
         n_phi = lmax + 1
         ct, ct_w = roots_legendre(int(lmax / 2) + 1)
         ct = np.asarray(ct[1])
         ct_w = np.asarray(ct_w[1])
-        
+
         self.assertTrue(np.all(minfo.nphi == lmax + 1))
         np.testing.assert_array_almost_equal(minfo.theta, np.asarray(np.arccos(ct)))
         np.testing.assert_array_almost_equal(
-            minfo.weight, ct_w * 2 * np.pi / n_phi)        
+            minfo.weight, ct_w * 2 * np.pi / n_phi)
         np.testing.assert_array_almost_equal(minfo.phi0, np.zeros(n_theta))
 
         offsets_exp = np.arange(n_theta) * n_phi
@@ -57,30 +57,30 @@ class TestMapUtils(unittest.TestCase):
         np.testing.assert_array_almost_equal(minfo.stride, np.ones(n_theta))
 
     def test_get_gauss_minfo_cutsky_arclen(self):
-        
+
         lmax = 5
         theta_min = np.pi / 3
         theta_max = 2 * np.pi / 3
         minfo, arc_len = map_utils.get_gauss_minfo(
             lmax, theta_min=theta_min, theta_max=theta_max, return_arc_len=True)
-        
+
         n_theta = 1
         n_phi = lmax + 1
         ct, ct_w = roots_legendre(int(lmax / 2) + 1)
-        
+
         arc_len_exp = (np.pi - 2 * np.arccos(ct[-1])) / 2
 
         np.testing.assert_array_almost_equal(arc_len, np.asarray(arc_len_exp))
 
     def test_get_cc_minfo(self):
-        
+
         lmax = 5
         minfo = map_utils.get_cc_minfo(lmax)
-        
+
         # We expect support for polynomial in cos(theta) of order lmax,
         n_theta = lmax + 1
         n_phi = lmax + 1
-        
+
         self.assertTrue(np.all(minfo.nphi == lmax + 1))
         theta_exp = np.linspace(0, np.pi, n_theta)
         np.testing.assert_allclose(minfo.theta, theta_exp, atol=1e-7)
@@ -91,16 +91,16 @@ class TestMapUtils(unittest.TestCase):
         np.testing.assert_array_almost_equal(minfo.stride, np.ones(n_theta))
 
     def test_get_equal_area_gauss_minfo(self):
-        
+
         lmax = 9
         minfo = map_utils.get_equal_area_gauss_minfo(lmax)
-        
+
         # We expect support for polynomial in cos(theta) of order lmax,
         # so lmax = 2 n - 1 -> n = 5.
         n_theta = int(lmax / 2) + 1
         n_phi = lmax + 1
         ct, ct_w = roots_legendre(n_theta)
-        
+
         np.testing.assert_array_almost_equal(minfo.theta, np.arccos(ct)[::-1])
         np.testing.assert_array_almost_equal(minfo.phi0, np.zeros(n_theta))
 
@@ -114,7 +114,7 @@ class TestMapUtils(unittest.TestCase):
         # Symmetric?
         self.assertTrue(minfo.nphi[0] == minfo.nphi[4])
         self.assertTrue(minfo.nphi[1] == minfo.nphi[3])
-        
+
         # Test if offsets and nphi match up.
         self.assertEqual(minfo.offsets[-1] + minfo.nphi[-1], minfo.npix)
         np.testing.assert_array_equal(np.ediff1d(minfo.offsets), minfo.nphi[:-1])
@@ -132,7 +132,7 @@ class TestMapUtils(unittest.TestCase):
         minfo = map_utils.get_equal_area_gauss_minfo(lmax, ratio_pow=0)
         minfo_gl = map_utils.get_gauss_minfo(lmax)
         self.assertTrue(map_utils.minfo_is_equiv(minfo, minfo_gl))
-        
+
     def test_enmap2gauss_fullsky(self):
 
         lmax = 100
@@ -145,7 +145,7 @@ class TestMapUtils(unittest.TestCase):
         omap = curvedsky.make_projectable_map_by_pos(
             [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=6)
         curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
-        
+
         m_gl, minfo = map_utils.enmap2gauss(omap, 2 * lmax)
 
         # map2alm into second GL map.
@@ -172,7 +172,7 @@ class TestMapUtils(unittest.TestCase):
         omap = curvedsky.make_projectable_map_by_pos(
             [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=6)
         curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
-        
+
         m_gl, minfo = map_utils.enmap2gauss(omap, 2 * lmax, area_pow=area_pow)
 
         # map2alm into second GL map.
@@ -185,7 +185,7 @@ class TestMapUtils(unittest.TestCase):
 
         # Scale expected map by (area_out / area_in)^1.
         area_in_map = enmap.pixsizemap(
-            omap.shape, omap.wcs, separable="auto", broadcastable=False) 
+            omap.shape, omap.wcs, separable="auto", broadcastable=False)
 
         m_gl_exp = m_gl_exp.reshape(1, minfo_2.nrow, minfo_2.nphi[0])
 
@@ -205,7 +205,7 @@ class TestMapUtils(unittest.TestCase):
                                              decimal=0)
 
     def test_get_arc_len(self):
-        
+
         # Theta range [2, 15].
         # Thetas: 3, 5, 10, 14.
         # Arc lengths: 2, 3.5, 4.5, 3.
@@ -214,11 +214,11 @@ class TestMapUtils(unittest.TestCase):
         thetas = np.asarray([10, 3, 5, 14])
         arc_lens = map_utils.get_arc_len(thetas, 2, 15)
         arc_lens_exp = np.asarray([4.5, 2, 3.5, 3])
-        
+
         np.testing.assert_almost_equal(arc_lens_exp, arc_lens)
 
     def test_get_arc_len_err(self):
-        
+
         thetas = np.asarray([10, 10, 5, 14])
         self.assertRaises(ValueError, map_utils.get_arc_len, thetas, 2, 15)
 
@@ -229,7 +229,7 @@ class TestMapUtils(unittest.TestCase):
         self.assertRaises(ValueError, map_utils.get_arc_len, thetas, 2, 15)
 
     def test_inv_qweight_map(self):
-        
+
         lmax = 3
         npol = 3
         nrings = lmax + 1
@@ -240,16 +240,16 @@ class TestMapUtils(unittest.TestCase):
         m = m.reshape(npol, minfo.nrow, minfo.nphi[0])
         m[:,:,:] = minfo.weight[np.newaxis,:,np.newaxis]
         m = m.reshape(npol, minfo.npix)
-        
+
         out = map_utils.inv_qweight_map(m, minfo, inplace=False)
 
         np.testing.assert_array_almost_equal(out, np.ones_like(m))
 
     def test_rand_map(self):
-        
+
         cov_pix = np.ones((2, 2, 3))
         draw1 = map_utils.rand_map_pix(cov_pix)
-        
+
         self.assertEqual(draw1.shape, (2, 3))
 
         draw2 = map_utils.rand_map_pix(cov_pix)
@@ -258,7 +258,7 @@ class TestMapUtils(unittest.TestCase):
             AssertionError, np.testing.assert_array_almost_equal, draw1, draw2)
 
     def test_rand_map_diag(self):
-        
+
         cov_pix = np.zeros((2, 2, 3))
         cov_pix[0,0,:] = [1, 2, 3]
         cov_pix[1,1,:] = [4, 5, 6]
@@ -269,17 +269,17 @@ class TestMapUtils(unittest.TestCase):
 
         np.random.seed(1)
         draw1 = map_utils.rand_map_pix(cov_pix)
-        np.random.seed(1)        
+        np.random.seed(1)
         draw2 = map_utils.rand_map_pix(cov_pix_diag)
 
         np.testing.assert_array_almost_equal(draw1, draw2)
 
     def test_rand_map_dtype(self):
-        
+
         cov_pix = np.ones((2, 2, 3), dtype=np.float32)
         draw = map_utils.rand_map_pix(cov_pix)
         self.assertEqual(draw.dtype, cov_pix.dtype)
-        
+
         cov_pix = np.zeros((2, 2, 3), dtype=np.float32)
         draw = map_utils.rand_map_pix(cov_pix)
         self.assertEqual(draw.dtype, cov_pix.dtype)
@@ -303,7 +303,7 @@ class TestMapUtils(unittest.TestCase):
         icov_pix = icov_pix.reshape((npol, npol, minfo.nrow, minfo.nphi[0]))
         icov_pix[:,:,:,:] /= minfo.weight[np.newaxis,np.newaxis,:,np.newaxis]
         icov_pix = icov_pix.reshape((npol, npol, minfo.npix))
-        
+
         itau_exp = np.zeros((npol, npol))
         itau_exp[0,0] = np.sum(icov_pix[0,0] ** 2) / np.sum(icov_pix[0,0])
         itau_exp[1,1] = np.sum(icov_pix[1,1] ** 2) / np.sum(icov_pix[1,1])
@@ -327,7 +327,7 @@ class TestMapUtils(unittest.TestCase):
         icov_pix = icov_pix.reshape((npol, minfo.nrow, minfo.nphi[0]))
         icov_pix[:,:,:] /= minfo.weight[np.newaxis,:,np.newaxis]
         icov_pix = icov_pix.reshape((npol, minfo.npix))
-        
+
         itau_exp = np.zeros((npol, npol))
         itau_exp[0,0] = np.sum(icov_pix[0] ** 2) / np.sum(icov_pix[0])
         itau_exp[1,1] = np.sum(icov_pix[1] ** 2) / np.sum(icov_pix[1])
@@ -336,7 +336,7 @@ class TestMapUtils(unittest.TestCase):
         np.testing.assert_array_almost_equal(itau, itau_exp)
 
     def test_get_ivar_ell(self):
-        
+
         lmax = 3
         npol = 3
         minfo = sharp.map_info_gauss_legendre(lmax + 1)
@@ -355,7 +355,7 @@ class TestMapUtils(unittest.TestCase):
         w_ell = np.zeros((2, lmax + 1))
         w_ell[0] = [1, 1, 0, 0]
         w_ell[1] = [0, 0, 1, 1]
-                         
+
         ivar_ell = map_utils.get_ivar_ell(icov_wav, w_ell)
 
         self.assertEqual(ivar_ell.shape, (npol, npol, lmax + 1))
@@ -363,7 +363,7 @@ class TestMapUtils(unittest.TestCase):
         icov_pix = icov_pix.reshape((npol, minfo.nrow, minfo.nphi[0]))
         icov_pix[:,:,:] /= minfo.weight[np.newaxis,:,np.newaxis]
         icov_pix = icov_pix.reshape((npol, minfo.npix))
-        
+
         amp_exp = np.sum(icov_pix[0] ** 2) / np.sum(icov_pix[0])
         ivar_ell_exp = np.zeros((npol, npol, lmax+1))
         ivar_ell_exp[0,0] = np.asarray([1, 1, 2, 2]) * amp_exp
@@ -371,7 +371,7 @@ class TestMapUtils(unittest.TestCase):
         ivar_ell_exp[2,2] = np.asarray([1, 1, 2, 2]) * amp_exp
 
         np.testing.assert_array_almost_equal(ivar_ell, ivar_ell_exp)
-        
+
     def test_get_ivar_ell_err(self):
 
         lmax = 3
@@ -388,7 +388,7 @@ class TestMapUtils(unittest.TestCase):
         self.assertRaises(ValueError, map_utils.get_ivar_ell, icov_wav, w_ell)
 
     def test_rand_wav(self):
-        
+
         npol = 3
 
         cov_wav = wavtrans.Wav(2)
@@ -410,27 +410,27 @@ class TestMapUtils(unittest.TestCase):
         self.assertEqual(rand_wav.shape, (2,))
         self.assertEqual(rand_wav.maps[0].shape, (npol, minfo1.npix))
         self.assertEqual(rand_wav.maps[1].shape, (npol, minfo2.npix))
-        
+
     def test_round_icov_matrix(self):
-        
+
         npol = 3
         npix = 4
 
         icov_pix = np.ones((npol, npol, npix))
 
         icov_pix_round = map_utils.round_icov_matrix(icov_pix)
-        
+
         self.assertFalse(np.shares_memory(icov_pix_round, icov_pix))
         np.testing.assert_array_equal(icov_pix_round, icov_pix)
 
-        # I expect that rows and columns that hit zero diagonal 
+        # I expect that rows and columns that hit zero diagonal
         # are set to zero too
         icov_pix[1,1,2] = 1e-3
         icov_pix_exp = np.ones_like(icov_pix)
         icov_pix_exp[:,1,2] = 0
         icov_pix_exp[1,:,2] = 0
         icov_pix_round = map_utils.round_icov_matrix(icov_pix)
-        
+
         np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
 
         # Small off-diagonal element should not triger update.
@@ -438,20 +438,20 @@ class TestMapUtils(unittest.TestCase):
         icov_pix[1,0,2] = 1e-3
         icov_pix_exp = icov_pix.copy()
         icov_pix_round = map_utils.round_icov_matrix(icov_pix)
-        
+
         np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
 
         # Matrix that is completely zeros should work.
         icov_pix[:] = 0
         icov_pix_exp = icov_pix.copy()
         icov_pix_round = map_utils.round_icov_matrix(icov_pix)
-        
+
         np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
 
         #assert False
 
     def test_round_icov_matrix_diag(self):
-        
+
         # Test if function also works if (npol, npix) array is given.
         npol = 3
         npix = 4
@@ -459,21 +459,21 @@ class TestMapUtils(unittest.TestCase):
         icov_pix = np.ones((npol, npix))
 
         icov_pix_round = map_utils.round_icov_matrix(icov_pix)
-        
+
         self.assertFalse(np.shares_memory(icov_pix_round, icov_pix))
         np.testing.assert_array_equal(icov_pix_round, icov_pix)
 
-        # I expect that rows and columns that hit zero diagonal 
+        # I expect that rows and columns that hit zero diagonal
         # are set to zero too
         icov_pix[1,2] = 1e-3
         icov_pix_exp = np.ones_like(icov_pix)
         icov_pix_exp[1,2] = 0
         icov_pix_round = map_utils.round_icov_matrix(icov_pix)
-        
+
         np.testing.assert_array_equal(icov_pix_round, icov_pix_exp)
 
     def test_round_icov_matrix_threshold(self):
-        
+
         # Test for threshold option.
 
         npol = 1
@@ -482,18 +482,18 @@ class TestMapUtils(unittest.TestCase):
 
         icov_pix[0,2] = 1e-3
 
-        rtol = 1e-2        
+        rtol = 1e-2
         val_exp = rtol * np.median(icov_pix)
-        
+
         icov_pix_exp = np.ones_like(icov_pix)
         icov_pix_exp[0,2] = val_exp
         icov_pix_round = map_utils.round_icov_matrix(
             icov_pix, rtol=rtol, threshold=True)
-        
+
         np.testing.assert_allclose(icov_pix_round, icov_pix_exp)
 
     def test_round_icov_matrix_err(self):
-        
+
         npol = 3
         npix = 4
 
@@ -523,7 +523,7 @@ class TestMapUtils(unittest.TestCase):
                                 [0, 0, 0, 0, 1, 1, 1],
                                 [0, 0, 0, 0, 0, 0, 0]], dtype=bool)
 
-        edges_exp = edges_exp.reshape(-1)        
+        edges_exp = edges_exp.reshape(-1)
         np.testing.assert_array_equal(edges, edges_exp)
 
     def test_select_mask_edge_2d(self):
@@ -561,7 +561,7 @@ class TestMapUtils(unittest.TestCase):
         np.testing.assert_array_equal(edges, edges_exp)
 
     def test_inpaint_nearest(self):
-        
+
         lmax = 6
         minfo = map_utils.get_gauss_minfo(lmax)
         mask = np.asarray([[0, 1, 1, 0, 1, 1, 0],
@@ -587,7 +587,7 @@ class TestMapUtils(unittest.TestCase):
         np.testing.assert_array_equal(omap, omap_exp)
 
     def test_inpaint_nearest_2d(self):
-        
+
         lmax = 6
         minfo = map_utils.get_gauss_minfo(lmax)
 
@@ -659,9 +659,9 @@ class TestMapUtils(unittest.TestCase):
         imap = np.zeros((minfo.nrow, minfo.nphi[0], 2))
         imap.reshape(2, minfo.nrow, minfo.nphi[0])
         self.assertRaises(ValueError, map_utils.view_1d, imap, minfo)
-        
+
     def test_equal_area_gauss_copy_2d(self):
-        
+
         lmax = 9
         minfo = map_utils.get_equal_area_gauss_minfo(lmax)
 
@@ -694,7 +694,7 @@ class TestMapUtils(unittest.TestCase):
         imap[:] = np.random.randn(*imap.shape)
 
         omap = map_utils.equal_area_gauss_copy_2d(imap, minfo)
-        
+
         np.testing.assert_almost_equal(omap, imap.reshape(2, 5, 10))
 
     def test_get_ring_slice(self):
@@ -710,11 +710,11 @@ class TestMapUtils(unittest.TestCase):
         ring_slice = map_utils.get_ring_slice(2, minfo)
         ring_slice_exp = slice(minfo.offsets[2], minfo.offsets[2] + minfo.nphi[2], 1)
         self.assertEqual(ring_slice, ring_slice_exp)
-        
+
         self.assertRaises(IndexError, map_utils.get_ring_slice, 10, minfo)
 
     def test_gauss2gauss(self):
-        
+
         lmax = 20
         minfo = map_utils.get_gauss_minfo(lmax)
 
@@ -731,10 +731,10 @@ class TestMapUtils(unittest.TestCase):
         omap_exp *= np.cos(minfo_out.theta[:,np.newaxis])
         omap_exp = omap_exp.reshape(2, minfo_out.npix)
 
-        np.testing.assert_allclose(omap, omap_exp, rtol=1e-3)        
+        np.testing.assert_allclose(omap, omap_exp, rtol=1e-3)
 
     def test_gauss2gauss_area_pow(self):
-        
+
         area_pow = 1
         lmax = 6
         minfo = map_utils.get_gauss_minfo(lmax)
@@ -754,10 +754,10 @@ class TestMapUtils(unittest.TestCase):
         omap_exp *= minfo_out.weight[:,np.newaxis]
         omap_exp = omap_exp.reshape(2, minfo_out.npix)
 
-        np.testing.assert_allclose(omap, omap_exp)        
+        np.testing.assert_allclose(omap, omap_exp)
 
     def test_gauss2map(self):
-        
+
         lmax = 20
         minfo = map_utils.get_gauss_minfo(lmax)
 
@@ -779,7 +779,7 @@ class TestMapUtils(unittest.TestCase):
 
     def test_gauss2map_area_pow(self):
 
-        area_pow = 1        
+        area_pow = 1
         lmax = 20
         minfo = map_utils.get_gauss_minfo(lmax)
 
@@ -805,7 +805,7 @@ class TestMapUtils(unittest.TestCase):
 
         lmax = 5
         minfo = map_utils.get_gauss_minfo(2 * lmax)
-        
+
         self.assertEqual(map_utils.minfo2lmax(minfo), lmax)
 
     def test_minfo_is_equiv(self):
@@ -817,7 +817,7 @@ class TestMapUtils(unittest.TestCase):
 
         lmax_3 = 4
         minfo_3 = map_utils.get_gauss_minfo(2 * lmax_3)
-        
+
         self.assertTrue(map_utils.minfo_is_equiv(minfo_1, minfo_1))
         self.assertTrue(map_utils.minfo_is_equiv(minfo_1, minfo_2))
         self.assertFalse(map_utils.minfo_is_equiv(minfo_1, minfo_3))
@@ -869,7 +869,7 @@ class TestMapUtilsIO(unittest.TestCase):
     def test_read_write_map_symm(self):
 
         lmax = 5
-        npol = 2        
+        npol = 2
         minfo = map_utils.get_gauss_minfo(lmax)
         imap = np.ones((npol, npol, minfo.npix), dtype=np.float32)
 
@@ -883,7 +883,7 @@ class TestMapUtilsIO(unittest.TestCase):
 
             # Check if only upper-triangular elements were stored.
             with h5py.File(filename + '.hdf5', 'r') as hfile:
-        
+
                 omap_on_disk = hfile['map'][()]
                 self.assertEqual(omap_on_disk.shape, (3, minfo.npix))
                 self.assertEqual(hfile.attrs['symm_axis'], 0)
@@ -914,7 +914,7 @@ class TestMapUtilsIO(unittest.TestCase):
 
             # Check if only upper-triangular elements were stored.
             with h5py.File(filename + '.hdf5', 'r') as hfile:
-        
+
                 omap_on_disk = hfile['map'][()]
                 self.assertEqual(omap_on_disk.shape, (21, minfo.npix))
                 self.assertEqual(hfile.attrs['symm_axis'], 0)
@@ -925,7 +925,7 @@ class TestMapUtilsIO(unittest.TestCase):
             np.testing.assert_allclose(omap, imap)
 
     def test_get_enmap_minfo(self):
-        
+
         lmax = 180
 
         # Create cut sky enmap geometry
@@ -939,7 +939,7 @@ class TestMapUtilsIO(unittest.TestCase):
         # Test if all thetas are inside band, +/- 1 degree because of low res.
         self.assertTrue(np.all((
             minfo.theta > np.radians(59)) & (minfo.theta < np.radians(151))))
-        
+
         # Redo with 10 deg pad
         minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, pad=np.radians(10))
         self.assertTrue(np.all((
@@ -955,7 +955,7 @@ class TestMapUtilsIO(unittest.TestCase):
         self.assertTrue(179 < np.degrees(minfo.theta.max()) < 180)
 
     def test_get_enmap_minfo_cc(self):
-        
+
         # Same but now with CC grid.
 
         lmax = 180
@@ -971,7 +971,7 @@ class TestMapUtilsIO(unittest.TestCase):
         # Test if all thetas are inside band, +/- 1 degree because of low res.
         self.assertTrue(np.all((
             minfo.theta > np.radians(59)) & (minfo.theta < np.radians(151))))
-        
+
         # Redo with 10 deg pad
         minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, pad=np.radians(10),
                                           mtype='CC')
@@ -981,17 +981,145 @@ class TestMapUtilsIO(unittest.TestCase):
         self.assertTrue(159 < np.degrees(minfo.theta.max()) < 161)
 
         # Redo with large pad.
-        minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, pad=np.radians(90), 
+        minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, pad=np.radians(90),
                                           mtype='CC')
         self.assertTrue(np.all((
             minfo.theta > np.radians(0)) & (minfo.theta < np.radians(180))))
         self.assertTrue(0 < np.degrees(minfo.theta.min()) < 1)
         self.assertTrue(179 < np.degrees(minfo.theta.max()) < 180)
-        
+
+    def test_match_enmap_minfo(self):
+
+        # Check if we can just feed the enmap to libsharp without interpolation.
+        # And without having to copy the data like pixell does.
+
+        # Full sky CC CAR map first.
+        ny, nx = 37, 72
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        #shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+
+        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx))
+        minfo = map_utils.match_enmap_minfo(shape, wcs)
+
+        lmax = int(np.floor((ny - 1) / 2))
+        cov_ell = np.ones((1, lmax + 1))
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+
+    def test_match_enmap_minfo_cutsky(self):
+
+        # Same but with cut-sky map. Can only do alm2map test now.
+        ny, nx = 37, 72
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec_cut = np.radians([-60, 30])
+        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+
+        minfo = map_utils.match_enmap_minfo(shape, wcs)
+
+        lmax = int(np.floor((ny - 1) / 2))
+        cov_ell = np.ones((1, lmax + 1))
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+    def test_match_enmap_minfo_variations(self):
+
+        # Check all the cdelt variations.
+        ny, nx = 37, 72
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx))
+
+        lmax = int(np.floor((ny - 1) / 2))
+        cov_ell = np.ones((1, lmax + 1))
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+
+        # ************
+        # cdelt_x * -1
+        # ************
+        wcs.wcs.cdelt[0] *= -1
+        minfo = map_utils.match_enmap_minfo(shape, wcs)
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+
+        # ************
+        # cdelt_y * -1
+        # ************
+        wcs.wcs.cdelt[0] *= -1
+        wcs.wcs.cdelt[1] *= -1
+
+        minfo = map_utils.match_enmap_minfo(shape, wcs)
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+
+        # **************************
+        # cdelt_x * -1, cdelt_y * -1
+        # **************************
+        wcs.wcs.cdelt[0] *= -1
+
+        minfo = map_utils.match_enmap_minfo(shape, wcs)
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+
     def test_minfo2wcs(self):
 
         lmax = 10
-        minfo = map_utils.get_cc_minfo(lmax)        
+        minfo = map_utils.get_cc_minfo(lmax)
         wcs = map_utils.minfo2wcs(minfo)
 
         self.assertAlmostEqual(wcs.wcs.cdelt[0] * (lmax + 1), -360.)
@@ -1000,4 +1128,3 @@ class TestMapUtilsIO(unittest.TestCase):
         # Test if GL map raises error.
         minfo_gl = map_utils.get_gauss_minfo(lmax)
         self.assertRaises(ValueError, map_utils.minfo2wcs, minfo_gl)
-
