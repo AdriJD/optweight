@@ -318,7 +318,8 @@ def fmul_2d(fmap, fmat2d, out=None):
     if fmat2d.ndim in (2, 3):
         out *= fmat2d
     else:
-        out = np.einsum('ablk, blk -> alk', out=out, optimize=True)
+        out = np.einsum('ablk, blk -> alk', fmat2d, out,
+                        out=out, optimize=True)
     
     return out
 

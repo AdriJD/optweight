@@ -710,3 +710,52 @@ class TestOperators(unittest.TestCase):
         oalm = op(imap)
 
         np.testing.assert_allclose(oalm, oalm_exp)
+
+    def test_FMatVecF(self):
+
+        ny = 6
+        nx = 10
+        fmap = np.full((3, ny, nx // 2 + 1), 2, np.complex128)
+        
+        fmat2d = np.full((ny, nx // 2 + 1), 2.)
+        op = operators.FMatVecF(fmat2d)
+                
+        fmap_out = op(fmap)
+        fmap_exp = fmap * 2
+        np.testing.assert_allclose(fmap_out, fmap_exp)
+
+        # Power
+        op = operators.FMatVecF(fmat2d, power=2)
+                
+        fmap_out = op(fmap)
+        fmap_exp = fmap * 4
+        np.testing.assert_allclose(fmap_out, fmap_exp)
+
+        # Power inplace.
+        op = operators.FMatVecF(fmat2d, power=2, inplace=True)
+                
+        fmap_out = op(fmap)
+        self.assertTrue(np.shares_memory(fmap, fmap_out))
+        np.testing.assert_allclose(fmap, fmap_exp)        
+
+        # npol matrix.
+        fmat2d = fmat2d * np.asarray([1, 2, 3])[:,np.newaxis,np.newaxis]
+        fmap = np.full((3, ny, nx // 2 + 1), 1.)
+        op = operators.FMatVecF(fmat2d, power=2)
+        fmap_exp = fmap.copy()
+        fmap_exp[0] *= 4
+        fmap_exp[1] *= 16
+        fmap_exp[2] *= 36
+        fmap_out = op(fmap)
+        np.testing.assert_allclose(fmap_out, fmap_exp)        
+
+        # npol, npol matrix.
+        fmat2d = np.full((3, 3, ny, nx // 2 + 1), 1.)
+        fmat2d *= (np.eye(3) * [1, 2, 3])[:,:,np.newaxis,np.newaxis]
+        op = operators.FMatVecF(fmat2d, power=2)
+        fmap_exp = fmap.copy()
+        fmap_exp[0] *= 1
+        fmap_exp[1] *= 4
+        fmap_exp[2] *= 9
+        fmap_out = op(fmap)
+        np.testing.assert_allclose(fmap_out, fmap_exp)        

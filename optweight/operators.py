@@ -36,6 +36,16 @@ class MatVecWav(ABC):
     def call(self, wav, *args, **kwargs):
         pass
 
+class MatVecF(ABC):
+    '''Template for all matrix-vector operators working on 2D Fourier input.'''
+
+    def __call__(self, fmap, *args, **kwargs):
+        return self.call(fmap, *args, **kwargs)
+
+    @abstractmethod
+    def call(self, fmap, *args, **kwargs):
+        pass
+
 class YMatVecAlm(MatVecAlm):
     '''
     Calculate Y a for input spherical harmonic coefficients a.
@@ -232,6 +242,58 @@ class EllMatVecAlm(MatVecAlm):
             return alm_c_utils.lmul(alm, self.m_ell, self.ainfo, inplace=True)
         else:
             return alm_c_utils.lmul(alm, self.m_ell, self.ainfo, alm_out=alm.copy())
+
+class FMatVecF(MatVecF):
+    '''
+    Calculate M^p fmap for M diagonal in the 2D Fourier domain and
+    positive semi-definite symmetric in other axes.
+
+    Parameters
+    ----------
+    fmat2d : (npol, npol, nly, nlx) array or (npol, nly, nlx) array
+        M matrix, either symmetric but dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    power : int, float, optional
+        Power of matrix.
+    inplace : bool, optional
+        Perform operation in place.
+
+    Methods
+    -------
+    call(fmap) : Apply the operator to a set 2D Fourier coefficients.
+    '''
+
+    def __init__(self, fmat2d, power=1, inplace=False):
+
+        if power != 1:
+            view1d = mat_utils.flattened_view(fmat2d, [[-2, -1]])
+            fmat2d = mat_utils.matpow(
+                view1d, power, return_diag=True).reshape(fmat2d.shape)
+
+        self.fmat2d = fmat2d
+        self.inplace = inplace
+
+    def call(self, fmap):
+        '''
+        Apply the operator to a set of alms.
+
+        Parameters
+        ----------
+        fmap : (npol, nly, nlx) complex array
+            Input 2D Fourier coefficients.
+
+        Returns
+        -------
+        out : (npol, nly, nlx) complex array
+            Output from matrix-vector operation.
+        '''
+
+        if self.inplace:
+            out = fmap
+        else:
+            out = fmap.copy()
+
+        return dft.fmul(fmap, self.fmat2d, out=out)
 
 class PixMatVecAlm(MatVecAlm):
     '''
