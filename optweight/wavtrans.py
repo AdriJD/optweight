@@ -289,6 +289,41 @@ class Wav():
 
         return cls(*args, **kwargs)
 
+    @classmethod
+    def from_enmap_cc(cls, shape, wcs, nwav, *args, **kwargs):
+        '''
+        Initialize vector from the geometry of CC enmap, supporting cut-sky maps.
+
+        Parameters
+        ----------
+        shape : tuple
+            Shape of enmap.
+        wcs : astropy.wcs.WCS object
+            The wcs object of the enmap geometry
+        
+        Returns
+        -------
+        wav : Wav object
+            Zero-initialized wavelet object with minfos determined by enmap.
+        '''
+
+        minfo = map_utils.match_enmap_minfo(shape, wcs)
+        
+        # Overwrite minfos if provided.
+        kwargs['minfos'] = [minfo] * nwav
+
+        # If no indices are given, create them here assuming vector or diag matrix
+        # (based on "ndim").
+        ndim = args[0]  
+        kwargs.setdefault('indices', 
+                (np.ones((nwav, ndim)) * np.arange(nwav)[:,np.newaxis]).astype(int))
+
+        if kwargs['indices'].shape[0] != nwav:
+            raise ValueError(f'Mismatch shape indices : {indices.shape} and '
+                             f'w_ell : {w_ell.shape}')
+
+        return cls(*args, **kwargs)
+
 def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     '''
     Convert wavelet maps to SH coefficients.

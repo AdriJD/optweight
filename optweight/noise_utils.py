@@ -6,8 +6,8 @@ import healpy as hp
 
 from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht
 
-def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
-                     minfo_features=None, wav_template=None, fwhm_fact=2):
+def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, wav_template=None,
+                     fwhm_fact=2):
     '''
     Estimate wavelet-based covariance matrix given noise alms.
     
@@ -23,11 +23,6 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         Spin values for transform, should be compatible with npol.
     diag : bool, optional
         If set, only estimate elements diagonal in pol.
-    features : (npix) array, optional
-        Feature map with edges etc. that need to be smoothed less 
-        when estimating variance.
-    minfo_features : sharp.map_info object, optional
-        Metainfo for features map.
     wav_template : wavtrans.Wav object, optional
         (nwav) wavelet vector used for alm2wav operation, used as 
         template for cut sky wavelet maps. Will determine minfos
@@ -59,7 +54,7 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
 
     cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(alm.dtype))
 
-    # Get fwhm_fact(l) callable
+    # Get fwhm_fact(l) callable.
     def _fwhm_fact(l):
         if callable(fwhm_fact):
             return fwhm_fact(l)
@@ -71,23 +66,80 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, features=None,
         index = (jidx, jidx)
         minfo = noise_wav.minfos[jidx]
         
-        if features is not None:
-            features_j = map_utils.gauss2gauss(features, minfo_features,
-                                              minfo, order=1)
-        else:
-            features_j = None
-
         _lmax = map_utils.minfo2lmax(minfo)
         fwhm = _fwhm_fact(_lmax) * np.pi / _lmax
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo,
                                    kernel_ell=w_ell[jidx], diag=diag,
-                                   features=features_j, fwhm=fwhm)
+                                   fwhm=fwhm)
         cov_wav.add(index, cov_pix, minfo)
 
     return cov_wav
 
-def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None, 
-                     lmax=None, kernel_ell=None):
+def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
+                     fwhm_fact=2):
+    '''
+    Estimate wavelet-based covariance matrix given noise 2D fourier
+    coefficients.
+    
+    Parameters
+    ----------
+    fmap : (..., nly, nlx) complex array
+        Input 2D Fourier map.
+    fkernels : (nwav, nly, nlx) array
+        Fourier wavelet kernels. 
+    modlmap : (nly, nlx) array
+        Map of absolute wavenumbers.
+    wav_template : wavtrans.Wav object
+        (nwav) wavelet vector used for f2wav operation, used as 
+        template for cut sky wavelet maps. Will determine minfos
+        of output wavelet matrix.
+    diag : bool, optional
+        If set, only estimate elements diagonal in pol.
+    fwhm_fact : scalar or callable, optional, optional
+        Factor determining smoothing scale at each wavelet scale:
+        FWHM = fact * pi / lmax, where lmax is the max wavelet ell.
+        Can also be a function specifying this factor for a given
+        ell. Function must accept a single scalar ell value and 
+        return one.
+        
+    Returns
+    -------
+    cov_wav : wavtrans.Wav object
+        (nwav, nwav) diagonal block covariance matrix.
+    '''
+    
+     Subtract monopole, i.e. the mean of the map, before estimating variance.
+    fmap_mono = fmap[...,0,0].copy()
+    fmap[...,0,0] = 0
+
+    noise_wav = wavtrans.f2wav(fmap, wav_template, fkernels)
+
+    # Insert monopole back in.
+    fmap[...,0,0] = fmap
+
+    cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(fmap.dtype))
+
+    # Get fwhm_fact(l) callable.
+    def _fwhm_fact(l):
+        if callable(fwhm_fact):
+            return fwhm_fact(l)
+        else:
+            return fwhm_fact
+
+    for jidx in range(fkernels.shape[0]):
+        index = (jidx, jidx)
+        minfo = noise_wav.minfos[jidx]
+        
+        _lmax = map_utils.minfo2lmax(minfo)
+        fwhm = _fwhm_fact(_lmax) * np.pi / _lmax
+        cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo, diag=diag,
+                                   fwhm=fwhm, flatsky=True, modlmap=modlmap)
+        cov_wav.add(index, cov_pix, minfo)
+
+    return cov_wav
+
+def estimate_cov_pix(imap, minfo, diag=False, fwhm=None, lmax=None,
+                     kernel_ell=None, flatsky=False, modlmap=None):
     '''
     Estimate noise covariance (uncorelated between pixels, possible correlated 
     between polarizations and other components).
@@ -98,8 +150,6 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
         Input noise map.
     minfo : sharp.map_info object
         Metainfo input map.
-    features : (npix) array, optional
-        Feature map with edges etc. that need to be smoothed less.
     diag : bool, optional
         If set, only estimate elements diagonal in pol.
     fwhm : float, optional
@@ -109,7 +159,11 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
         If set, assume that input noise map has this harmonic band limit.
     kernel_ell : (nell) array, optional
         Assume that this ell-based filter has been applied to the input noise map.
-
+    flatsky : bool, optional
+        If set, do flatsky smoothing.
+    modlmap : (nly, nlx) array, optional
+        Map of absolute wavenumbers. Only needed when `flatsky=True`.
+    
     Returns
     -------
     cov_pix : (ncomp, npol, ncomp, npol, npix) or (ncomp, ncomp, npol, npix)
@@ -132,27 +186,15 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
 
     if imap.ndim != 3:
         raise ValueError(f'imap is not (ncomp, npol, npix), but {imap.shape}')
-
-    if features is not None:
-        if features.ndim == 1:
-            features = features[np.newaxis,:]
             
     if diag:
         cov_pix = np.einsum('abc, dbc -> adbc', imap, imap, optimize=True)
     else:
         cov_pix = np.einsum('abc, dec -> abdec', imap, imap, optimize=True)
 
-    # REMOVE!!
-    if features is not None:
-        lmax_w = map_utils.minfo2lmax(minfo)
-        _, w_ell = minimum_w_ell_lambda(lmax_w, lmax_w // 2, (4 * lmax_w) // 5,
-                                        return_w_ell=True)
-        b_ell = None
-    else: 
-        # ADD FFT OPTIONS
-        b_ell = _band_limit_gauss_beam(map_utils.minfo2lmax(minfo), fwhm=fwhm)
-        lmax_w = None
-        w_ell = None
+    b_ell = _band_limit_gauss_beam(map_utils.minfo2lmax(minfo), fwhm=fwhm)
+    if flatsky:
+        fb = dft.cl2flat(b_ell, np.arange(lmax + 1), modlmap)
 
     if not diag:
         cov_pix = cov_pix.reshape(ncomp * npol, ncomp * npol, npix)
@@ -162,13 +204,11 @@ def estimate_cov_pix(imap, minfo, features=None, diag=False, fwhm=None,
         if idxs[0] <= idxs[1]:
             # Upper triangular part.
             # Only using spin 0 is an approximation, cov elements are not all spin-0.
-            # REMOVE!!!!!!!!!!
-            if features is not None:
-                smooth_locally(cov_pix[idxs], minfo, w_ell, features, 0, inplace=True)
-            else:
-                if fwhm > 0:
-                    # ADD FFT OPTIONS
+            if fwhm > 0:
+                if not flatsky:
                     map_utils.lmul_pix(cov_pix[idxs], b_ell, minfo, 0, inplace=True)
+                else:
+                    map_utils.fmul_pix(cov_pix[idxs], minfo, fmat2d=fb, inplace=True)
         else:
             # Fill lower triangular. Works because idxs loop is in row-major order.
             cov_pix[idxs] = cov_pix[(idxs[1],idxs[0])+idxs[2:]]
