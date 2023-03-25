@@ -134,6 +134,9 @@ def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
         fwhm = _fwhm_fact(_lmax) * np.pi / _lmax
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo, diag=diag,
                                    fwhm=fwhm, flatsky=True, modlmap=modlmap)
+        # Correct for kernel shape.
+        cov_wav /= np.mean(np.abs(fkernels[jidx]) ** 2)
+
         cov_wav.add(index, cov_pix, minfo)
 
     return cov_wav
