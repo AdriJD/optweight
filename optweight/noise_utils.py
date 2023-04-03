@@ -4,7 +4,7 @@ from scipy.interpolate import CubicSpline
 from pixell import enmap, sharp
 import healpy as hp
 
-from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht
+from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht, dft
 
 def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, wav_template=None,
                      fwhm_fact=2):
@@ -115,7 +115,7 @@ def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
     noise_wav = wavtrans.f2wav(fmap, wav_template, fkernels)
 
     # Insert monopole back in.
-    fmap[...,0,0] = fmap
+    fmap[...,0,0] = fmap_mono
 
     cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(fmap.dtype))
 
@@ -130,13 +130,14 @@ def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
         index = (jidx, jidx)
         minfo = noise_wav.minfos[jidx]
         
-        _lmax = map_utils.minfo2lmax(minfo)
+        _lmax = int(np.max(modlmap[fkernels[jidx] > 1e-6]))
+
         fwhm = _fwhm_fact(_lmax) * np.pi / _lmax
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo, diag=diag,
                                    fwhm=fwhm, flatsky=True, modlmap=modlmap)
         # Correct for kernel shape.
-        cov_wav /= np.mean(np.abs(fkernels[jidx]) ** 2)
-
+        cov_pix /= np.mean(np.abs(fkernels[jidx]) ** 2)
+        
         cov_wav.add(index, cov_pix, minfo)
 
     return cov_wav
@@ -157,7 +158,7 @@ def estimate_cov_pix(imap, minfo, diag=False, fwhm=None, lmax=None,
         If set, only estimate elements diagonal in pol.
     fwhm : float, optional
         Specify the FWHM (in radians) of the Gaussian used for smoothing,
-        default is 2 * pi / lmax. If features is given, this parameter is ignored.
+        default is 2 * pi / lmax.
     lmax : int, optional
         If set, assume that input noise map has this harmonic band limit.
     kernel_ell : (nell) array, optional
@@ -195,9 +196,10 @@ def estimate_cov_pix(imap, minfo, diag=False, fwhm=None, lmax=None,
     else:
         cov_pix = np.einsum('abc, dec -> abdec', imap, imap, optimize=True)
 
+    print(np.degrees(fwhm))
     b_ell = _band_limit_gauss_beam(map_utils.minfo2lmax(minfo), fwhm=fwhm)
     if flatsky:
-        fb = dft.cl2flat(b_ell, np.arange(lmax + 1), modlmap)
+        fb = dft.cl2flat(b_ell, np.arange(b_ell.shape[-1]), modlmap)
 
     if not diag:
         cov_pix = cov_pix.reshape(ncomp * npol, ncomp * npol, npix)

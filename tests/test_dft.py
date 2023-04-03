@@ -171,7 +171,7 @@ class TestSHT(unittest.TestCase):
         np.testing.assert_allclose(lwcs.wcs.crpix, np.asarray([0., 4.]))
         np.testing.assert_allclose(lwcs.wcs.crval, np.asarray([0., 0.]))        
         cdelt_exp = 2 * np.pi / np.radians([1.1, 0.6])
-        cdelt_exp[0] *= -1
+
         np.testing.assert_allclose(lwcs.wcs.cdelt, cdelt_exp, atol=1e-3, rtol=1e-5)
 
     def test_lbin(self):

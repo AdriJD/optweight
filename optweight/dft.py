@@ -220,7 +220,8 @@ def lwcs_real(shape, wcs):
         WCS object describing Fourier space geometry.
     '''
 
-    lres = 2 * np.pi / enmap.extent(shape, wcs, signed=True)
+    lres = 2 * np.pi / (np.radians(wcs.wcs.cdelt[::-1]) * shape[-2:])
+    lres[-1] = abs(lres[-1])
     ny = shape[-2]
     
     return wcsutils.explicit(crpix=[0,ny//2+1], crval=[0,0], cdelt=lres[::-1])
@@ -372,7 +373,7 @@ def cl2flat(c_ell, ells, modlmap):
     cs = interp1d(ells, c_ell, kind='linear', assume_sorted=True,
                   bounds_error=True)
 
-    return cs(modlmap)
+    return cs(modlmap).astype(c_ell.dtype, copy=False)
 
 def calc_ps1d(fmap, wcs, modlmap, fmap2=None, bsize=None):
     '''

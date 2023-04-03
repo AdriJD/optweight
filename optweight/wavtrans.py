@@ -627,7 +627,9 @@ def f2wav(fmap, wav, kernels):
 
     for widx, kernel in enumerate(kernels):
 
-        dft.irfft(fmap * kernel, wav.maps[widx])
+        map_2d = map_utils.view_2d(wav.maps[widx], wav.minfos[widx])
+
+        dft.irfft(fmap * kernel, map_2d)
 
     return wav
 
@@ -655,7 +657,10 @@ def wav2f(wav, fmap, kernels):
     for widx, kernel in enumerate(kernels):
         
         tmp = fmap * 0
-        dft.rfft(wav.maps[widx], tmp)
+
+        map_2d = map_utils.view_2d(wav.maps[widx], wav.minfos[widx])
+
+        dft.rfft(map_2d, tmp)
         fmap += tmp * kernel        
     
     return fmap

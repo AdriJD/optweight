@@ -904,9 +904,12 @@ class TestWavTransIO(unittest.TestCase):
         fmap = np.zeros((1,) + modlmap.shape, dtype=np.complex128)
         dft.rfft(imap, fmap)
 
+        # Reshape imap, we need flattened ny, nx for wav.
+        imap_tmp = imap.reshape(imap.shape[0], imap.shape[1] * imap.shape[2])
+
         wav = wavtrans.Wav(1)
-        wav.add(0, imap * 0, minfo)
-        wav.add(1, imap * 0, minfo)
+        wav.add(0, imap_tmp * 0, minfo)
+        wav.add(1, imap_tmp * 0, minfo)
 
         wav = wavtrans.f2wav(fmap, wav, fkernels)
         
@@ -935,9 +938,12 @@ class TestWavTransIO(unittest.TestCase):
         fmap = np.zeros((1,) + modlmap.shape, dtype=np.complex128)
         dft.rfft(imap, fmap)
 
+        # Reshape imap, we need flattened ny, nx for wav.
+        imap_tmp = imap.reshape(imap.shape[0], imap.shape[1] * imap.shape[2])
+
         wav = wavtrans.Wav(1)
-        wav.add(0, imap * 0, minfo)
-        wav.add(1, imap * 0, minfo)
+        wav.add(0, imap_tmp * 0, minfo)
+        wav.add(1, imap_tmp * 0, minfo)
 
         wav = wavtrans.f2wav(fmap, wav, fkernels)
 

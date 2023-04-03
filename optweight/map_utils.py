@@ -322,6 +322,7 @@ def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0):
         omap *= (minfo_out.weight ** area_pow)[:,np.newaxis]
     
     return view_1d(omap, minfo_out)
+
 def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
     '''
     Interpolate one Gauss-Legendre map to an equal-area GL map (or a generic 
