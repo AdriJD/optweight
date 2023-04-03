@@ -297,3 +297,48 @@ class TestAlmUtils(unittest.TestCase):
         self.assertEqual(rand_alm.dtype, np.complex128)
         self.assertTrue(np.any(rand_alm))
 
+    def test_contract_almxblm(self):
+        
+        alm = np.asarray([1, 1, 1, 1, 2j, 2j, 2j, 3j, 3j, 4j])
+        blm = np.asarray([2, 2, 2, 2, 3, 3, 3, -4j, -4j, 5])
+
+        ans_exp = -40
+
+        ans = alm_utils.contract_almxblm(alm, blm)
+
+        self.assertEqual(ans, ans_exp)
+
+    def test_contract_almxblm_2d(self):
+        
+        alm = np.ones((3, 10), dtype=np.complex128)
+        blm = np.ones((3, 10), dtype=np.complex128)
+
+        alm *= np.asarray([1, 1, 1, 1, 2j, 2j, 2j, 3j, 3j, 4j])
+        blm *= np.asarray([2, 2, 2, 2, 3, 3, 3, -4j, -4j, 5])
+
+        ans_exp = -120
+
+        ans = alm_utils.contract_almxblm(alm, blm)
+
+        self.assertEqual(ans, ans_exp)
+
+    def test_contract_almxblm_3d(self):
+        
+        alm = np.ones((2, 3, 10), dtype=np.complex128)
+        blm = np.ones((2, 3, 10), dtype=np.complex128)
+
+        alm *= np.asarray([1, 1, 1, 1, 2j, 2j, 2j, 3j, 3j, 4j])
+        blm *= np.asarray([2, 2, 2, 2, 3, 3, 3, -4j, -4j, 5])
+
+        ans_exp = -240
+
+        ans = alm_utils.contract_almxblm(alm, blm)
+
+        self.assertEqual(ans, ans_exp)
+
+    def test_contract_almxblm_err(self):
+        
+        alm = np.ones((10), dtype=np.complex128)
+        blm = np.ones((11), dtype=np.complex128)
+
+        self.assertRaises(ValueError, alm_utils.contract_almxblm, alm, blm)

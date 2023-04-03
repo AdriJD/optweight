@@ -217,3 +217,230 @@ class TestSHT(unittest.TestCase):
         # This is not expected to be perfect match because the interpolation
         # done by cl2flat.
         np.testing.assert_allclose(out, out_exp, rtol=1e-2)
+
+    def test_contract_fxg(self):
+        
+        # Computing an inner product of 2d Fourier coefficients from the output of rfft
+        # is a bit non-trivial. Here we copmare to inner product from normal fft coefficients.
+
+        # Odd nx, even ny.
+        ny = 4
+        nx = 5
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=())
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        self.assertAlmostEqual(ans, ans_exp)
+
+        # Even nx, even ny.
+        ny = 4
+        nx = 4
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=())
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        self.assertAlmostEqual(ans, ans_exp)
+
+        # Odd nx, odd ny.
+        ny = 5
+        nx = 5
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=())
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        self.assertAlmostEqual(ans, ans_exp)
+
+        # Even nx, odd ny.
+        ny = 5
+        nx = 4
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=())
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        self.assertAlmostEqual(ans, ans_exp)
+
+    def test_contract_fxg_2d(self):
+        
+        # Same as above, but now with (2, ny, ny) input maps.
+
+        # Odd nx, even ny.
+        ny = 4
+        nx = 5
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=(2,))
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        # Even nx, even ny.
+        ny = 4
+        nx = 4
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=(2,))
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        # Odd nx, odd ny.
+        ny = 5
+        nx = 5
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=(2,))
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        self.assertAlmostEqual(ans, ans_exp)
+
+        # Even nx, odd ny.
+        ny = 5
+        nx = 4
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=(2,))
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        imap_f = np.random.randn(*shape)
+        imap_g = np.random.randn(*shape)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        self.assertAlmostEqual(ans, ans_exp)
+
+    def test_contract_fxg_sp(self):
+                
+        # Single precision.
+        ny = 4
+        nx = 5
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=())
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex64)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex64)
+
+        imap_f = np.random.randn(*shape).astype(np.float32)
+        imap_g = np.random.randn(*shape).astype(np.float32)
+        
+        dft.rfft(imap_f, fmap)
+        dft.rfft(imap_g, gmap)
+
+        fmap2 = np.fft.fft2(imap_f, norm='ortho')
+        gmap2 = np.fft.fft2(imap_g, norm='ortho')
+
+        ans_exp = np.real(np.sum(fmap2 * np.conj(gmap2)))
+        ans = dft.contract_fxg(fmap, gmap)
+
+        self.assertAlmostEqual(ans, ans_exp, places=5)
+
+    def test_contract_fxg_err(self):
+                
+        ny = 4
+        nx = 5
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res=res, shape=(ny, nx), dims=())
+
+        # Different shapes.
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex64)
+        gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 2,), np.complex64)
+
+        self.assertRaises(ValueError, dft.contract_fxg, fmap, gmap)

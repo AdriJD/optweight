@@ -408,3 +408,53 @@ def calc_ps1d(fmap, wcs, modlmap, fmap2=None, bsize=None):
     ps2d = enmap.calc_ps2d(fmap, harm2=fmap2)
     return lbin(ps2d, modlmap, bsize=bsize)
         
+def contract_fxg(fmap, gmap):
+    '''
+    Return sum_{ly lx} f_{ly lx} x conj(f_{ly lx}), i.e. the sum of the Hadamard
+    product of two sets of 2D Fourier coefficients corresponding to real fields.
+
+    Parameters
+    ----------
+    fmap : (..., nly, nlx) complex array
+        Input 2D Fourier map.
+    gmap : (..., nly, nlx) complex array
+        Input 2D Fourier map.
+
+    Returns
+    -------
+    had_sum : float
+        Sum of Hadamard product (real valued).
+
+    Raises
+    ------
+    ValueError
+        If input arrays have different shapes.    
+    '''
+    
+    if fmap.shape != gmap.shape:
+        raise ValueError(
+            f'Shape fmap ({fmap.shape}) != shape gmap ({gmap.shape})')
+
+    gmap = np.conj(gmap)
+    csum = complex(np.tensordot(fmap, gmap, axes=fmap.ndim))
+    had_sum = 2 * csum
+    
+    had_sum -= np.sum(fmap[...,:,0] * gmap[...,:,0])
+
+    # If nx is even we also have to subtract the last column.
+    # How to determine if input nx was odd or even? We need to 
+    # check if the last element of the first row is real.
+    # If ny is also even, we can additionally check if the 
+    # last element of the middle row is also even.
+
+    nx_even = np.all(np.isreal(fmap[...,0,-1]))
+    ny = fmap.shape[-2]
+    if ny % 2 == 0:        
+        nx_even &= np.all(np.isreal(fmap[...,ny//2,-1]))
+
+    if nx_even:        
+        had_sum -= np.sum(fmap[...,:,-1] * gmap[...,:,-1])
+
+    return np.real(had_sum)
+
+
