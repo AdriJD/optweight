@@ -324,6 +324,42 @@ class Wav():
 
         return cls(*args, **kwargs)
 
+def dot_wav(wav_a, wav_b):
+    '''
+    Compute dot product between two wavelet objects.
+
+    Parameters
+    ----------
+    wav_a : wavtrans.Wav object
+        Set of wavelet maps
+    wav_b : wavtrans.Wav object
+        Set of wavelet maps
+
+    Returns
+    -------
+    dot : float
+        Inner product of the two sets of map.
+
+    Raises
+    ------
+    ValueError
+        If indices of input wavelet object do not match.
+        If preshape of input wavelet object do not match.
+    
+    Notes
+    -----
+    Simply computes element-wise products of all maps.
+    '''
+
+    if not np.all(wav_a.indices == wav_b.indices):
+        raise ValueError('Mismatch indices between wav_a and wav_b')
+
+    dot = 0.
+    for key in wav_a.maps:
+        dot += np.tensordot(wav_a.maps[key], wav_b.maps[key],
+                            axes=wav_a.maps[key].ndim)
+    return dot
+
 def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     '''
     Convert wavelet maps to SH coefficients.
