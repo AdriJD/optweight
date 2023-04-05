@@ -67,17 +67,15 @@ class TestWlmUtils(unittest.TestCase):
         imap = curvedsky.make_projectable_map_by_pos(
             [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
 
-        modlmap = dft.modlmap_real(imap.shape, imap.wcs, dtype=np.float64)
+        ly, lx = dft.laxes_real(imap.shape, imap.wcs)
+        modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(
-            modlmap, lamb, digital=False)
+            ly, lx, lamb, digital=False)
 
-        self.assertEqual(fkernels.shape, (5,) + modlmap.shape)
+        self.assertEqual(len(fkernels), 5)
+        self.assertEqual(fkernels.dtype, np.float64)
 
-        # Make sure inner product is one.
-        out_exp = np.ones(modlmap.shape)
-        np.testing.assert_allclose(np.sum(fkernels ** 2, axis=0), out_exp)        
-        
-    def test_get_sd_kernels_fourier_digital(self):
+    def test_get_sd_kernels_fourier_inner(self):
         
         lamb = 3
         lmax = 30
@@ -85,14 +83,207 @@ class TestWlmUtils(unittest.TestCase):
         imap = curvedsky.make_projectable_map_by_pos(
             [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
 
-        modlmap = dft.modlmap_real(imap.shape, imap.wcs, dtype=np.float64)
+        ly, lx = dft.laxes_real(imap.shape, imap.wcs)
+        modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(
-            modlmap, lamb, digital=True, oversample=10)
+            ly, lx, lamb, digital=False)
 
-        self.assertEqual(fkernels.dtype, bool)
-        self.assertEqual(fkernels.shape, (5,) + modlmap.shape)
-        
-        # Make sure kernels do not overlap.
+        nwav = 5
+        self.assertEqual(len(fkernels), 5)        
+
+        # Make sure inner product is one.
+        nwav = len(fkernels)
+        fkernels_arr = fkernels.to_full_array()
+
+        self.assertEqual(fkernels_arr.shape, (nwav,) + modlmap.shape)
         out_exp = np.ones(modlmap.shape)
-        np.testing.assert_array_equal(np.sum(fkernels, axis=0), out_exp)        
+        np.testing.assert_allclose(np.sum(fkernels_arr ** 2, axis=0), out_exp)        
+        
+    def test_get_sd_kernels_fourier_digital_inner(self):
+        
+        lamb = 3
+        lmax = 30
 
+        imap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
+
+        ly, lx = dft.laxes_real(imap.shape, imap.wcs)
+        modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
+        fkernels = fkernel.get_sd_kernels_fourier(
+            ly, lx, lamb, digital=True, oversample=10)
+
+        nwav = 5
+        self.assertEqual(len(fkernels), 5)        
+        self.assertEqual(fkernels.dtype, bool)
+
+        # Make sure inner product is one.
+        nwav = len(fkernels)
+        fkernels_arr = fkernels.to_full_array()
+
+        self.assertEqual(fkernels_arr.shape, (nwav,) + modlmap.shape)
+        out_exp = np.ones(modlmap.shape)
+        np.testing.assert_allclose(np.sum(fkernels_arr ** 2, axis=0), out_exp)        
+
+    def test_find_last_nonzero_idx(self):
+        
+        arr = np.asarray([0, 1, 0])
+        idx_exp = 1
+        idx = fkernel._find_last_nonzero_idx(arr)        
+        self.assertEqual(idx, idx_exp)
+
+        arr = np.asarray([0, 1, 1])
+        idx_exp = 2
+        idx = fkernel._find_last_nonzero_idx(arr)        
+        self.assertEqual(idx, idx_exp)
+
+        arr = np.asarray([1, 0, 0])
+        idx_exp = 0
+        idx = fkernel._find_last_nonzero_idx(arr)        
+        self.assertEqual(idx, idx_exp)
+
+        arr = np.asarray([0, 0, 0])
+        self.assertRaises(ValueError, fkernel._find_last_nonzero_idx, arr)
+
+    def test_find_last_nonzero_idx_err(self):
+        
+        arr = np.asarray([0, 0, 0])
+        self.assertRaises(ValueError, fkernel._find_last_nonzero_idx, arr)
+
+        arr = np.ones((1, 2))
+        self.assertRaises(ValueError, fkernel._find_last_nonzero_idx, arr)
+
+    def test_find_kernel_slice(self):
+        
+        arr = np.asarray([[0, 1, 1, 0],  # monopole
+                          [1, 1, 0, 0],  # positive 1
+                          [1, 0, 0, 0],  # positive 2
+                          [0, 0, 0, 0],  # negative 3
+                          [0, 1, 0, 0],  # negative 2
+                          [0, 1, 1, 0]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(arr)
+        slice_x_exp = slice(0, 3)
+        slice_ypos_exp = slice(0, 3)
+        slice_yneg_exp = slice(-2, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+        arr = np.asarray([[0, 1, 1, 0],  # monopole
+                          [1, 1, 0, 0],  # positive 1
+                          [1, 0, 0, 0],  # positive 2
+                          [1, 0, 0, 0],  # negative 3
+                          [0, 1, 0, 0],  # negative 2
+                          [0, 1, 1, 0]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(arr)
+        slice_x_exp = slice(0, 3)
+        slice_ypos_exp = slice(0, 3)
+        slice_yneg_exp = slice(-3, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+        arr = np.asarray([[0, 1, 1, 1],  # monopole
+                          [1, 1, 0, 0],  # positive 1
+                          [1, 0, 0, 0],  # positive 2
+                          [1, 0, 0, 0],  # negative 3
+                          [0, 1, 0, 0],  # negative 2
+                          [0, 1, 1, 0]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(arr)
+        slice_x_exp = slice(0, 4)
+        slice_ypos_exp = slice(0, 3)
+        slice_yneg_exp = slice(-3, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+
+        arr = np.asarray([[1, 0, 0, 0],  # monopole
+                          [0, 0, 0, 0],  # positive 1
+                          [0, 0, 0, 0],  # positive 2
+                          [0, 0, 0, 0],  # negative 3
+                          [0, 0, 0, 0],  # negative 2
+                          [0, 0, 0, 0]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(arr)
+        slice_x_exp = slice(0, 1)
+        slice_ypos_exp = slice(0, 1)
+        slice_yneg_exp = slice(0, 0)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+
+        arr = np.asarray([[0, 0, 0, 0],  # monopole
+                          [0, 0, 0, 0],  # positive 1
+                          [0, 0, 0, 0],  # positive 2
+                          [0, 0, 0, 0],  # negative 3
+                          [0, 0, 0, 0],  # negative 2
+                          [1, 0, 0, 0]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(arr)
+        slice_x_exp = slice(0, 1)
+        slice_ypos_exp = slice(0, 2)
+        slice_yneg_exp = slice(-1, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+        # Try with odd input.
+        arr = np.asarray([[0, 1, 1, 0],  # monopole
+                          [1, 1, 0, 0],  # positive 1
+                          [1, 0, 0, 0],  # positive 2
+                          [1, 0, 0, 0],  # positive 3
+                          [0, 0, 0, 0],  # negative 3
+                          [0, 1, 0, 0],  # negative 2
+                          [0, 1, 1, 0]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(arr)
+        slice_x_exp = slice(0, 3)
+        slice_ypos_exp = slice(0, 4)
+        slice_yneg_exp = slice(-3, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+        arr = np.asarray([[0, 1, 1, 0],  # monopole
+                          [1, 1, 0, 0],  # positive 1
+                          [1, 0, 0, 0],  # positive 2
+                          [0, 0, 0, 0],  # positive 3
+                          [1, 0, 0, 0],  # negative 3
+                          [0, 1, 0, 0],  # negative 2
+                          [0, 1, 1, 0]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(arr)
+        slice_x_exp = slice(0, 3)
+        slice_ypos_exp = slice(0, 4)
+        slice_yneg_exp = slice(-3, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+    def test_find_kernel_slice_err(self):
+        
+        arr = np.asarray([[0, 0],
+                          [0, 0]])
+
+        self.assertRaises(ValueError, fkernel.find_kernel_slice, arr)
+        
+        arr = np.ones((1, 2, 2))
+
+        self.assertRaises(ValueError, fkernel.find_kernel_slice, arr)
+
+        arr = np.ones((1, 2, 2)) * 1e-7
+
+        self.assertRaises(ValueError, fkernel.find_kernel_slice, arr)        
+
+        

@@ -151,6 +151,29 @@ def laxes_real(shape, wcs):
 
     return ly, lx
 
+def laxes2lmap(ly, lx, dtype=np.float64):
+    '''
+    Return maps of all the wavenumbers corresponding to a given enmap geometry.
+
+    Arguments
+    ---------
+    ly : (nly) array
+        Wavenumbers in y direction.
+    lx : (nlx) array
+        Wavenumbers in x direction.
+
+    Returns
+    -------
+    lmap : (2, nly, nlx) array
+       Maps of ell_y and ell_x wavenumbers.
+    '''
+
+    lmap = np.empty((2, ly.size, lx.size), dtype=dtype)
+    lmap[0] = ly[:,np.newaxis]
+    lmap[1] = lx[np.newaxis,:]
+
+    return lmap
+
 def lmap_real(shape, wcs, dtype=np.float64):
     '''
     Return maps of all the wavenumbers corresponding to a given enmap geometry.
@@ -171,12 +194,31 @@ def lmap_real(shape, wcs, dtype=np.float64):
     '''
 
     ly, lx = laxes_real(shape, wcs)
-    lmap = np.empty((2, ly.size, lx.size), dtype=dtype)
-    lmap[0] = ly[:,np.newaxis]
-    lmap[1] = lx[np.newaxis,:]
+    return laxes2lmap(ly, lx, dtype=dtype)
 
-    return lmap
+def laxes2modlmap(ly, lx, dtype=np.float64):
+    '''
+    Return a map of all the abs wavenumbers in the fourier transform
+    of a map with the given shape and wcs.
 
+    Arguments
+    ---------
+    ly : (nly) array
+        Wavenumbers in y direction.
+    lx : (nlx) array
+        Wavenumbers in x direction.
+    dtype : type, optional
+        Type of ouput array.
+
+    Returns
+    -------
+    modlmap : (nly, nlx) array
+       Map of absolute wavenumbers.
+    '''
+    
+    lmap = laxes2lmap(ly, lx, dtype=dtype)
+    return np.sum(lmap ** 2, axis=0) ** 0.5
+    
 def modlmap_real(shape, wcs, dtype=np.float64):
     '''
     Return a map of all the abs wavenumbers in the fourier transform
@@ -197,10 +239,8 @@ def modlmap_real(shape, wcs, dtype=np.float64):
        Map of absolute wavenumbers.
     '''
 
-    slmap = lmap_real(shape, wcs, dtype=dtype)
-    modlmap = np.sum(slmap ** 2, axis=0) ** 0.5
-
-    return modlmap
+    ly, lx = laxes_real(shape, wcs)
+    return laxes2modlmap(ly, lx, dtype=dtype)
 
 def lwcs_real(shape, wcs):
     '''
@@ -457,4 +497,66 @@ def contract_fxg(fmap, gmap):
 
     return np.real(had_sum)
 
+def slice_fmap(fmap, slices_y, slice_x, laxes=None):
+    '''
+    Return map of 2D fourier coefficients that is cut out from input map.
 
+    Parameters
+    ----------
+    fmap : (..., ny, nx) array
+        Input 2D Fourier coefficients.
+    slices_y : tuple of slices
+        Two slices that slice select nonzero positive frequences and nonzero
+        negaive frequencies.
+    slice_x : slice
+        Slice with nonzero elements in the x direction
+    laxes : tuple of (ny) array and (nx) array, optional
+        ly and lx coordinates of input coefficients.
+
+    Returns
+    -------
+    fmap_out : (ny', nx') array
+        Output coefficients. New C-contigous array (i.e. not a view of input).
+    laxes_out : tuple of (ny') array and (nx') array
+        ly and lx coordinates of output. Only if `laxes` was provided.
+    '''
+
+    pos_part = fmap[...,slices_y[0],slice_x]
+    neg_part = fmap[...,slices_y[1],slice_x]
+
+    out = np.concatenate((pos_part, neg_part), axis=-2)
+    
+    if laxes is not None:
+        ly, lx = laxes
+        lx_new = lx[slice_x]
+        ly_new = np.concatenate((ly[slices_y[0]], ly[slices_y[1]]))
+        out = out, (ly_new, lx_new)
+
+    return out
+
+def add_to_fmap(fmap_large, fmap_small, slices_y, slice_x):
+    '''
+    In-place addition of `fmap_small` to `fmap_large`.
+
+    Parameters
+    ----------
+    fmap_large : (..., ny, nx) array
+        Base 2D Fourier coefficients.
+    fmap_small : (..., ny', nx') array
+        2D Fourier coefficients to be added.
+    slices_y : tuple of slices
+        Two slices that select nonzero positive frequences and nonzero
+        negaive frequencies. See fkernel.find_kernel_slice.
+    slice_x : slice
+        Slice with nonzero elements in the x direction.
+    
+    Returns
+    -------
+    fmap_large : (..., ny, nx) array
+        Input array with addition.    
+    '''
+
+    fmap_large[...,slices_y[0],slice_x] += fmap_small[...,slices_y[0],:]
+    fmap_large[...,slices_y[1],slice_x] += fmap_small[...,slices_y[1],:]
+
+    return fmap_large

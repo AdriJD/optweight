@@ -444,3 +444,86 @@ class TestSHT(unittest.TestCase):
         gmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 2,), np.complex64)
 
         self.assertRaises(ValueError, dft.contract_fxg, fmap, gmap)
+
+    def test_slice_fmap(self):
+        
+        arr = np.asarray([[0, 1, 1, 0],  # monopole
+                          [1, 1, 0, 0],  # positive 1
+                          [1, 0, 0, 0],  # positive 2
+                          [0, 0, 0, 0],  # positive 3
+                          [0, 0, 0, 0],  # negative 3
+                          [0, 1, 0, 0],  # negative 2
+                          [0, 1, 1, 0]]) # negative 1
+
+        slice_x = slice(0, 3)
+        slice_ypos = slice(0, 3)
+        slice_yneg = slice(-2, None)
+
+        out_exp = np.asarray([[0, 1, 1],  
+                              [1, 1, 0],  
+                              [1, 0, 0],  
+                              [0, 1, 0],  
+                              [0, 1, 1]])
+
+        out = dft.slice_fmap(arr, (slice_ypos, slice_yneg), slice_x)
+        np.testing.assert_allclose(out, out_exp)
+
+    def test_slice_fmap_3d(self):
+        
+        arr = np.zeros((2, 7, 4))
+        arr[0] = np.asarray([[0, 1, 1, 0],  # monopole
+                             [1, 1, 0, 0],  # positive 1
+                             [1, 0, 0, 0],  # positive 2
+                             [0, 0, 0, 0],  # positive 3
+                             [0, 0, 0, 0],  # negative 3
+                             [0, 1, 0, 0],  # negative 2
+                             [0, 1, 1, 0]]) # negative 1
+        arr[1] = arr[0] * 2
+
+        slice_x = slice(0, 3)
+        slice_ypos = slice(0, 3)
+        slice_yneg = slice(-2, None)
+
+        out_exp = np.zeros((2, 5, 3))
+        out_exp[0] = np.asarray([[0, 1, 1],  
+                                 [1, 1, 0],  
+                                 [1, 0, 0],  
+                                 [0, 1, 0],  
+                                 [0, 1, 1]])
+        out_exp[1] = out_exp[0] * 2
+        
+        out = dft.slice_fmap(arr, (slice_ypos, slice_yneg), slice_x)
+        np.testing.assert_allclose(out, out_exp)
+
+    def test_slice_fmap_laxes(self):
+        
+        arr = np.asarray([[0, 1, 1, 0],  # monopole
+                          [1, 1, 0, 0],  # positive 1
+                          [1, 0, 0, 0],  # positive 2
+                          [0, 0, 0, 0],  # positive 3
+                          [0, 0, 0, 0],  # negative 3
+                          [0, 1, 0, 0],  # negative 2
+                          [0, 1, 1, 0]]) # negative 1
+
+        slice_x = slice(0, 3)
+        slice_ypos = slice(0, 3)
+        slice_yneg = slice(-2, None)
+
+        ly = np.asarray([0, 1, 2, 3, -3, -2, -1])
+        lx = np.asarray([0, 1, 2, 3])
+        laxes = (ly, lx)
+
+        out_exp = np.asarray([[0, 1, 1],  
+                              [1, 1, 0],  
+                              [1, 0, 0],  
+                              [0, 1, 0],  
+                              [0, 1, 1]])
+
+        ly_exp = np.asarray([0, 1, 2, -2, -1])
+        lx_exp = np.asarray([0, 1, 2])
+
+        out, (ly_out, lx_out) = dft.slice_fmap(arr, (slice_ypos, slice_yneg), slice_x,
+                             laxes=laxes)
+        np.testing.assert_allclose(out, out_exp)
+        np.testing.assert_allclose(ly_out, ly_exp)
+        np.testing.assert_allclose(lx_out, lx_exp)

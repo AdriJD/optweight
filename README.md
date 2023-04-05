@@ -8,7 +8,7 @@ Filter 2D data (e.g. CMB or weak lensing data) on the curved sky in a statically
 
 ### Dependencies
 
-- Python>=3.6
+- Python>=3.7
 - Intel MKL library
 - a C compiler (tested with gcc and icc)
 - [pytest](https://pypi.org/project/pytest/)

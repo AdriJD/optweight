@@ -282,8 +282,8 @@ class CGWienerMap(utils.CG):
 
     @classmethod
     def from_arrays(cls, imap, minfo, ainfo, icov_ell, icov_pix, *extra_args,
-                    b_ell=None, mask_pix=None, minfo_mask=None, draw_constr=False, spin=None,
-                    swap_bm=False):
+                    b_ell=None, mask_pix=None, minfo_mask=None, draw_constr=False,
+                    spin=None, swap_bm=False):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -356,16 +356,16 @@ class CGWienerMap(utils.CG):
     @classmethod
     def from_arrays_fwav(cls, imap, minfo, ainfo, icov_ell, icov_wav, w_ell,
                          *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                         draw_constr=False, spin=None, swap_bm=False, icov_noise_ell=None,
-                         kfilt=None, minfo_kfilt=None):
+                         draw_constr=False, spin=None, swap_bm=False,
+                         icov_noise_ell=None, kfilt=None, minfo_kfilt=None):
 
         raise NotImplementedError
 
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,
                         *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                        draw_constr=False, spin=None, swap_bm=False, icov_noise_ell=None,
-                        kfilt=None, minfo_kfilt=None):
+                        draw_constr=False, spin=None, swap_bm=False,
+                        icov_noise_ell=None, kfilt=None, minfo_kfilt=None):
         '''
         Initialize solver with wavelet-based noise model with arrays
         instead of callables.
