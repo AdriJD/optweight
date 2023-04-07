@@ -120,6 +120,37 @@ def allocate_fmap(shape, dtype, fill_value=0):
     return np.full(preshape + (ny, nx // 2 + 1), fill_value, 
                    dtype=type_utils.to_complex(dtype))
 
+def allocate_map(fshape, dtype, fill_value=0):
+    '''
+    Allocate an array suitable for the output of irfft.
+
+    Parameters
+    ----------
+    shape : tuple
+        Input shape of fmap.
+    dtype : type, optional
+        Type of input fmap.
+    fill_value : scalar, optional
+        Value to fill new array with.
+
+    Returns
+    -------
+    omap : (..., ly, 2 * (lx -1) + 1) complex array
+        New array.
+
+    Notes
+    -----
+    This always results in an array with an odd-length. From the
+    shape of the fmap it unknown if the input map was even or odd
+    in the x direction.
+    '''
+    
+    preshape = fshape[:-2]
+    ly, lx = fshape[-2:]
+
+    return np.full(preshape + (ly, 2 * (lx - 1) + 1), fill_value, 
+                   dtype=type_utils.to_real(dtype))
+
 def laxes_real(shape, wcs):
     '''
     Compute ell_x and ell_y axes corresponding to a given enmap geometry.

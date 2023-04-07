@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
-from optweight import wlm_utils, dft
+from optweight import wlm_utils, dft, type_utils, map_utils, wavtrans
 
 class FKernelSet():
     '''
@@ -25,7 +25,7 @@ class FKernelSet():
 
     def __setitem__(self, key, fkernel):
         ''' 
-        Add a kernel to to set
+        Add a kernel to the set
 
         Parameters
         ----------
@@ -53,8 +53,10 @@ class FKernelSet():
         self.fkernel_dict[key] = fkernel
 
     def __len__(self):
-
         return len(self.fkernel_dict)
+
+    def __iter__(self):        
+        return iter(self.fkernel_dict.items())
 
     def astype(self, dtype, copy=True):
         '''
@@ -90,7 +92,7 @@ class FKernelSet():
             raise ValueError('Calling `to_full_array` on empty set.')
         
         first_key = list(self.fkernel_dict.keys())[0]     
-        full = np.zeros((len(self),) + self.fkernel_dict[first_key].full_shape,
+        full = np.zeros((len(self),) + self.fkernel_dict[first_key].shape_full,
                         dtype=self.dtype)
 
         for key in self.fkernel_dict:
@@ -99,6 +101,43 @@ class FKernelSet():
 
         return full
 
+    def get_wav_vec(self, preshape, dtype=None):
+        '''
+        Get a wavelet vector object suitable for this set of kernels.
+
+        Parameters
+        ----------
+        preshape : tuple
+            First dimensions of the wavelet maps, i.e. map.shape = 
+            preshape + (npix,)
+        dtype : type, optional
+            dtype of map arrays. Defaults to fkernel dtype.
+
+        Returns
+        -------
+        wav : wavtrans.Wav object
+            Wavelet vector with wavelet map for each kernel.        
+        '''
+        
+        if dtype is None:
+            dtype = self.dtype
+        ctype = type_utils.to_complex(dtype)
+
+        wav = wavtrans.Wav(1, preshape=preshape, dtype=dtype)
+
+        for widx, fkernel in self:
+            
+            m_arr = dft.allocate_map(preshape + fkernel.fkernel.shape,
+                                 ctype)
+            
+            minfo = map_utils.get_minfo(
+                'CC', m_arr.shape[-2], m_arr.shape[-1])            
+            m_arr = map_utils.view_1d(m_arr, minfo)
+        
+            wav.add(widx, m_arr, minfo)
+
+        return wav
+                        
 class FKernel():
     '''
     Class describing a single 2D Fourier wavelet kernel.
@@ -117,7 +156,7 @@ class FKernel():
         res fmap.
     slice_x : slice, optional
         Slice with nonzero elements in the x direction
-    full_shape : tuple, optional
+    shape_full : tuple, optional
         Full resolution shape (ny, nx) from which this kernel was sliced.
 
     Attributes
@@ -136,7 +175,7 @@ class FKernel():
         res fmap.
     slice_x : slice or None
         Slice with nonzero elements in the x direction
-    full_shape : tuple or None
+    shape_full : tuple or None
         Full resolution shape (ny, nx) from which this kernel was sliced.
 
 
@@ -146,7 +185,7 @@ class FKernel():
         If input shapes do not match.
     '''
 
-    def __init__(self, fkernel, ly, lx, slices_y=None, slice_x=None, full_shape=None):
+    def __init__(self, fkernel, ly, lx, slices_y=None, slice_x=None, shape_full=None):
 
         if fkernel.shape[-2:] != (ly.size, lx.size):
             raise ValueError(
@@ -158,14 +197,14 @@ class FKernel():
         self.lx = lx
         self.slices_y = slices_y
         self.slice_x = slice_x
-        self.full_shape = full_shape
+        self.shape_full = shape_full
         
         self.lmax = int(np.ceil(np.sqrt(
             np.max(np.abs(ly)) ** 2 + np.max(np.abs(lx)) ** 2)))
 
     def modlmap(self, dtype=np.float64):
         '''Return map of  absolute wavenumbers, see `dft.modlmap_real`.'''
-        return dft.laxes2modlmap(ly, lx, dtype=dtype)
+        return dft.laxes2modlmap(self.ly, self.lx, dtype=dtype)
 
     @property
     def dtype(self):
@@ -178,8 +217,8 @@ class FKernel():
         orginally sliced. Useful for debugging.
         '''
         
-        if None in (self.slices_y, self.slice_x, self.full_shape):
-            return ValueError('`to_full_array` requires `slices_y`, `slice_x` and `full_shape`')
+        if None in (self.slices_y, self.slice_x, self.shape_full):
+            return ValueError('`to_full_array` requires `slices_y`, `slice_x` and `shape_full`')
         full = np.zeros(self.shape_full, dtype=self.dtype)
         dft.add_to_fmap(full, self.fkernel, self.slices_y, self.slice_x)
         return full
@@ -425,7 +464,7 @@ def w_ell2fkernels(w_ell, ells, ly, lx, interp_kind):
             fkernel_full, slices_y, slice_x, laxes=(ly, lx))                
         fkernels[idx] = FKernel(fkernel_sliced, *laxes_sliced,
                                 slices_y=slices_y, slice_x=slice_x,
-                                full_shape=(ly.size, lx.size))
+                                shape_full=(ly.size, lx.size))
 
     return fkernels
 

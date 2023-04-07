@@ -642,7 +642,7 @@ def read_wav(fname, extra=None):
     else:
         return wav
 
-def f2wav(fmap, wav, kernels):
+def f2wav(fmap, wav, fkernelset):
     '''
     Convert 2D fourier coefficients to wavelet maps.
         
@@ -652,7 +652,7 @@ def f2wav(fmap, wav, kernels):
         Input fourier coefficients.
     wav : wavtrans.Wav object
         Wavelet container for output wavelet maps.
-    kernels : (nwav, ny, nx//2+1) complex ndmap
+    fkernelset : fkernel.FKernelSet object
         Wavelet kernels.
 
     Returns
@@ -660,16 +660,17 @@ def f2wav(fmap, wav, kernels):
     wav : wavtrans.Wav object
         Vector of wavelet maps.    
     '''
-
-    for widx, kernel in enumerate(kernels):
+    
+    for widx, fkernel in fkernelset:
 
         map_2d = map_utils.view_2d(wav.maps[widx], wav.minfos[widx])
 
-        dft.irfft(fmap * kernel, map_2d)
+        fmap_slice = dft.slice_fmap(fmap, fkernel.slices_y, fkernel.slice_x)
+        dft.irfft(fmap_slice * fkernel.fkernel, map_2d)
 
     return wav
 
-def wav2f(wav, fmap, kernels):
+def wav2f(wav, fmap, fkernelset):
     '''
     Convert vector of wavelet maps to 2D fourier coefficients.
         
@@ -679,7 +680,7 @@ def wav2f(wav, fmap, kernels):
         Wavelet container for input wavelet maps.
     fmap : (..., ny, nx//2+1) complex ndmap
         Output buffer, will be overwritten!
-    kernels : (nwav, ny, nx//2+1) complex ndmap
+    fkernelset : fkernel.FKernelSet object
         Wavelet kernels.
 
     Returns
@@ -690,13 +691,14 @@ def wav2f(wav, fmap, kernels):
 
     fmap *= 0 
 
-    for widx, kernel in enumerate(kernels):
+    for widx, fkernel in fkernelset:
         
-        tmp = fmap * 0
-
+        tmp = np.zeros(fmap.shape[:-2] + fkernel.fkernel.shape, dtype=fmap.dtype)
         map_2d = map_utils.view_2d(wav.maps[widx], wav.minfos[widx])
 
         dft.rfft(map_2d, tmp)
-        fmap += tmp * kernel        
+
+        tmp = tmp * fkernel.fkernel
+        dft.add_to_fmap(fmap, tmp, fkernel.slices_y, fkernel.slice_x)
     
     return fmap

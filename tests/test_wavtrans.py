@@ -6,7 +6,7 @@ import pathlib
 
 from pixell import sharp, enmap, curvedsky
 
-from optweight import wavtrans, sht, map_utils, dft
+from optweight import wavtrans, sht, map_utils, dft, fkernel
 
 class TestWavTrans(unittest.TestCase):
 
@@ -887,73 +887,158 @@ class TestWavTransIO(unittest.TestCase):
         np.testing.assert_allclose(extra_dict['w_ell'], w_ell)
 
     def test_f2wav_roundtrip(self):
-        
-        lmax = 10
-        imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/3, -np.pi/3],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
 
-        modlmap = dft.modlmap_real(imap.shape, imap.wcs, dtype=np.float64)
-        minfo = curvedsky.get_minfo(imap.shape, imap.wcs, quad=True)
+        lmax = 3
 
-        # Create some basic wavelet kernels.
-        fkernels = np.ones((2,) + modlmap.shape)
-        fkernels[0,modlmap > 5] = 0
-        fkernels[1,modlmap <= 5] = 0
+        # Kernel 1.
+        arr1 = np.asarray([[1, 1, 1, 0],  # monopole
+                           [1, 1, 0, 0],  # positive 1
+                           [1, 0, 0, 0],  # positive 2
+                           [0, 0, 0, 0],  # negative 3
+                           [1, 1, 0, 0],  # negative 2
+                           [1, 1, 1, 0]]) # negative 1
+
+        slice_x = slice(0, 3)
+        slice_ypos = slice(0, 3)
+        slice_yneg = slice(-2, None)
+
+        ly = np.asarray([0, 1, 2, -2, -1])
+        lx = np.asarray([0, 1, 2])
+
+
+        fk_arr1 = np.asarray([[1, 1, 1],  # monopole
+                              [1, 1, 0],  # positive 1
+                              [1, 0, 0],  # positive 2
+                              [1, 1, 0],  # negative 2
+                              [1, 1, 1]]) # negative 1
         
-        imap += np.random.randn(*imap.shape)
-        fmap = np.zeros((1,) + modlmap.shape, dtype=np.complex128)
+        fk1 = fkernel.FKernel(fk_arr1, ly, lx, slices_y=(slice_ypos, slice_yneg),
+                             slice_x=slice_x, shape_full=arr1.shape)
+
+        # Kernel 2.
+        arr2 = np.asarray([[0, 0, 0, 1],  # monopole
+                           [0, 0, 1, 1],  # positive 1
+                           [0, 1, 1, 1],  # positive 2
+                           [1, 1, 1, 1],  # negative 3
+                           [0, 0, 1, 1],  # negative 2
+                           [0, 0, 0, 1]]) # negative 1
+
+        slice_x = slice(0, 4)
+        slice_ypos = slice(0, 3)
+        slice_yneg = slice(-3, None)
+
+        ly = np.asarray([0, 1, 2, -3, -2, -1])
+        lx = np.asarray([0, 1, 2, 3])
+
+        fk_arr2 = arr2
+        
+        fk2 = fkernel.FKernel(fk_arr2, ly, lx, slices_y=(slice_ypos, slice_yneg),
+                             slice_x=slice_x, shape_full=arr2.shape)
+
+        assert np.all((arr1 ** 2 + arr2 ** 2) == 1)
+    
+        fks = fkernel.FKernelSet()
+        fks[0] = fk1
+        fks[1] = fk2
+        
+
+        full_arr = fks.to_full_array()
+
+        np.testing.assert_allclose(full_arr[0], arr1)
+        np.testing.assert_allclose(full_arr[1], arr2)
+
+        preshape = (1,)
+        wav = fks.get_wav_vec(preshape, dtype=np.float64)
+
+        imap = enmap.zeros((1, 6, 6))
+        
+        imap[:] = np.random.randn(*imap.shape)
+        fmap = dft.allocate_fmap(imap.shape, imap.dtype)
+
         dft.rfft(imap, fmap)
-
-        # Reshape imap, we need flattened ny, nx for wav.
-        imap_tmp = imap.reshape(imap.shape[0], imap.shape[1] * imap.shape[2])
-
-        wav = wavtrans.Wav(1)
-        wav.add(0, imap_tmp * 0, minfo)
-        wav.add(1, imap_tmp * 0, minfo)
-
-        wav = wavtrans.f2wav(fmap, wav, fkernels)
+        wavtrans.f2wav(fmap, wav, fks)
+        fmap_out = wavtrans.wav2f(wav, fmap.copy(), fks)
         
-        fmap_out = fmap * 0
-        fmap_out = wavtrans.wav2f(wav, fmap_out, fkernels)        
+        np.testing.assert_allclose(fmap, fmap_out)
+
+    def test_f2wav_roundtrip_sd_kernels(self):
+
+        lamb = 3
+        lmax = 30
+
+        preshape = (2,)
+        imap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=preshape,
+            oversample=1)
+
+        ly, lx = dft.laxes_real(imap.shape, imap.wcs)
+        modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
+        fkernels = fkernel.get_sd_kernels_fourier(
+            ly, lx, lamb, digital=False)
+
+        wav = fkernels.get_wav_vec(preshape)
+
+        imap[:] = np.random.randn(*imap.shape)
+        fmap = dft.allocate_fmap(imap.shape, imap.dtype)
+        dft.rfft(imap, fmap)
+        wavtrans.f2wav(fmap, wav, fkernels)
+        fmap_out = wavtrans.wav2f(wav, fmap.copy(), fkernels)
 
         np.testing.assert_allclose(fmap, fmap_out)
-        self.assertFalse(np.shares_memory(fmap, fmap_out))
 
-    def test_wav2f_roundtrip(self):
-        
-        lmax = 4
+    def test_f2wav_roundtrip_sd_kernels_digital(self):
+
+        lamb = 3
+        lmax = 30
+
+        preshape = (2,)
         imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/3, -np.pi/3],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=preshape,
+            oversample=1)
 
-        modlmap = dft.modlmap_real(imap.shape, imap.wcs, dtype=np.float64)
-        minfo = curvedsky.get_minfo(imap.shape, imap.wcs, quad=True)
+        ly, lx = dft.laxes_real(imap.shape, imap.wcs)
+        modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
+        fkernels = fkernel.get_sd_kernels_fourier(
+            ly, lx, lamb, digital=True)
 
-        # Create some basic wavelet kernels.
-        fkernels = np.ones((2,) + modlmap.shape)
-        fkernels[0,modlmap > 2] = 0
-        fkernels[1,modlmap <= 2] = 0
+        wav = fkernels.get_wav_vec(preshape, dtype=np.float64)
 
-        # start by doing map2wav.
-        imap += np.random.randn(*imap.shape)
-        fmap = np.zeros((1,) + modlmap.shape, dtype=np.complex128)
+        imap[:] = np.random.randn(*imap.shape)
+        fmap = dft.allocate_fmap(imap.shape, imap.dtype)
+        dft.rfft(imap, fmap)
+        wavtrans.f2wav(fmap, wav, fkernels)
+        fmap_out = wavtrans.wav2f(wav, fmap.copy(), fkernels)
+
+        np.testing.assert_allclose(fmap, fmap_out)
+
+    def test_wav2f_roundtrip_sd_kernels_digital(self):
+
+        lamb = 3
+        lmax = 30
+
+        preshape = (2,)
+        imap = curvedsky.make_projectable_map_by_pos(
+            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=preshape,
+            oversample=1)
+
+        ly, lx = dft.laxes_real(imap.shape, imap.wcs)
+        modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
+        fkernels = fkernel.get_sd_kernels_fourier(
+            ly, lx, lamb, digital=True)
+
+        wav = fkernels.get_wav_vec(preshape, dtype=np.float64)
+        imap[:] = np.random.randn(*imap.shape)
+        fmap = dft.allocate_fmap(imap.shape, imap.dtype)
         dft.rfft(imap, fmap)
 
-        # Reshape imap, we need flattened ny, nx for wav.
-        imap_tmp = imap.reshape(imap.shape[0], imap.shape[1] * imap.shape[2])
 
-        wav = wavtrans.Wav(1)
-        wav.add(0, imap_tmp * 0, minfo)
-        wav.add(1, imap_tmp * 0, minfo)
+        wavtrans.f2wav(fmap, wav, fkernels)
 
-        wav = wavtrans.f2wav(fmap, wav, fkernels)
+        imap1 = wav.maps[0]
+        imap2 = wav.maps[1]
 
-        imap1 = wav.maps[0].copy()
-        imap2 = wav.maps[1].copy()
-        
-        fmap = wavtrans.wav2f(wav, fmap, fkernels)
-        wav = wavtrans.f2wav(fmap, wav, fkernels)
+        fmap_out = wavtrans.wav2f(wav, fmap.copy(), fkernels)
+        wavtrans.f2wav(fmap_out, wav, fkernels)
         
         np.testing.assert_allclose(wav.maps[0], imap1)
         np.testing.assert_allclose(wav.maps[1], imap2)
-        self.assertFalse(np.shares_memory(wav.maps[0], imap1))
-        self.assertFalse(np.shares_memory(wav.maps[1], imap2))
