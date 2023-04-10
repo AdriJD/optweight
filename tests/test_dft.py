@@ -567,3 +567,33 @@ class TestSHT(unittest.TestCase):
         np.testing.assert_allclose(out, out_exp)
         np.testing.assert_allclose(ly_out, ly_exp)
         np.testing.assert_allclose(lx_out, lx_exp)
+
+    def test_get_optimal_fftlen(self):
+        
+        n_in = 0
+        n_out_exp = 0
+        n_out = dft.get_optimal_fftlen(n_in)
+
+        self.assertEqual(n_out, n_out_exp)
+
+        n_in = 1
+        n_out_exp = 2
+        n_out = dft.get_optimal_fftlen(n_in)
+
+        self.assertEqual(n_out, n_out_exp)
+
+        n_in = 1
+        n_out_exp = 1
+        n_out = dft.get_optimal_fftlen(n_in, even=False)
+
+        self.assertEqual(n_out, n_out_exp)
+
+        n_in = 3
+        n_out_exp = 4
+        n_out = dft.get_optimal_fftlen(n_in, even=False)
+
+        n_in = 4
+        n_out_exp = 4
+        n_out = dft.get_optimal_fftlen(n_in, even=False)
+
+        self.assertEqual(n_out, n_out_exp)

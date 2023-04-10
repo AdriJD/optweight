@@ -272,6 +272,85 @@ class TestWlmUtils(unittest.TestCase):
         self.assertEqual(slice_ypos, slice_ypos_exp)
         self.assertEqual(slice_yneg, slice_yneg_exp)
 
+    def test_find_kernel_slice_optimize(self):
+
+        arr = np.asarray([[0],  # monopole
+                          [1],  # positive 1
+                          [0],  # positive 2
+                          [0],  # negative 2
+                          [1]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(
+            arr, optimize_len=True)
+
+        # Without optimization we would get
+        # [0] # mono
+        # [1] # pos 1
+        # [1] # neg 1
+
+        # But 3 is not an optimal fftlen. It will become 4.
+        # [0] # mono
+        # [1] # pos 1
+        # [0] # neg 2
+        # [1] # neg 1
+
+        slice_x_exp = slice(0, 1)
+        slice_ypos_exp = slice(0, 2)
+        slice_yneg_exp = slice(-2, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+        # Even input size.
+        arr = np.asarray([[0],  # monopole
+                          [1],  # positive 1
+                          [0],  # positive 2
+                          [0],  # negative 3
+                          [0],  # negative 2
+                          [1]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(
+            arr, optimize_len=True)
+
+        # Without optimization we would get
+        # [0] # mono
+        # [1] # pos 1
+        # [1] # neg 1
+
+        # But 3 is not an optimal fftlen. It will become 4.
+        # [0] # mono
+        # [1] # pos 1
+        # [0] # neg 2
+        # [1] # neg 1
+
+        slice_x_exp = slice(0, 1)
+        slice_ypos_exp = slice(0, 2)
+        slice_yneg_exp = slice(-2, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
+        # Even input with no cut.
+        arr = np.asarray([[0],  # monopole
+                          [1],  # positive 1
+                          [0],  # positive 2
+                          [1],  # negative 3
+                          [0],  # negative 2
+                          [1]]) # negative 1
+
+        (slice_ypos, slice_yneg), slice_x = fkernel.find_kernel_slice(
+            arr, optimize_len=True)
+
+        slice_x_exp = slice(0, 1)
+        slice_ypos_exp = slice(0, 3)
+        slice_yneg_exp = slice(-3, None)
+
+        self.assertEqual(slice_x, slice_x_exp)
+        self.assertEqual(slice_ypos, slice_ypos_exp)
+        self.assertEqual(slice_yneg, slice_yneg_exp)
+
     def test_find_kernel_slice_err(self):
 
         arr = np.asarray([[0, 0],

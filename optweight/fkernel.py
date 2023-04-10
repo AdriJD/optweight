@@ -494,7 +494,7 @@ def _find_last_nonzero_idx(arr):
 
     return idx_end
 
-def find_kernel_slice(fkernel_arr, minval=1e-6):
+def find_kernel_slice(fkernel_arr, minval=1e-7, optimize_len=False):
     '''
     Return the slices that capture the nonzero elements of input kernel.
 
@@ -504,6 +504,9 @@ def find_kernel_slice(fkernel_arr, minval=1e-6):
         Input kernel.
     minval : float, optional
         Consider values below this value as zero.
+    optimize_len : bool, optional
+        If set, pick y slices that have optimal length for FFTs. If optimal
+        length exceeds the input y size no optimation is done.
 
     Returns
     -------
@@ -561,6 +564,8 @@ def find_kernel_slice(fkernel_arr, minval=1e-6):
     idx_y_end = max(idx_ypos_end, idx_yneg_end)
     if idx_y_end == -1:
         # Happens when both are empty.
+        n_pos = 1
+        n_neg = 0
         slice_ypos = slice(0, 1)
         slice_yneg = slice(0, 0)
     else:
@@ -569,9 +574,24 @@ def find_kernel_slice(fkernel_arr, minval=1e-6):
         slice_ypos = slice(0, min(idx_y_end + 2, n_pos)) # +1 for monopole.
         slice_yneg = slice(-min(idx_y_end + 1, n_neg), None)
 
+    if optimize_len:
+
+        ny_cut = slice_ypos.stop - slice_yneg.start
+        ny_opt = dft.get_optimal_fftlen(ny_cut, even=False)
+
+        if ny_opt < ny:
+            
+            n_pad = ny_opt - ny_cut
+            # Split padding equally between positive and negative freqs.
+            # If odd number, we give 1 extra to the negative frequencies.
+            n_pad_pos, n_pad_neg = n_pad // 2, n_pad // 2 + n_pad % 2
+            
+            slice_ypos = slice(slice_ypos.start, slice_ypos.stop + n_pad_pos)
+            slice_yneg = slice(slice_yneg.start - n_pad_neg, slice_yneg.stop)
+                        
     return (slice_ypos, slice_yneg), slice_x
 
-def w_ell2fkernels(w_ell, ells, ly, lx, interp_kind):
+def w_ell2fkernels(w_ell, ells, ly, lx, interp_kind, optimize_len=False):
     '''
     Turn set of 1d wavelet kernels into maps of 2D fourier coefficients.
 
@@ -587,6 +607,9 @@ def w_ell2fkernels(w_ell, ells, ly, lx, interp_kind):
         Wavenumbers in x direction.
     interp_kind : str
         Interpolation method, see `scipy.interpolate.interp1d`.
+    optimize_len : bool, optional
+        If set, pick y slices that have optimal length for FFTs. If optimal
+        length exceeds the input y size no optimation is done.
 
     Returns
     -------
@@ -611,7 +634,8 @@ def w_ell2fkernels(w_ell, ells, ly, lx, interp_kind):
                       bounds_error=False, fill_value=fill_value)
         fkernel_full = cs(modlmap)
 
-        slices_y, slice_x = find_kernel_slice(fkernel_full)        
+        slices_y, slice_x = find_kernel_slice(
+            fkernel_full, optimize_len=optimize_len)
         fkernel_sliced, laxes_sliced = dft.slice_fmap(
             fkernel_full, slices_y, slice_x, laxes=(ly, lx))                
         fkernels[idx] = FKernel(fkernel_sliced, *laxes_sliced,
@@ -676,4 +700,4 @@ def get_sd_kernels_fourier(ly, lx, lamb, j0=None, lmin=None, jmax=None,
 
     interp_kind = 'nearest'
     return w_ell2fkernels(
-        w_ell, ells, ly, lx, interp_kind).astype(dtype, copy=False)
+        w_ell, ells, ly, lx, interp_kind, optimize_len=True).astype(dtype, copy=False)

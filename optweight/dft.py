@@ -5,13 +5,11 @@ But differ at some critical point, mainly in the defintion of the flat sky lx.
 import numpy as np
 from scipy.interpolate import interp1d
 
-#from pixell import fft, enmap, wcsutils
 import mkl_fft
 from pixell import enmap, wcsutils
 
 from optweight import type_utils, mat_utils
 
-#def rfft(imap, fmap, normalize=True, adjoint=False):
 def rfft(imap, fmap):
     '''
     Real-to-complex FFT.
@@ -42,19 +40,6 @@ def rfft(imap, fmap):
     fmap[:] = mkl_fft._pydfti.rfftn_numpy(imap, s=imap.shape[-2:], axes=(-2, -1),
                                           forward_scale=norm)
 
-    #fmap = fft.rfft(imap, fmap, axes=[-2, -1])
-    #norm = 1
-
-    #if normalize:
-    #    norm /= np.prod(imap.shape[-2:]) ** 0.5
-    #if normalize in ["phy","phys","physical"]:
-    #    if adjoint:
-    #        norm /= imap.pixsize() ** 0.5
-    #    else:
-    #        norm *= imap.pixsize() ** 0.5
-    #if norm != 1:
-    #    fmap *= norm
-
 def irfft(fmap, omap):
     '''
     Complex-to-real FFT.
@@ -80,23 +65,9 @@ def irfft(fmap, omap):
         raise TypeError(
             f'omap.dtype : {omap.dtype} and fmap.dtype : {fmap.dtype} do not match')
 
-    #if not destroy_input:
-    #    fmap = fmap.copy()
-    #omap = fft.irfft(fmap, omap, axes=[-2, -1], normalize=False)
-    #norm = 1
     norm = 1 / np.sqrt(np.prod(omap.shape[-2:]))
     omap[:] = mkl_fft._pydfti.irfftn_numpy(fmap, s=omap.shape[-2:], axes=(-2, -1),
                                            forward_scale=norm)    
-
-    #if normalize:
-    #    norm /= np.prod(omap.shape[-2:]) ** 0.5
-    #if normalize in ["phy","phys","physical"]:
-    #    if adjoint:
-    #        norm *= fmap.pixsize() ** 0.5
-    #    else:
-    #        norm /= fmap.pixsize() ** 0.5
-    #if norm != 1:
-    #    omap *= norm
 
 def allocate_fmap(shape, dtype, fill_value=0):
     '''
@@ -595,9 +566,9 @@ def add_to_fmap(fmap_large, fmap_small, slices_y, slice_x):
 
     return fmap_large
 
-def compute_fftlen_fftw(len_min, even=True):
+def get_optimal_fftlen(len_min, even=True):
     '''
-    Compute optimal array length for FFTW given a minumum length.
+    Compute optimal array length for FFT given a minumum length.
 
     Paramters
     ---------
@@ -613,8 +584,14 @@ def compute_fftlen_fftw(len_min, even=True):
 
     Notes
     -----
-    FFTW likes input sizes that can be factored as 2^a 3^b 5^c 7^d.
+    This assumes we want input sizes that can be factored as 2^a 3^b 5^c 7^d.
+    Adapted from ksw.
     '''
+    
+    if len_min == 0:
+        return len_min
+    if len_min == 1 and even:
+        return 2
 
     max_a = int(np.ceil(np.log(len_min) / np.log(2)))
     max_b = int(np.ceil(np.log(len_min) / np.log(3)))
