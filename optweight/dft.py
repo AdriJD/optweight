@@ -5,11 +5,14 @@ But differ at some critical point, mainly in the defintion of the flat sky lx.
 import numpy as np
 from scipy.interpolate import interp1d
 
-from pixell import fft, enmap, wcsutils
+#from pixell import fft, enmap, wcsutils
+import mkl_fft
+from pixell import enmap, wcsutils
 
 from optweight import type_utils, mat_utils
 
-def rfft(imap, fmap, normalize=True, adjoint=False):
+#def rfft(imap, fmap, normalize=True, adjoint=False):
+def rfft(imap, fmap):
     '''
     Real-to-complex FFT.
 
@@ -19,12 +22,6 @@ def rfft(imap, fmap, normalize=True, adjoint=False):
         Map to transform.
     fmap : (..., ny, nx//2+1) complex ndmap
         Output buffer.
-    normalize : bool, optional
-        The FFT normalization, by default True. If True, normalize
-        using pixel number. If in ['phy', 'phys', 'physical'],
-        normalize by sky area.
-    adjoint : bool, optional
-        Compute adjoint of the complex-to-real FFT.
 
     Raises
     ------
@@ -36,21 +33,29 @@ def rfft(imap, fmap, normalize=True, adjoint=False):
     if fmap.shape != imap.shape[:-2] + (ny, nx // 2 + 1):
         raise ValueError(
             f'Inconsistent shapes: imap : {imap.shape}, fmap : {fmap.shape}')
+    if fmap.dtype != type_utils.to_complex(imap.dtype):
+        raise TypeError(
+            f'imap.dtype : {imap.dtype} and fmap.dtype : {fmap.dtype} do not match')
+    
 
-    fmap = fft.rfft(imap, fmap, axes=[-2, -1])
-    norm = 1
+    norm = 1 / np.sqrt(np.prod(imap.shape[-2:]))
+    fmap[:] = mkl_fft._pydfti.rfftn_numpy(imap, s=imap.shape[-2:], axes=(-2, -1),
+                                          forward_scale=norm)
 
-    if normalize:
-        norm /= np.prod(imap.shape[-2:]) ** 0.5
-    if normalize in ["phy","phys","physical"]:
-        if adjoint:
-            norm /= imap.pixsize() ** 0.5
-        else:
-            norm *= imap.pixsize() ** 0.5
-    if norm != 1:
-        fmap *= norm
+    #fmap = fft.rfft(imap, fmap, axes=[-2, -1])
+    #norm = 1
 
-def irfft(fmap, omap, normalize=True, adjoint=False, destroy_input=False):
+    #if normalize:
+    #    norm /= np.prod(imap.shape[-2:]) ** 0.5
+    #if normalize in ["phy","phys","physical"]:
+    #    if adjoint:
+    #        norm /= imap.pixsize() ** 0.5
+    #    else:
+    #        norm *= imap.pixsize() ** 0.5
+    #if norm != 1:
+    #    fmap *= norm
+
+def irfft(fmap, omap):
     '''
     Complex-to-real FFT.
 
@@ -60,14 +65,6 @@ def irfft(fmap, omap, normalize=True, adjoint=False, destroy_input=False):
         Input Fourier coefficients.
     omap : (..., ny, nx) ndmap
         Output buffer.
-    normalize : bool, optional
-        The FFT normalization, by default True. If True, normalize
-        using pixel number. If in ['phy', 'phys', 'physical'],
-        normalize by sky area.
-    adjoint : bool, optional
-        Compute the adjoint of the real-to-complex FFT.
-    destroy_input : bool, optional
-        If set, input `fmap` array might be overwritten.
 
     Raises
     ------
@@ -79,21 +76,27 @@ def irfft(fmap, omap, normalize=True, adjoint=False, destroy_input=False):
     if fmap.shape != omap.shape[:-2] + (ny, nx // 2 + 1):
         raise ValueError(
             f'Inconsistent shapes: fmap : {fmap.shape}, omap : {omap.shape}')
+    if fmap.dtype != type_utils.to_complex(omap.dtype):
+        raise TypeError(
+            f'omap.dtype : {omap.dtype} and fmap.dtype : {fmap.dtype} do not match')
 
-    if not destroy_input:
-        fmap = fmap.copy()
-    omap = fft.irfft(fmap, omap, axes=[-2, -1], normalize=False)
-    norm = 1
+    #if not destroy_input:
+    #    fmap = fmap.copy()
+    #omap = fft.irfft(fmap, omap, axes=[-2, -1], normalize=False)
+    #norm = 1
+    norm = 1 / np.sqrt(np.prod(omap.shape[-2:]))
+    omap[:] = mkl_fft._pydfti.irfftn_numpy(fmap, s=omap.shape[-2:], axes=(-2, -1),
+                                           forward_scale=norm)    
 
-    if normalize:
-        norm /= np.prod(omap.shape[-2:]) ** 0.5
-    if normalize in ["phy","phys","physical"]:
-        if adjoint:
-            norm *= fmap.pixsize() ** 0.5
-        else:
-            norm /= fmap.pixsize() ** 0.5
-    if norm != 1:
-        omap *= norm
+    #if normalize:
+    #    norm /= np.prod(omap.shape[-2:]) ** 0.5
+    #if normalize in ["phy","phys","physical"]:
+    #    if adjoint:
+    #        norm *= fmap.pixsize() ** 0.5
+    #    else:
+    #        norm /= fmap.pixsize() ** 0.5
+    #if norm != 1:
+    #    omap *= norm
 
 def allocate_fmap(shape, dtype, fill_value=0):
     '''
@@ -127,7 +130,7 @@ def allocate_map(fshape, dtype, fill_value=0):
     Parameters
     ----------
     shape : tuple
-        Input shape of fmap.
+        Input shape of fmap: (..., ly, lx).
     dtype : type, optional
         Type of input fmap.
     fill_value : scalar, optional
@@ -141,7 +144,7 @@ def allocate_map(fshape, dtype, fill_value=0):
     Notes
     -----
     This always results in an array with an odd-length. From the
-    shape of the fmap it unknown if the input map was even or odd
+    shape of the fmap it is unknown if the input map was even or odd
     in the x direction.
     '''
     
@@ -591,3 +594,47 @@ def add_to_fmap(fmap_large, fmap_small, slices_y, slice_x):
     fmap_large[...,slices_y[1],slice_x] += fmap_small[...,slices_y[1],:]
 
     return fmap_large
+
+def compute_fftlen_fftw(len_min, even=True):
+    '''
+    Compute optimal array length for FFTW given a minumum length.
+
+    Paramters
+    ---------
+    len_min : int
+        Minumum length.
+    even : bool, optional
+        Demand even optimal lengths (for real FFTs).
+
+    Returns
+    -------
+    len_opt : int
+        Optimal length
+
+    Notes
+    -----
+    FFTW likes input sizes that can be factored as 2^a 3^b 5^c 7^d.
+    '''
+
+    max_a = int(np.ceil(np.log(len_min) / np.log(2)))
+    max_b = int(np.ceil(np.log(len_min) / np.log(3)))
+    max_c = int(np.ceil(np.log(len_min) / np.log(5)))
+    max_d = int(np.ceil(np.log(len_min) / np.log(7)))       
+
+    len_opt = 2 ** max_a # Reasonable starting point.
+    for a in range(max_a):
+        for b in range(max_b):
+            for c in range(max_c):
+                for d in range(max_d):
+                    fftlen = 2 ** a * 3 ** b * 5 ** c * 7 ** d
+                    if even and fftlen % 2:
+                        continue
+                    if fftlen < len_min:
+                        continue
+                    if fftlen == len_min:
+                        len_opt = fftlen
+                        break
+                    if fftlen < len_opt:
+                        len_opt = fftlen
+
+    return len_opt

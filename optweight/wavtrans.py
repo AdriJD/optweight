@@ -507,8 +507,8 @@ def write_wav(fname, wav, extra=None, **kwargs):
     '''
     Write wavelet object to an hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     fname : str
         Path to file. Will append .hdf5 if no file extension is found.
     wav : wavtrans.Wav object
@@ -586,8 +586,8 @@ def read_wav(fname, extra=None):
     '''
     Read wavelet object from an hdf file.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     fname : str
         Path to file.
     extra : list of strings
@@ -661,12 +661,11 @@ def f2wav(fmap, wav, fkernelset):
         Vector of wavelet maps.    
     '''
     
-    for widx, fkernel in fkernelset:
+    for widx, fkern in fkernelset:
 
         map_2d = map_utils.view_2d(wav.maps[widx], wav.minfos[widx])
-
-        fmap_slice = dft.slice_fmap(fmap, fkernel.slices_y, fkernel.slice_x)
-        dft.irfft(fmap_slice * fkernel.fkernel, map_2d)
+        fmap_slice = dft.slice_fmap(fmap, fkern.slices_y, fkern.slice_x)
+        dft.irfft(fmap_slice * fkern.fkernel, map_2d)
 
     return wav
 
@@ -691,14 +690,14 @@ def wav2f(wav, fmap, fkernelset):
 
     fmap *= 0 
 
-    for widx, fkernel in fkernelset:
+    for widx, fkern in fkernelset:
         
-        tmp = np.zeros(fmap.shape[:-2] + fkernel.fkernel.shape, dtype=fmap.dtype)
+        tmp = np.zeros(fmap.shape[:-2] + fkern.fkernel.shape, dtype=fmap.dtype)
         map_2d = map_utils.view_2d(wav.maps[widx], wav.minfos[widx])
 
         dft.rfft(map_2d, tmp)
 
-        tmp = tmp * fkernel.fkernel
-        dft.add_to_fmap(fmap, tmp, fkernel.slices_y, fkernel.slice_x)
+        tmp = tmp * fkern.fkernel
+        dft.add_to_fmap(fmap, tmp, fkern.slices_y, fkern.slice_x)
     
     return fmap

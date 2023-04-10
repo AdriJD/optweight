@@ -1,5 +1,8 @@
+import os
 import numpy as np
 from scipy.interpolate import interp1d
+
+import h5py
 
 from optweight import wlm_utils, dft, type_utils, map_utils, wavtrans
 
@@ -21,7 +24,7 @@ class FKernelSet():
         self.dtype = np.float64
 
     def __getitem__(self, key):
-        return self.fkernel_dict[key]
+        return self.fkernel_dict[int(key)]
 
     def __setitem__(self, key, fkernel):
         ''' 
@@ -29,7 +32,7 @@ class FKernelSet():
 
         Parameters
         ----------
-        key : int, string
+        key : int
             Key to internal dictionary.
         fkernel : fkernel.Fkernel object
             Kernel to add.
@@ -38,11 +41,15 @@ class FKernelSet():
         ------
         TypeError
             If dtype of input kernel does not match the dtype of this set.
+            If key is not integer.
         '''
 
         if not isinstance(fkernel, FKernel):
-            raise ValueError(
+            raise TypeError(
                 f'Only FKernel instances allowed, got {type(fkernel)}')
+
+        if int(key) != key:
+            TypeError(f'Only integer keys allowed, got {type(key)}')
 
         if not self.fkernel_dict:
             # If set is still empty, take dtype from this new kernel.
@@ -50,7 +57,7 @@ class FKernelSet():
         elif not self.dtype is fkernel.dtype:
             raise TypeError(f'Input is {fkernel.dtype} while set dtype is {self.dtype}')
             
-        self.fkernel_dict[key] = fkernel
+        self.fkernel_dict[int(key)] = fkernel
 
     def __len__(self):
         return len(self.fkernel_dict)
@@ -137,7 +144,58 @@ class FKernelSet():
             wav.add(widx, m_arr, minfo)
 
         return wav
-                        
+
+    def write(self, fname):
+        '''
+        Write kernelset to an hdf file.
+
+        Arguments
+        ---------
+        fname : str
+            Path to file. Will append .hdf5 if no file extension is found.        
+        '''
+                  
+        if not os.path.splitext(fname)[1]:
+            fname = fname + '.hdf5'
+        
+        with h5py.File(fname, 'w') as hfile:
+
+            for widx, fkern in self:
+                
+                dname = f'k_{widx}'
+                kgroup = hfile.create_group(dname, track_order=True)
+                fkern.append_to_hdf(kgroup)
+
+    @classmethod
+    def from_hdf(cls, fname):
+        '''
+        Initialize kernelset from hdf file.
+
+        Parameters
+        ----------
+        fname : str
+            Path to file.
+
+        Raises
+        ------
+        ValueError
+            If the file contains more than just a group for each kernel.
+        '''
+    
+        fks = cls()
+
+        with h5py.File(fname, 'r') as hfile:
+            
+            for key, val in hfile.items():
+
+                if not isinstance(val, h5py.Group):
+                    raise ValueError('Contents file not understood.')
+
+                key = int(key.split('_')[-1])
+                fks[key] = FKernel.from_hdf(val)            
+
+        return fks
+
 class FKernel():
     '''
     Class describing a single 2D Fourier wavelet kernel.
@@ -185,7 +243,8 @@ class FKernel():
         If input shapes do not match.
     '''
 
-    def __init__(self, fkernel, ly, lx, slices_y=None, slice_x=None, shape_full=None):
+    def __init__(self, fkernel, ly, lx, slices_y=None, slice_x=None,
+                 shape_full=None):
 
         if fkernel.shape[-2:] != (ly.size, lx.size):
             raise ValueError(
@@ -218,10 +277,103 @@ class FKernel():
         '''
         
         if None in (self.slices_y, self.slice_x, self.shape_full):
-            return ValueError('`to_full_array` requires `slices_y`, `slice_x` and `shape_full`')
+            return ValueError(
+                '`to_full_array` requires `slices_y`, `slice_x` and `shape_full`')
         full = np.zeros(self.shape_full, dtype=self.dtype)
         dft.add_to_fmap(full, self.fkernel, self.slices_y, self.slice_x)
         return full
+
+    def append_to_hdf(self, hfile):
+        '''
+        Add kernel dataset to provided hdf file or group.
+
+        Parameters
+        ----------
+        hfile : HDF5 file or group
+            Writeable hdf file or group.        
+        '''
+
+        if self.shape_full is not None:
+            hfile.attrs['shape_full'] = self.shape_full
+
+        if self.slice_x.start is not None:
+            hfile.attrs['slice_x_start'] = self.slice_x.start
+        if self.slice_x.stop is not None:
+            hfile.attrs['slice_x_stop'] = self.slice_x.stop
+        if self.slice_x.step is not None:
+            hfile.attrs['slice_x_step'] = self.slice_x.step
+
+        if self.slices_y[0].start is not None:
+            hfile.attrs['slice_ypos_start'] = self.slices_y[0].start
+        if self.slices_y[0].stop is not None:
+            hfile.attrs['slice_ypos_stop'] = self.slices_y[0].stop
+        if self.slices_y[0].step is not None:
+            hfile.attrs['slice_ypos_step'] = self.slices_y[0].step
+
+        if self.slices_y[1].start is not None:
+            hfile.attrs['slice_yneg_start'] = self.slices_y[1].start
+        if self.slices_y[1].stop is not None:
+            hfile.attrs['slice_yneg_stop'] = self.slices_y[1].stop
+        if self.slices_y[1].step is not None:
+            hfile.attrs['slice_yneg_step'] = self.slices_y[1].step
+        
+        hfile.create_dataset('fkernel', data=self.fkernel)
+        hfile.create_dataset('ly', data=self.ly)
+        hfile.create_dataset('lx', data=self.lx)
+    
+    @classmethod
+    def from_hdf(cls, hfile):
+        '''
+        Initialize kernel from hdf file or group.
+
+        Parameters
+        ----------
+        hfile : HDF5 file or group
+            Readable hdf file or group.
+        '''
+
+        fkernel = hfile['fkernel'][()]
+        ly = hfile['ly'][()]
+        lx = hfile['lx'][()]
+
+        slice_x_start = hfile.attrs.get('slice_x_start')
+        slice_x_stop = hfile.attrs.get('slice_x_stop')
+        slice_x_step = hfile.attrs.get('slice_x_step')
+
+        if (slice_x_start, slice_x_stop, slice_x_step).count(None) < 3:
+            slice_x = slice(slice_x_start, slice_x_stop, slice_x_step)
+        else:
+            slice_x = None
+
+        slice_ypos_start = hfile.attrs.get('slice_ypos_start')
+        slice_ypos_stop = hfile.attrs.get('slice_ypos_stop')
+        slice_ypos_step = hfile.attrs.get('slice_ypos_step')
+
+        if (slice_ypos_start, slice_ypos_stop, slice_ypos_step).count(None) < 3:
+            slice_ypos = slice(slice_ypos_start, slice_ypos_stop, slice_ypos_step)
+        else:
+            slice_ypos = None
+
+        slice_yneg_start = hfile.attrs.get('slice_yneg_start')
+        slice_yneg_stop = hfile.attrs.get('slice_yneg_stop')
+        slice_yneg_step = hfile.attrs.get('slice_yneg_step')
+
+        if (slice_yneg_start, slice_yneg_stop, slice_yneg_step).count(None) < 3:
+            slice_yneg = slice(slice_yneg_start, slice_yneg_stop, slice_yneg_step)
+        else:
+            slice_yneg = None
+            
+        if slice_ypos is None and slice_yneg is None:
+            slices_y = None
+        else:
+            slices_y = (slice_ypos, slice_yneg)
+
+        shape_full = hfile.attrs.get('shape_full')
+        if shape_full is not None:
+            shape_full = tuple(shape_full)
+
+        return cls(fkernel, ly, lx, slices_y=slices_y, slice_x=slice_x,
+                   shape_full=shape_full)
 
 def digitize_1d(arr):
     '''

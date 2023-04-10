@@ -54,6 +54,44 @@ class TestSHT(unittest.TestCase):
         self.assertEqual(omap.dtype, np.float32)
         self.assertEqual(fmap.dtype, np.complex64)
 
+    def test_rfft_err(self):
+        
+        ny = 10
+        nx = 11
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec = np.radians([-60, 40])
+        shape, wcs = enmap.band_geometry(dec, res=res, shape=(ny, nx), dims=(2,))
+        imap = enmap.ones(shape, wcs)
+
+        # Wrong dtype.
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex64)
+        
+        self.assertRaises(TypeError, dft.rfft, imap, fmap)
+
+        fmap_copy = fmap.copy()
+        omap = np.zeros_like(imap)
+
+        self.assertRaises(TypeError, dft.irfft, fmap, omap)
+
+    def test_rfft_numpy(self):
+        
+        # Compare to numpy.
+        ny = 10
+        nx = 11
+        res = [np.pi / (ny - 1), 2 * np.pi / nx]
+        dec = np.radians([-60, 40])
+        shape, wcs = enmap.band_geometry(dec, res=res, shape=(ny, nx), dims=(2,))
+
+        imap = enmap.ones(shape, wcs)
+        imap += np.random.randn(*imap.shape)
+
+        fmap = np.zeros(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)
+
+        fmap_exp = np.fft.rfft2(imap, s=imap.shape[-2:], norm='ortho')        
+        dft.rfft(imap, fmap)
+
+        np.testing.assert_allclose(fmap, fmap_exp)
+
     def test_irfft(self):
         
         # Test roundtrip.
@@ -66,6 +104,8 @@ class TestSHT(unittest.TestCase):
 
         fmap = np.ones(shape[:-1] + (shape[-1] // 2 + 1,), np.complex128)        
         fmap[0, 3, 5] = 2 + 4j
+
+        print(fmap.shape, imap.shape)
 
         dft.irfft(fmap, imap)
 

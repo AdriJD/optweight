@@ -75,7 +75,7 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, wav_template=None,
 
     return cov_wav
 
-def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
+def estimate_cov_fwav(fmap, fkernelset, wav_template, diag=False,
                      fwhm_fact=2):
     '''
     Estimate wavelet-based covariance matrix given noise 2D fourier
@@ -85,10 +85,8 @@ def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
     ----------
     fmap : (..., nly, nlx) complex array
         Input 2D Fourier map.
-    fkernels : (nwav, nly, nlx) array
+    fkernels : fkernel.FKernelSet
         Fourier wavelet kernels. 
-    modlmap : (nly, nlx) array
-        Map of absolute wavenumbers.
     wav_template : wavtrans.Wav object
         (nwav) wavelet vector used for f2wav operation, used as 
         template for cut sky wavelet maps. Will determine minfos
@@ -112,7 +110,7 @@ def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
     fmap_mono = fmap[...,0,0].copy()
     fmap[...,0,0] = 0
 
-    noise_wav = wavtrans.f2wav(fmap, wav_template, fkernels)
+    noise_wav = wavtrans.f2wav(fmap, wav_template, fkernelset)
 
     # Insert monopole back in.
     fmap[...,0,0] = fmap_mono
@@ -126,17 +124,22 @@ def estimate_cov_fwav(fmap, fkernels, modlmap, wav_template, diag=False,
         else:
             return fwhm_fact
 
-    for jidx in range(fkernels.shape[0]):
+    #for jidx, fkern in range(fkernelset.shape[0]):
+    for jidx, fkern in fkernelset:
         index = (jidx, jidx)
         minfo = noise_wav.minfos[jidx]
         
-        _lmax = int(np.max(modlmap[fkernels[jidx] > 1e-6]))
+        #_lmax = int(np.max(modlmap[fkernelset[jidx] > 1e-6]))
+        modlmap = fkern.modlmap()
+        #_lmax = int(np.max(modlmap[fkern.fkernel > 1e-6]))
+        _lmax = fkern.lmax
+        #_lmax = int(np.max(fkernel.modlmap() > 1e-6]))
 
         fwhm = _fwhm_fact(_lmax) * np.pi / _lmax
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo, diag=diag,
                                    fwhm=fwhm, flatsky=True, modlmap=modlmap)
         # Correct for kernel shape.
-        cov_pix /= np.mean(np.abs(fkernels[jidx]) ** 2)
+        cov_pix /= np.mean(np.abs(fkern.fkernel) ** 2)
         
         cov_wav.add(index, cov_pix, minfo)
 
