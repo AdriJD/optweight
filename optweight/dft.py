@@ -5,7 +5,7 @@ But differ at some critical point, mainly in the defintion of the flat sky lx.
 import numpy as np
 from scipy.interpolate import interp1d
 
-import mkl_fft
+import ducc0
 from pixell import enmap, wcsutils
 
 from optweight import type_utils, mat_utils
@@ -35,10 +35,8 @@ def rfft(imap, fmap):
         raise TypeError(
             f'imap.dtype : {imap.dtype} and fmap.dtype : {fmap.dtype} do not match')
     
-
-    norm = 1 / np.sqrt(np.prod(imap.shape[-2:]))
-    fmap[:] = mkl_fft._pydfti.rfftn_numpy(imap, s=imap.shape[-2:], axes=(-2, -1),
-                                          forward_scale=norm)
+    ducc0.fft.r2c(np.asarray(imap), axes=[-2, -1], inorm=1, out=np.asarray(fmap),
+                  nthreads=0)
 
 def irfft(fmap, omap):
     '''
@@ -65,10 +63,9 @@ def irfft(fmap, omap):
         raise TypeError(
             f'omap.dtype : {omap.dtype} and fmap.dtype : {fmap.dtype} do not match')
 
-    norm = 1 / np.sqrt(np.prod(omap.shape[-2:]))
-    omap[:] = mkl_fft._pydfti.irfftn_numpy(fmap, s=omap.shape[-2:], axes=(-2, -1),
-                                           forward_scale=norm)    
-
+    ducc0.fft.c2r(np.asarray(fmap), axes=[-2, -1], forward=False, inorm=1,
+                  lastsize=omap.shape[-1], out=np.asarray(omap), nthreads=0)
+    
 def allocate_fmap(shape, dtype, fill_value=0):
     '''
     Allocate an array suitable for the output of rfft.

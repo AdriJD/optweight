@@ -14,8 +14,7 @@ Under the hood, the code solves a large linear system with the conjugate gradien
 - Python>=3.7
 - Intel MKL library 
 - a C compiler (tested with gcc and icc)
-- [mlk_fft](https://github.com/IntelPython/mkl_fft)
-- [mkl-service](https://github.com/IntelPython/mkl-service)
+- [ducc0](https://gitlab.mpcdf.mpg.de/mtr/ducc)
 - [pytest](https://pypi.org/project/pytest/)
 - [pixell](https://pypi.org/project/pixell/)
 
