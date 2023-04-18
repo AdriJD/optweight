@@ -1,6 +1,9 @@
 # optweight
 
-Filter 2D data (e.g. CMB or weak lensing data) on the curved sky in a statically optimal way using the preconditioned conjugate gradient method. Main use is to compute inverse-covariance weighted data or [Wiener-filtered ](https://en.wikipedia.org/wiki/Generalized_Wiener_filter) data. 
+`optweight` is a library for filtering two-dimensional data on the sphere (e.g. CMB or weak lensing data) in a statically optimal way. The main use is the computation of [Wiener-filtered](https://en.wikipedia.org/wiki/Generalized_Wiener_filter) data. Additionally, the library can be used to compute inverse-covariance weighted data and draw constrained signal realizations. 
+
+Under the hood, the code solves a large linear system with the conjugate gradient method. A lot of effort has gone in to precondition the linear system to allow rapid convergence even when the data include many masked pixels (e.g. due to Galactic and/or point source masks).
+
 
 #### Features
 * Noise models that can be either diagonal in the pixel domain, or diagonal in a wavelet domain to allow for sparially varying noise correlation over pixels. The signal covariance is assumed to be diagonal in the harmonic domain.

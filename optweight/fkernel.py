@@ -16,12 +16,15 @@ class FKernelSet():
         Dictionary containing `FKernel` instances.
     dtype : type
         The dtype of the kernels.
+    shape_full : tuple, None
+        Full resolution shape (ny, nx) from which this kernelset was sliced.        
     '''
 
     def __init__(self):
 
         self.fkernel_dict = {}
         self.dtype = np.float64
+        self.shape_full = None
 
     def __getitem__(self, key):
         return self.fkernel_dict[int(key)]
@@ -52,10 +55,15 @@ class FKernelSet():
             TypeError(f'Only integer keys allowed, got {type(key)}')
 
         if not self.fkernel_dict:
-            # If set is still empty, take dtype from this new kernel.
+            # If set is still empty, take properties from this new kernel.
             self.dtype = fkernel.dtype
-        elif not self.dtype is fkernel.dtype:
+            self.shape_full = fkernel.shape_full
+
+        if not (fkernel.dtype == self.dtype):
             raise TypeError(f'Input is {fkernel.dtype} while set dtype is {self.dtype}')
+        if not (fkernel.shape_full == self.shape_full):
+            raise TypeError(
+                f'Input shape_full : {fkernel.shape_full} while set has {self.shape_full}')
             
         self.fkernel_dict[int(key)] = fkernel
 
@@ -84,7 +92,7 @@ class FKernelSet():
             self.dtype = dtype
 
         return self
-
+    
     def to_full_array(self):
         '''
         Return full-sized set of kernels. Useful for debugging.
@@ -98,9 +106,7 @@ class FKernelSet():
         if not self.fkernel_dict:
             raise ValueError('Calling `to_full_array` on empty set.')
         
-        first_key = list(self.fkernel_dict.keys())[0]     
-        full = np.zeros((len(self),) + self.fkernel_dict[first_key].shape_full,
-                        dtype=self.dtype)
+        full = np.zeros((len(self),) + self.shape_full, dtype=self.dtype)
 
         for key in self.fkernel_dict:
             kernel = self.fkernel_dict[key]

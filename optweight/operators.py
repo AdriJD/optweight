@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-from pixell import sharp, enmap
+from pixell import sharp, enmap, utils
 
 from optweight import (sht, dft, wavtrans, alm_utils, type_utils, alm_c_utils,
                        mat_utils, map_utils)
@@ -187,7 +187,7 @@ class PixMatVecMap(MatVecMap):
         self.inplace = inplace
     
     def call(self, imap):
-        
+
         return mat_utils.matvec(self.m_pix, imap, inplace=self.inplace)
     
 class EllMatVecAlm(MatVecAlm):
@@ -295,6 +295,216 @@ class FMatVecF(MatVecF):
 
         return dft.fmul(fmap, self.fmat2d, out=out)
 
+class InvFWavMatVecF(MatVecF):
+    '''
+    Use conjugate gradient to apply the inverse of a 2D Fourier-based wavelet
+    transformation. 
+
+    Solve A x = b, where:
+        A = Kt F M_wav Ft K
+        b = Set of 2D Fourier coefficients.
+
+    Parameters
+    ----------
+    m_wav : wavtrans.Wav object
+        Wavelet container for wavelet matrix.
+    fkernelset : fkernel.FKernelSet object
+        Wavelet kernels.
+    nsteps : int, optional
+        Number of CG steps.
+
+    Methods
+    -------
+    call(fmap) : Apply the operator to a set 2D Fourier coefficients.
+    '''
+    
+    def __init__(self, m_wav, fkernelset, nsteps=3):
+    
+        self.cov_wav_op = WavMatVecWav(m_wav, power=1, inplace=True)
+        self.icov_wav_op = WavMatVecWav(m_wav, power=-1, inplace=True)
+        self.fkernelset = fkernelset
+        # FIXME, preshape[-1] is a bit hacky.
+        self.wav_template = self.fkernelset.get_wav_vec(
+            m_wav.preshape[-1:], dtype=m_wav.dtype)
+        self.nsteps = nsteps
+
+    def _a_mat(self, fmap):
+        '''
+        Apply the A matrix.
+        
+        Parameters
+        ----------
+        fmap : (..., ny, nx//2+1) complex ndmap
+            Input vector.
+        
+        Returns
+        -------
+        fmap_out : (..., ny, nx//2+1) complex ndmap
+            Output vector.                
+        '''
+
+        wavtrans.f2wav(fmap, self.wav_template, self.fkernelset)
+        self.cov_wav_op(self.wav_template)
+        out = fmap.copy()
+        wavtrans.wav2f(self.wav_template, out, self.fkernelset)
+        return out
+
+    def _prec(self, fmap):
+        '''
+        Apply preconditioner. Constructed from the inverse wavelet matrix.
+        
+        Parameters
+        ----------
+        fmap : (..., ny, nx//2+1) complex ndmap
+            Input vector.
+        
+        Returns
+        -------
+        fmap_out : (..., ny, nx//2+1) complex ndmap
+            Output vector.                
+        '''
+
+        wavtrans.f2wav(fmap, self.wav_template, self.fkernelset)
+        self.icov_wav_op(self.wav_template)
+        fmap_out = fmap.copy()
+        wavtrans.wav2f(self.wav_template, fmap_out, self.fkernelset)
+        return fmap_out
+
+    def call(self, fmap, verbose=False):
+        '''
+        Apply operator to input 2D Fourier coefficients.
+        
+        Parameters
+        ----------
+        fmap : (..., ny, nx//2+1) complex ndmap
+            Input vector.
+        verbose : bool, optional
+            If set, print information about CG convergence.
+        
+        Returns
+        -------
+        fmap_out : (..., ny, nx//2+1) complex ndmap
+            Output vector.                
+        '''
+
+        b_vec = fmap.copy()
+        solver = utils.CG(self._a_mat, b_vec, M=self._prec, dot=dft.contract_fxg)
+        
+        for idx in range(self.nsteps):
+            solver.step()
+            if verbose:
+                print(solver.i, solver.err)
+
+        return solver.x
+
+class FInvFWavFMatVecMap(MatVecMap):
+    '''
+    Calculate Ft X^q (Kt F M_wav^p Ft K)^{-1} X^q F imap for X and M diagonal
+    in the 2D Fourier domain and wavelet-pixel domain, respectively. 
+    Both matrices should be positive semi-definite symmetric in other axes.
+
+    Parameters
+    ----------
+    
+    '''
+    def __init__(self, minfo, m_wav, fkernelset, fmat2d, power_x=1, nsteps=3):
+
+        self.minfo = minfo
+        self.inv_op = InvFWavMatVecF(m_wav, fkernelset, nsteps=nsteps)
+        if power_x != 0:
+            self.x_op = FMatVecF(fmat2d, power=power_x, inplace=True)
+        else:
+            self.x_op = lambda x: x
+
+    def call(self, imap, verbose=False):
+        '''
+
+        '''
+        
+        imap = map_utils.view_2d(imap, self.minfo)
+        fmap = dft.allocate_fmap(imap.shape, imap.dtype)
+        omap = imap * 0
+
+        dft.rfft(imap, fmap)
+        self.x_op(fmap)
+        fmap[:] = self.inv_op(fmap)
+        self.x_op(fmap)
+        dft.irfft(fmap, omap)
+
+        return map_utils.view_1d(omap, self.minfo)
+
+class InvSqrtFWavMatVecWav(MatVecWav):
+    '''
+    Use conjugate gradient to apply the (non-symmetric) inverse square root of a
+    2D Fourier-based wavelet transformation. 
+
+    Solve A x = b, where:
+        A = Kt F M_wav Ft K
+        b = Kt F M_wav^0.5 wav
+
+    Parameters
+    ----------
+    m_wav : wavtrans.Wav object
+        Wavelet container for wavelet matrix.
+    fkernelset : fkernel.FKernelSet object
+        Wavelet kernels.
+
+    Methods
+    -------
+    call(fmap) : Apply the operator to a set 2D Fourier coefficients.
+    '''
+
+    def __init__(self, m_wav, fkernelset, inv_op=None):
+    
+        self.sqrt_cov_wav_op = WavMatVecWav(m_wav, power=0.5, inplace=True)
+        self.fkernelset = fkernelset
+        if inv_op is None:
+            inv_op = InvFWavMatVecF(m_wav, fkernelset)
+        self.inv_op = inv_op
+        self.oshape = m_wav.preshape[-1:] + fkernelset.shape_full
+        self.odtype = type_utils.to_complex(m_wav.dtype)
+
+    def _sqrt_n(self, wav):
+        '''
+        Apply square root of wavelet matrix, i.e.  Kt F M_wav^0.5.
+        
+        Parameters
+        ----------
+        wav : wavtrans.Wav object
+            Input wavelet vector.
+        
+        Returns
+        -------
+        fmap_out : (..., ny, nx//2+1) complex ndmap
+            Output vector.                
+        '''
+
+        fmap_out = np.zeros(self.oshape, self.odtype)
+
+        self.sqrt_cov_wav_op(wav)
+        wavtrans.wav2f(wav, fmap_out, self.fkernelset)
+        return fmap_out
+
+    def call(self, wav, **kwargs):
+        '''
+        Apply operator to input wavelet vector.
+       
+        Parameters
+        ----------
+        wav : wavtrans.Wav object
+            Input wavelet vector.
+        kwargs : dict, optional
+            Keyword arguments for `InvFWavMatVecF.call`.
+
+        Returns
+        -------
+        fmap_out : (..., ny, nx//2+1) complex ndmap
+            Output vector.                        
+        '''
+
+        b_vec = self._sqrt_n(wav)
+        return self.inv_op(b_vec, **kwargs)
+            
 class PixMatVecAlm(MatVecAlm):
     '''
     Calculate M^p alm for M diagonal in the pixel domain and
@@ -671,7 +881,7 @@ class WavMatVecWav(MatVecWav):
     def __init__(self, m_wav, power=1, inplace=False, op=None):
 
         if m_wav.ndim != 2:
-            raise ValueError(f'Expected m_wav.ndim = 2, got : {w_wav.ndim}')
+            raise ValueError(f'Expected m_wav.ndim = 2, got : {m_wav.ndim}')
 
         if power != 1:
             self.m_wav = mat_utils.wavmatpow(m_wav, power, return_diag=True)

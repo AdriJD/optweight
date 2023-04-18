@@ -2,7 +2,8 @@ import numpy as np
 
 from pixell import curvedsky, sharp, utils
 
-from optweight import operators, alm_utils, map_utils, preconditioners, sht, mat_utils
+from optweight import (operators, alm_utils, map_utils, preconditioners, sht, mat_utils,
+                       noise_utils)
 
 class CGWienerMap(utils.CG):
     '''
@@ -186,7 +187,7 @@ class CGWienerMap(utils.CG):
             alm = self.sht_adjoint(omap)
             alm = self.beam(alm)
             alm = self.mask(alm)
-            
+
         return alm
 
     def a_matrix(self, alm):
@@ -305,6 +306,8 @@ class CGWienerMap(utils.CG):
             Beam window functions.
         mask_pix = (npol, npix) array, optional
             Pixel mask.
+        minfo_mask : sharp.map_info object
+            Metainfo for pixel mask.
         draw_constr : bool, optional
             If set, initialize for constrained realization instead of Wiener.
         spin : int, array-like, optional
@@ -354,12 +357,103 @@ class CGWienerMap(utils.CG):
                    swap_bm=swap_bm)
 
     @classmethod
-    def from_arrays_fwav(cls, imap, minfo, ainfo, icov_ell, icov_wav, w_ell,
+    def from_arrays_fwav(cls, imap, minfo, ainfo, icov_ell, cov_wav, fkernelset,
                          *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
                          draw_constr=False, spin=None, swap_bm=False,
-                         icov_noise_ell=None, kfilt=None, minfo_kfilt=None):
+                         cov_noise_2d=None):
+        '''
+        Initialize solver with Fourier-wavelet-based noise model form arrays
+        instead of callables.
 
-        raise NotImplementedError
+        Parameters
+        ----------
+        imap : (npol, npix) array
+            Input map
+        minfo : sharp.map_info object
+            Metainfo for input map.
+        ainfo : sharp.alm_info object
+            Metainfo for output alms.
+        icov_ell : (npol, npol, nell) or (npol, nell) array
+            Inverse signal covariance. If diagonal, only the diagonal suffices.
+        cov_wav : wavtrans.Wav object
+            Wavelet block matrix representing the noise covariance.
+        fkernelset : fkernel.FKernelSet object
+            Wavelet kernels.
+
+        *extra_args
+            Possible extra arguments to init, used for inherited classes.
+
+        b_ell : (npol, nell) array, optional
+            Beam window functions.
+        mask_pix = (npol, npix) array, optional
+            Pixel mask.
+        minfo_mask : sharp.map_info object
+            Metainfo for pixel mask.
+        draw_constr : bool, optional
+            If set, initialize for constrained realization instead of Wiener.
+        spin : int, array-like, optional
+            Spin values for transform, should be compatible with npol. If not provided,
+            value will be derived from npol: 1->0, 2->2, 3->[0, 2].
+        swap_bm : bool, optional
+            If set, swap the order of the beam and mask operations. Helps convergence
+            with large beams and high SNR data.
+        cov_noise_2d : (npol, npol, nly, nlx) array or (npol, nly, nlx) array, optional
+            Noise covariance in 2D Fourier domain. If diagonal, only the 
+            diagonal suffices. Will update noise model to iN^0.5 iN_wav iN^0.5,
+            so make sure iN_wav corresponds to the inverse noise covariance after
+            flattening by iN^0.5.
+        '''
+
+        if spin is None:
+            spin = sht.default_spin(alm_data.shape)
+
+        icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
+        if cov_noise_2d is not None:
+            power_x = -0.5
+        else:
+            power_x = 0
+        icov_noise = operators.FInvFWavFMatVecMap(minfo, cov_wav, fkernelset, cov_noise_2d, 
+                                                  power_x=power_x, nsteps=1) # NOTE
+
+        if b_ell is not None:
+            beam = operators.EllMatVecAlm(ainfo, b_ell)
+        else:
+            beam = None
+
+        filt = None
+
+        if mask_pix is not None:
+            if minfo_mask is None:
+                minfo_mask = minfo
+            if swap_bm:
+                mask = operators.PixMatVecAlm(
+                    ainfo, mask_pix, minfo_mask, spin, use_weights=True)
+            else:
+                mask = operators.PixMatVecMap(mask_pix, 1, inplace=False)
+        else:
+            mask = None
+
+        if draw_constr:
+            rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
+            wav_draw = noise_utils.unit_var_wav(cov_wav.get_minfos_diag(),
+                         imap.shape[:-1], cov_wav.dtype, seed=None)
+            sqrt_icov_cov_wav_op = operators.InvSqrtFWavMatVecWav(
+                cov_wav, fkernels, inv_op=icov_noise.inv_op)
+            fmap_draw = sqrt_icov_cov_wav_op(wav_draw)
+            fmap_draw = icov_noise.x_op(fmap_draw)
+            rand_inoise = imap * 0
+            dft.irrft(fmap, rand_inoise)
+            rand_inoise = map_utils.view_1d(rand_inoise, minfo)
+        else:
+            rand_isignal = None
+            rand_inoise = None
+
+        sht = (operators.YMatVecAlm(ainfo, minfo, spin, qweight=False),
+               operators.YTWMatVecMap(minfo, ainfo, spin, qweight=False))
+
+        return cls(imap, icov_signal, icov_noise, sht, beam=beam, filt=filt,
+                   mask=mask, rand_isignal=rand_isignal, rand_inoise=rand_inoise,
+                   swap_bm=swap_bm)
 
     @classmethod
     def from_arrays_wav(cls, alm_data, ainfo, icov_ell, icov_wav, w_ell,

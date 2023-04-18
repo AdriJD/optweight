@@ -349,6 +349,12 @@ def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
     '''
 
     thetas_in, phis_in = _get_gauss_coords(minfo_in)
+
+    # This is a bit slow, but at least very general.
+    # RectBivariateSpline needs stricly ascending coordinates.
+    theta_idxs = np.argsort(thetas_in)
+    phi_idxs = np.argsort(phis_in)
+
     omap = np.zeros(imap.shape[:-1] + (minfo_out.npix,), dtype=imap.dtype)    
 
     if area_pow != 0:
@@ -362,15 +368,17 @@ def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
     # Loop over out dims
     for index in np.ndindex(imap.shape[:-1]):
 
-        rbs = RectBivariateSpline(thetas_in, phis_in, imap_2d[index],
-                                  kx=order, ky=order)
+        map2rbs = imap_2d[index][theta_idxs,:]
+        map2rbs = map2rbs[:,phi_idxs]
+        rbs = RectBivariateSpline(thetas_in[theta_idxs], phis_in[phi_idxs],
+                                  map2rbs, kx=order, ky=order)
 
         # Loop over thetas.
         for tidx in range(minfo_out.theta.size):
            
             nphi = minfo_out.nphi[tidx]
             phi0 = minfo_out.phi0[tidx]
-            phis = np.linspace(phi0, 2 * np.pi + phi0 , nphi, endpoint=False)
+            phis = np.linspace(phi0, 2 * np.pi + phi0, nphi, endpoint=False)
 
             ring_slice = get_ring_slice(tidx, minfo_out)
             omap[index][ring_slice] = rbs(minfo_out.theta[tidx], phis)
@@ -397,12 +405,18 @@ def _get_gauss_coords(map_info):
         Longitude coordinates for each ring.
     '''
 
+    if not np.all(map_info.nphi == map_info.nphi[0]):
+        raise ValueError('Input map_info nphi is not the same for all rings')
+    if not np.all(map_info.stride == map_info.stride[0]):
+        raise ValueError('Input map_info phi stride is not the same for all rings')
+
     # I know that each ring has nphi phis and also that the phi coordinates
-    # increase from phi0 to 2pi + phi0 in each ring.
+    # increase/decrease at same rate for each ring.
     thetas = map_info.theta
     nphi = map_info.nphi[0]
     phi0 = map_info.phi0[0]
-    phis = np.linspace(phi0, 2 * np.pi + phi0 , nphi, endpoint=False)
+    phis = np.linspace(phi0, phi0 + (2 * np.pi * map_info.stride[0]), nphi, endpoint=False)
+    phis = np.mod(phis, 2 * np.pi)
 
     return thetas, phis
 
