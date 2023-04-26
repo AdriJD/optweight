@@ -270,8 +270,16 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
         lmax = map_utils.minfo2lmax(minfo)
 
     # We want fullsky minfos (for now), we want to solve masked pixels.
-    minfo_out = map_utils.get_equal_area_gauss_minfo(
-        2 * lmax, ratio_pow=1, gl_band=0.4) # NOTE this is hardcoded for DR6 now.
+    # Determine if input minfo is CC or GL.
+    diff = minfo.theta
+    if np.allclose(diff, diff[0]):
+        minfo_full = map_utils.get_minfo('CC', lmax + 1, 2 * lmax + 1)
+    else:
+        minfo_full = map_utils.get_minfo('GL', lmax + 1, 2 * lmax + 1)
+
+    # This is hardcoded for DR6 now.
+    minfo_out = map_utils.get_equal_area_minfo(
+        minfo_full, orig_band=0.4, ratio_pow=1)
 
     mask_out = map_utils.gauss2map(
         mask_bool.astype(np.float32), minfo, minfo_out, order=1)

@@ -3,7 +3,7 @@ import numpy as np
 from pixell import utils, sharp
 
 from optweight import (operators, mat_utils, multigrid, type_utils, sht,
-                       alm_utils, map_utils, alm_c_utils)
+                       alm_utils, map_utils, alm_c_utils, dft)
 
 class HarmonicPreconditioner(operators.MatVecAlm):
     '''
@@ -331,6 +331,146 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         alm_noise = self.pcov_noise(alm_noise)
         alm_noise = self.ivar_noise_iso(alm_noise)
         alm_noise = self.imask(alm_noise)
+        alm_noise = self.beam(alm_noise)
+
+        alm = alm_noise
+        alm += alm_signal
+
+        alm = self.harmonic_prec(alm)
+
+        return alm
+
+class PseudoInvPreconditionerFWav(operators.MatVecAlm):
+    '''
+    Adaptation of the pseudo-inverse preconditioner from Seljebotn et al.,
+    2017 (1710.00621) to a 2D Fourier wavelet-based noise model.
+
+    Parameters
+    ----------
+    ainfo : sharp.alm_info object
+        Metainfo for input alms.
+    icov_ell : (npol, npol, nell) array or (npol, nell) array
+        Inverse signal covariance, If diagonal, only the diagonal suffices.
+    cov_wav : wavtrans.Wav object
+        Wavelet block matrix representing the noise covariance.
+    fkernelset : fkernel.FKernelSet object
+        Wavelet kernels.
+    spin : int, array-like
+        Spin values for transform, should be compatible with npol.
+    itau_ell : (npol, npol, nell) array
+        Isotropic noise (co)variance. 
+    cov_noise_2d : (npol, npol, nly, nlx) array or (npol, nly, nlx) array
+        Noise covariance in 2D Fourier domain. If diagonal, only the 
+        diagonal suffices.
+    mask_pix = (npol, npix) array
+        Pixel mask.
+    minfo_mask : sharp.map_info object
+        Metainfo for pixel mask covariance.
+    b_ell : (npol, nell) array, optional
+        Beam window function.
+
+    Methods
+    -------
+    call(alm) : Apply the preconditioner to a set of alms.
+    '''
+    
+    def __init__(self, ainfo, icov_ell, cov_wav, fkernelset, spin,
+                 itau_ell, cov_noise_2d, mask_pix, minfo_mask,
+                 b_ell=None):
+
+        self.npol, self.nell = icov_ell.shape[-2:]
+
+        if itau_ell.ndim != 3:
+            raise ValueError(
+                'Wrong dimensions itau_ell : expected 3, got {}'.
+                format(itau_ell.ndim))
+
+        if b_ell is None:
+            b_ell = np.ones((self.npol, self.nell))
+        b_ell = b_ell * np.eye(self.npol)[:,:,np.newaxis]
+
+        self.ainfo = ainfo
+        self.mask_pix = mask_pix
+        self.minfo_mask = minfo_mask
+        self.spin = spin
+        
+        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau_ell, b_ell)
+        self.harmonic_prec = operators.EllMatVecAlm(ainfo, op, -1, inplace=True)
+        
+        self.icov_signal = operators.EllMatVecAlm(
+            ainfo, icov_ell, inplace=True)
+        self.beam = operators.EllMatVecAlm(
+            ainfo, b_ell, inplace=True)
+        self.ivar_noise_iso = operators.EllMatVecAlm(
+            ainfo, itau_ell, inplace=True)
+        self.cov_wav_op = operators.FWavMatVecF(cov_wav, fkernelset)
+        self.x_op = operators.FMatVecF(cov_noise_2d, power=0.5, inplace=True)
+
+    def pcov_noise(self, alm):
+        '''
+        Apply the pseudo-inverse noise covariance to a set of alm inplace.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Input vector modified inplace.
+        '''
+
+        map_tmp = np.zeros(
+            (self.npol, self.minfo_mask.npix), type_utils.to_real(alm.dtype))
+        sht.alm2map(
+            alm, map_tmp, self.ainfo, self.minfo_mask, self.spin, adjoint=True)
+
+        map_tmp *= self.mask_pix
+
+        map_tmp = map_utils.view_2d(map_tmp, self.minfo_mask)
+        fmap = dft.allocate_fmap(map_tmp.shape, map_tmp.dtype)
+        dft.rfft(map_tmp, fmap)
+        self.x_op(fmap)
+        self.cov_wav_op(fmap)
+        self.x_op(fmap)
+        dft.irfft(fmap, map_tmp)
+        map_tmp = map_utils.view_1d(map_tmp, self.minfo_mask)
+
+        map_tmp *= self.mask_pix
+
+        sht.map2alm(
+            map_tmp, alm, self.minfo_mask, self.ainfo, self.spin, adjoint=True)
+
+        return alm
+
+    def call(self, alm):
+        '''
+        Apply the preconditioner to a set of alms.
+
+        Parameters
+        ----------
+        alm : (npol, nelem) complex array
+            Input alms.
+
+        Returns
+        -------
+        out : (npol, nelem) complex array
+            Output from matrix-vector operation.
+        '''
+
+        alm = alm.copy()
+
+        alm = self.harmonic_prec(alm)
+
+        alm_signal = alm.copy()
+        alm_noise = alm
+
+        alm_signal = self.icov_signal(alm_signal)
+        alm_noise = self.beam(alm_noise)
+        alm_noise = self.ivar_noise_iso(alm_noise)
+        alm_noise = self.pcov_noise(alm_noise)
+        alm_noise = self.ivar_noise_iso(alm_noise)
         alm_noise = self.beam(alm_noise)
 
         alm = alm_noise

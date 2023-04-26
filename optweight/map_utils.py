@@ -539,6 +539,57 @@ def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
     return get_minfo('GL', nrings, nphi, theta_min=theta_min, theta_max=theta_max,
                      return_arc_len=return_arc_len)
 
+def get_equal_area_minfo(minfo, orig_band=np.pi/8, ratio_pow=1.):
+    '''
+    Convert input minfo into equal area version.
+
+    Parameters
+    ----------
+    minfo : sharp.map_info object
+        Metadata of input grid.
+    orig_band : float, optional
+        Angle in radians away from equator that determines the band 
+        in which the grid is set to the original input grid. 
+        Set to 0 to turn off.
+    ratio_pow : float, optional
+        if set to value < 1, tolerate smaller area pixels close to pole.
+        Returns to input if set to 0. Number of phi samples per ring 
+        is given by nphi_gl * (area_pix_on_ring / area_pix_equator)^ratio_pow.
+
+    Returns
+    -------
+    map_info : sharp.map_info object
+        metadata of grid.    
+    '''
+
+    assert orig_band >= 0, ('orig_band must be >= 0, got {gl_band}')
+
+    # Use pixel area on equator as reference. This assumes this ring is included.
+    # Make sure this ring is actually included.
+    delta_theta = np.min(np.abs(np.diff(minfo.theta)))
+    if not np.any(np.abs(minfo.theta - (np.pi / 2)) < 2 * delta_theta):
+        raise ValueError('Input minfo has to include equator.')
+
+    idx_ref = np.searchsorted(minfo.theta, np.pi / 2, side="left")
+    area_pix_ref = minfo.weight[idx_ref]
+
+    nphi_reduced = np.zeros_like(minfo.nphi)
+    weight_reduced = np.zeros_like(minfo.weight)
+
+    for tidx in range(minfo.nrow):
+
+        area_pix = minfo.weight[tidx]
+
+        if (np.pi / 2 - orig_band) < minfo.theta[tidx] < (np.pi / 2 + orig_band):
+            ratio = 1            
+        else:
+            ratio = (area_pix / area_pix_ref) ** ratio_pow
+
+        nphi_reduced[tidx] = max(2, int(np.round(minfo.nphi[tidx] * ratio)))
+        weight_reduced[tidx] = area_pix * minfo.nphi[tidx] / nphi_reduced[tidx]
+
+    return sharp.map_info(minfo.theta, nphi=nphi_reduced, weight=weight_reduced)
+
 def get_equal_area_gauss_minfo(lmax, theta_min=None, theta_max=None, 
                                gl_band=np.pi/8, ratio_pow=1.):
     '''
@@ -566,34 +617,17 @@ def get_equal_area_gauss_minfo(lmax, theta_min=None, theta_max=None,
     -------
     map_info : sharp.map_info object
         metadata of grid.
+
+    Notes
+    -----
+    Kept for backwards compatibility, see `get_equal_area_minfo` for general function.
     '''
 
     assert gl_band >= 0, ('gl_band must be >= 0, got {gl_band}')
 
-    # We need GL pixel area on equator as reference.
-    minfo = get_gauss_minfo(lmax)
-    idx_ref = np.searchsorted(minfo.theta, np.pi / 2, side="left")
-    area_pix_ref = minfo.weight[idx_ref]
-
-    # Replace minfo with one that has theta bounds.
     minfo = get_gauss_minfo(lmax, theta_min=theta_min, theta_max=theta_max)
 
-    nphi_reduced = np.zeros_like(minfo.nphi)
-    weight_reduced = np.zeros_like(minfo.weight)
-
-    for tidx in range(minfo.nrow):
-
-        area_pix = minfo.weight[tidx]
-
-        if (np.pi / 2 - gl_band) < minfo.theta[tidx] < (np.pi / 2 + gl_band):
-            ratio = 1            
-        else:
-            ratio = (area_pix / area_pix_ref) ** ratio_pow
-
-        nphi_reduced[tidx] = max(2, int(np.round(minfo.nphi[tidx] * ratio)))
-        weight_reduced[tidx] = area_pix * minfo.nphi[tidx] / nphi_reduced[tidx]
-
-    return sharp.map_info(minfo.theta, nphi=nphi_reduced, weight=weight_reduced)
+    return get_equal_area_minfo(minfo, orig_band=gl_band, ratio_pow=ratio_pow)
 
 def get_arc_len(theta, theta_min, theta_max):
     '''

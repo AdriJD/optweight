@@ -3,11 +3,11 @@ import numpy as np
 from pixell import curvedsky, sharp, utils
 
 from optweight import (operators, alm_utils, map_utils, preconditioners, sht, mat_utils,
-                       noise_utils)
+                       noise_utils, dft)
 
 class CGWienerMap(utils.CG):
     '''
-    Under the data model d = Ps + n, where s is input signal in SH
+    Given the data model d = Ps + n, where s is input signal in SH
     coefficients and the projection matrix P is given by F M Y B,
     construct a CG solver for x in the equation system A x = b where:
 
@@ -157,6 +157,7 @@ class CGWienerMap(utils.CG):
         self.preconditioner = None
 
     def proj(self, alm):
+        ''' Apply the projection matrix.'''
 
         if not self.swap_bm:
             # F M Y B
@@ -174,6 +175,7 @@ class CGWienerMap(utils.CG):
         return omap
         
     def proj_adjoint(self, imap):
+        ''' Apply the adjoint projection matrix.'''
 
         if not self.swap_bm:
             # B Yt M Ft
@@ -192,7 +194,7 @@ class CGWienerMap(utils.CG):
 
     def a_matrix(self, alm):
         '''
-        Apply the A (= S^-1 + B Ft M N^-1 M F B) matrix to input alm.
+        Apply the A (= S^-1 + Pt N^-1 P) matrix to input alm.
 
         Parameters
         ----------
@@ -413,7 +415,7 @@ class CGWienerMap(utils.CG):
         else:
             power_x = 0
         icov_noise = operators.FInvFWavFMatVecMap(minfo, cov_wav, fkernelset, cov_noise_2d, 
-                                                  power_x=power_x, nsteps=1) # NOTE
+                                                  power_x=power_x, nsteps=3)
 
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)
@@ -438,12 +440,12 @@ class CGWienerMap(utils.CG):
             wav_draw = noise_utils.unit_var_wav(cov_wav.get_minfos_diag(),
                          imap.shape[:-1], cov_wav.dtype, seed=None)
             sqrt_icov_cov_wav_op = operators.InvSqrtFWavMatVecWav(
-                cov_wav, fkernels, inv_op=icov_noise.inv_op)
+                cov_wav, fkernelset, inv_op=icov_noise.inv_op)
             fmap_draw = sqrt_icov_cov_wav_op(wav_draw)
             fmap_draw = icov_noise.x_op(fmap_draw)
             rand_inoise = imap * 0
-            dft.irrft(fmap, rand_inoise)
-            rand_inoise = map_utils.view_1d(rand_inoise, minfo)
+            dft.irfft(fmap_draw, map_utils.view_2d(rand_inoise, minfo))
+
         else:
             rand_isignal = None
             rand_inoise = None

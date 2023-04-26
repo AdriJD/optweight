@@ -199,7 +199,6 @@ def estimate_cov_pix(imap, minfo, diag=False, fwhm=None, lmax=None,
     else:
         cov_pix = np.einsum('abc, dec -> abdec', imap, imap, optimize=True)
 
-    print(np.degrees(fwhm))
     b_ell = _band_limit_gauss_beam(map_utils.minfo2lmax(minfo), fwhm=fwhm)
     if flatsky:
         fb = dft.cl2flat(b_ell, np.arange(b_ell.shape[-1]), modlmap)

@@ -295,6 +295,59 @@ class FMatVecF(MatVecF):
 
         return dft.fmul(fmap, self.fmat2d, out=out)
 
+class FWavMatVecF(MatVecF):
+    '''
+    Apply a diagonal 2D Fourier-based wavelet matrix to input
+    Fourier coefficients.
+    
+    Parameters
+    ----------
+    m_wav : wavtrans.Wav object
+        Wavelet container for wavelet matrix.
+    fkernelset : fkernel.FKernelSet object
+        Wavelet kernels.
+    power : float, optional
+        Raise wavelet matrix to this power.   
+    wav_template : wavtrans.Wav object, optional
+        Wavelet vector used for internal calculations.    
+
+    Methods
+    -------
+    call(fmap) : Apply the operator to a set 2D Fourier coefficients.
+    '''
+
+    def __init__(self, m_wav, fkernelset, power=1, wav_template=None):
+
+        self.m_wav_op = WavMatVecWav(m_wav, power=power, inplace=True)
+        self.fkernelset = fkernelset
+        
+        if wav_template is None:
+            # FIXME, preshape[-1] is a bit hacky.
+            wav_template = self.fkernelset.get_wav_vec(
+                m_wav.preshape[-1:], dtype=m_wav.dtype)
+        self.wav_template = wav_template
+        
+    def call(self, fmap):
+        '''
+        Apply operator to input 2D Fourier coefficients.
+        
+        Parameters
+        ----------
+        fmap : (..., ny, nx//2+1) complex ndmap
+            Input vector.
+        
+        Returns
+        -------
+        fmap_out : (..., ny, nx//2+1) complex ndmap
+            Output vector.                
+        '''
+
+        wavtrans.f2wav(fmap, self.wav_template, self.fkernelset)
+        self.m_wav_op(self.wav_template)
+        fmap_out = fmap.copy()
+        wavtrans.wav2f(self.wav_template, fmap_out, self.fkernelset)
+        return fmap_out
+
 class InvFWavMatVecF(MatVecF):
     '''
     Use conjugate gradient to apply the inverse of a 2D Fourier-based wavelet
@@ -320,55 +373,12 @@ class InvFWavMatVecF(MatVecF):
     
     def __init__(self, m_wav, fkernelset, nsteps=3):
     
-        self.cov_wav_op = WavMatVecWav(m_wav, power=1, inplace=True)
-        self.icov_wav_op = WavMatVecWav(m_wav, power=-1, inplace=True)
         self.fkernelset = fkernelset
-        # FIXME, preshape[-1] is a bit hacky.
-        self.wav_template = self.fkernelset.get_wav_vec(
-            m_wav.preshape[-1:], dtype=m_wav.dtype)
         self.nsteps = nsteps
 
-    def _a_mat(self, fmap):
-        '''
-        Apply the A matrix.
-        
-        Parameters
-        ----------
-        fmap : (..., ny, nx//2+1) complex ndmap
-            Input vector.
-        
-        Returns
-        -------
-        fmap_out : (..., ny, nx//2+1) complex ndmap
-            Output vector.                
-        '''
-
-        wavtrans.f2wav(fmap, self.wav_template, self.fkernelset)
-        self.cov_wav_op(self.wav_template)
-        out = fmap.copy()
-        wavtrans.wav2f(self.wav_template, out, self.fkernelset)
-        return out
-
-    def _prec(self, fmap):
-        '''
-        Apply preconditioner. Constructed from the inverse wavelet matrix.
-        
-        Parameters
-        ----------
-        fmap : (..., ny, nx//2+1) complex ndmap
-            Input vector.
-        
-        Returns
-        -------
-        fmap_out : (..., ny, nx//2+1) complex ndmap
-            Output vector.                
-        '''
-
-        wavtrans.f2wav(fmap, self.wav_template, self.fkernelset)
-        self.icov_wav_op(self.wav_template)
-        fmap_out = fmap.copy()
-        wavtrans.wav2f(self.wav_template, fmap_out, self.fkernelset)
-        return fmap_out
+        self._a_mat = FWavMatVecF(m_wav, self.fkernelset, power=1)
+        self._prec = FWavMatVecF(m_wav, self.fkernelset, power=-1,
+                                  wav_template=self._a_mat.wav_template)
 
     def call(self, fmap, verbose=False):
         '''
@@ -405,8 +415,25 @@ class FInvFWavFMatVecMap(MatVecMap):
 
     Parameters
     ----------
-    
+    minfo : sharp.map_info object
+        Metainfo for input maps.
+    m_wav : wavtrans.Wav object
+        Wavelet container for wavelet matrix.
+    fkernelset : fkernel.FKernelSet object
+        Wavelet kernels.
+    fmat2d : (npol, npol, nly, nlx) array or (npol, nly, nlx) array
+        M matrix, either symmetric but dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    power_x : int, float, optional
+        Power of matrix.
+    nsteps : int, optional
+        Number of CG steps.
+
+    Methods
+    -------
+    call(map) : Apply the operator to a map.    
     '''
+
     def __init__(self, minfo, m_wav, fkernelset, fmat2d, power_x=1, nsteps=3):
 
         self.minfo = minfo
@@ -418,7 +445,17 @@ class FInvFWavFMatVecMap(MatVecMap):
 
     def call(self, imap, verbose=False):
         '''
+        Apply the operator to input map.
 
+        Parameters
+        ----------
+        imap : (npol, npix) array
+            Input map.
+
+        Returns
+        -------
+        out : (npol, npix) array
+            Output from matrix-vector operation.
         '''
         
         imap = map_utils.view_2d(imap, self.minfo)
@@ -448,6 +485,8 @@ class InvSqrtFWavMatVecWav(MatVecWav):
         Wavelet container for wavelet matrix.
     fkernelset : fkernel.FKernelSet object
         Wavelet kernels.
+    inv_op : callable, optional
+        A function applying A^{-1}, see InvFWavMatVecF.inv_op.
 
     Methods
     -------
