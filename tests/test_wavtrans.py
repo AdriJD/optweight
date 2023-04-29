@@ -148,6 +148,57 @@ class TestWavTrans(unittest.TestCase):
         self.assertEqual(wavvec.minfos[10], minfo_2)
         np.testing.assert_array_equal(wavvec.indices, np.asarray([[5, 10]]).T)
 
+    def test_wav_slice_preshape(self):
+        
+        wavvec = wavtrans.Wav(1)
+
+        # Add first map.
+        minfo = sharp.map_info_gauss_legendre(3)
+        m_arr = np.ones((2, 2, minfo.npix))
+        m_arr *= np.asarray([[1, 2], [3, 4]])[:,:,np.newaxis]
+        index = 10
+        wavvec.add(index, m_arr.copy(), minfo)
+
+        # Add second map.
+        index = 5
+        wavvec.add(index, m_arr.copy(), minfo)
+
+        self.assertEqual(wavvec.maps[5].shape, (2, 2, minfo.npix))
+        self.assertEqual(wavvec.maps[10].shape, (2, 2, minfo.npix))
+
+        wavvec.slice_preshape(np.s_[0:1,1:2])
+
+        self.assertEqual(wavvec.maps[10].shape, (1, 1, minfo.npix))
+        self.assertEqual(wavvec.maps[5].shape, (1, 1, minfo.npix))
+
+        np.testing.assert_allclose(wavvec.maps[10], m_arr[0:1,1:2])
+        np.testing.assert_allclose(wavvec.maps[5], m_arr[0:1,1:2])
+
+        self.assertEqual(wavvec.preshape, (1, 1))
+
+        # Test for error. Too many indices.
+        self.assertRaises(ValueError, wavvec.slice_preshape, np.s_[0:1,0:1,0:1])
+
+    def test_wav_astype(self):
+        
+        wavvec = wavtrans.Wav(1)
+
+        # Add first map.
+        minfo = sharp.map_info_gauss_legendre(3)
+        m_arr = np.ones((2, 2, minfo.npix))
+        index = 10
+        wavvec.add(index, m_arr.copy(), minfo)
+
+        # Add second map.
+        index = 5
+        wavvec.add(index, m_arr.copy(), minfo)
+
+        wavvec.astype(np.float32)
+
+        self.assertEqual(wavvec.dtype, np.float32)
+        self.assertEqual(wavvec.maps[10].dtype, np.float32)
+        self.assertEqual(wavvec.maps[5].dtype, np.float32)
+
     def test_wav_init_vec_dtype(self):
         
         wavvec = wavtrans.Wav(1, dtype=np.float64)

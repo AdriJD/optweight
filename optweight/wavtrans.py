@@ -123,7 +123,7 @@ class Wav():
                     raise e
 
         return shape
-        
+
     def add(self, index, m_arr, minfo):
         '''
         Add map to the block vector/matrix.
@@ -186,6 +186,49 @@ class Wav():
         indices = np.append(self.indices, index[np.newaxis,:], axis=0)
         self.indices = np.unique(indices, axis=0)
 
+    def slice_preshape(self, sel):
+        '''
+        Slice into the leaking dimensions of the intenal maps.
+
+        Parameters
+        ----------
+        sel : slice or tuple of slices
+            Slice into the leading dimensions of the maps, so not into the last
+            (pixel) axis.
+        '''
+        
+        try:
+            len(sel)            
+        except TypeError:
+            pass
+        else:
+            if len(sel) > len(self.preshape):
+                raise ValueError(
+                    f'Slice should only slice into preshape '
+                    f': {self.preshape}, got {sel}')
+
+        for key in self.maps:
+            self.maps[key] = np.ascontiguousarray(self.maps[key][sel])
+        self.preshape = self.maps[key].shape[:-1]
+
+    def astype(self, dtype):
+        '''
+        Change dtype of internal maps. 
+        
+        Parameters
+        ----------
+        dtype : type
+            New dtype.
+
+        Notes
+        -----
+        Will copy internal maps if the maps cannot be cast without copy.
+        '''
+
+        for key in self.maps:
+            self.maps[key] = self.maps[key].astype(dtype, copy=False)
+        self.dtype = dtype
+        
     def diag(self):
         ''' 
         Return new instance containing diagonal of matrix if block matrix
