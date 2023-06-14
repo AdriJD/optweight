@@ -141,7 +141,7 @@ class FKernelSet():
         for widx, fkernel in self:
             
             m_arr = dft.allocate_map(preshape + fkernel.fkernel.shape,
-                                 ctype)
+                                     ctype)
             
             minfo = map_utils.get_minfo(
                 'CC', m_arr.shape[-2], m_arr.shape[-1])            
