@@ -11,9 +11,9 @@ class CGWienerMap(utils.CG):
     coefficients and the projection matrix P is given by Mf M Y B,
     construct a CG solver for x in the equation system A x = b where:
 
-        A : F S^-1 F + F B Yt M Mft M N^-1 Mf M Y B F,
-        x : F^-1 x^wf, where x^wf is the Wiener filtered version of the input map as SH coefficients.
-        b : F B Yt Mft M N^-1 d,
+        A : H S^-1 H + H B Yt M Mft M N^-1 Mf M Y B H,
+        x : H^-1 x^wf, where x^wf is the Wiener filtered version of the input map as SH coefficients.
+        b : H B Yt Mft M N^-1 d,
 
     and
 
@@ -26,14 +26,14 @@ class CGWienerMap(utils.CG):
         M    : mask operator,
         N^-1 : inverse noise covariance in pixel space,
         S^-1 : inverse signal covariance in harmonic space.
-        F    : Scaling filter that scales the linear system to help preconditing
+        H    : Scaling filter that scales the linear system to help preconditing
                but has no physical meaning.
 
     When the class instance is provided with random draws, the solver will 
     instead solve A x = b where:
 
-        x : F^{-1} x^cr, where x^cr is a constrained signal realisation.
-        b : F B Yt Ft M N^-1 d + F B Yt Ft M N^-0.5 w_s + F S^-0.5 w_n,
+        x : H^{-1} x^cr, where x^cr is a constrained signal realisation.
+        b : H B Yt Ht M N^-1 d + H B Yt Mft M N^-0.5 w_s + H S^-0.5 w_n,
 
     where:
 
@@ -76,7 +76,8 @@ class CGWienerMap(utils.CG):
     '''
 
     def __init__(self, imap, icov_signal, icov_noise, sht, beam=None, filt=None,
-                 mask=None, rand_isignal=None, rand_inoise=None, swap_bm=False):
+                 mask=None, rand_isignal=None, rand_inoise=None, swap_bm=False,
+                 scale_filter=None):
 
         self.imap = imap
         self.icov_signal = icov_signal
@@ -223,7 +224,7 @@ class CGWienerMap(utils.CG):
         oalm = self.proj_adjoint(omap)
         oalm = self.scale_filter(oalm)
 
-        # Note that alm already has scale filter applied.
+        # Note that alm already has scale_filter applied.
         oalm += self.scale_filter(self.icov_signal(alm))
 
         return oalm
@@ -349,7 +350,7 @@ class CGWienerMap(utils.CG):
             beam = None
             
         if sfilt is not None:
-            sfilt = operators.EllMatVecAlm(ainfo, b_ell)
+            sfilt = operators.EllMatVecAlm(ainfo, sfilt)
 
         # NOTE, FIXME.
         filt = None
@@ -447,7 +448,7 @@ class CGWienerMap(utils.CG):
             beam = None
 
         if sfilt is not None:
-            sfilt = operators.EllMatVecAlm(ainfo, b_ell)
+            sfilt = operators.EllMatVecAlm(ainfo, sfilt)
 
         # NOTE, FIXME.
         filt = None

@@ -39,6 +39,9 @@ class HarmonicPreconditioner(operators.MatVecAlm):
         Inverse noise covariance (with fsky correction). If diagonal, only the 
         diagonal suffices. Used for iN_ell^0.5 iN_wav iN_ell^0.5 noise model. 
         If provided, `mask_pix` will be ignored, w_ell needs to be given.
+    sfilt : (npol, nell) or (npol, npol, nell) array, optional
+        Symmetric positive definite scaling matrix, if diagonal only the diagonal
+        suffices.    
 
     Methods
     -------
@@ -55,7 +58,7 @@ class HarmonicPreconditioner(operators.MatVecAlm):
 
     def __init__(self, ainfo, icov_ell, itau=None, icov_pix=None, minfo=None, 
                  icov_wav=None, w_ell=None, mask_pix=None, b_ell=None,
-                 icov_noise_ell=None):
+                 icov_noise_ell=None, sfilt=None):
 
         npol, nell = icov_ell.shape[-2:]
 
@@ -91,7 +94,15 @@ class HarmonicPreconditioner(operators.MatVecAlm):
             b_ell = np.ones((npol, nell))
 
         b_ell = b_ell * np.eye(npol)[:,:,np.newaxis]
-        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)        
+
+        if sfilt is not None:
+            sfilt = mat_utils.full_matrix(sfilt)
+            op = np.einsum('ijl, jkl, kol -> iol', sfilt, icov_ell, sfilt)
+            op2 = np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)
+            op2 = np.einsum('ijl, jkl, kol -> iol', sfilt, op2, sfilt)
+            op += op2
+        else:            
+            op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)
 
         self.preconditioner = operators.EllMatVecAlm(ainfo, op, -1, inplace=False)
             
@@ -138,6 +149,9 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
     mask_pix : (npol, pix) array, optional
         Pixel mask used in `itau` computation. Needed when the provided 
         icov_pix is not masked like the data are.
+    sfilt : (npol, nell) or (npol, npol, nell) array, optional
+        Symmetric positive definite scaling matrix, if diagonal only the diagonal
+        suffices.    
 
     Methods
     -------
@@ -145,7 +159,8 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
     '''
 
     def __init__(self, ainfo, icov_ell, icov_pix, minfo, spin,
-                 itau=None, b_ell=None, cov_pix=None, mask_pix=None):
+                 itau=None, b_ell=None, cov_pix=None, mask_pix=None,
+                 sfilt=None):
 
         npol, nell = icov_ell.shape[-2:]
 
@@ -158,7 +173,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         if np.count_nonzero(itau - itau * np.eye(npol)[:,:,np.newaxis]):
             raise NotImplementedError(
                 'Pinv precondition cannot handle off-diagonal itau elements for now.')
-
+        
         if b_ell is None:
             b_ell = np.ones((npol, nell))
 
@@ -167,16 +182,35 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         if cov_pix is None:
             cov_pix = mat_utils.matpow(icov_pix, -1)
 
-        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau, b_ell)        
-        self.harmonic_prec = operators.EllMatVecAlm(
-            ainfo, op, -1, inplace=True)
+        if sfilt is not None:
+            sftil = mat_utils.full_matrix(sfilt)
+
+        self.harmonic_prec = HarmonicPreconditioner(ainfo, icov_ell,
+                                    itau=itau, b_ell=b_ell, sfilt=sfilt)
         
-        self.icov_signal = operators.EllMatVecAlm(
-            ainfo, icov_ell, inplace=True)
+        if sfilt is not None:
+            self.icov_signal = operators.EllMatVecAlm(
+                ainfo,
+                np.einsum('ijl, jkl, kol -> iol', sfilt, icov_ell, sfilt),
+                inplace=True)
+        else:
+            self.icov_signal = operators.EllMatVecAlm(
+                ainfo, icov_ell, inplace=True)
 
-        self.ivar_noise_iso = operators.EllMatVecAlm(
-            ainfo, itau * b_ell, inplace=True)
-
+        if sfilt is not None:
+            self.ivar_noise_iso = operators.EllMatVecAlm(
+                ainfo,
+                np.einsum('ijl, jkl, kol -> iol', itau, b_ell, sfilt),
+                inplace=True)
+            self.ivar_noise_iso_adj = operators.EllMatVecAlm(
+                ainfo,
+                np.einsum('ijl, jkl, kol -> iol', sfilt, b_ell, itau),
+                inplace=True)
+        else:
+            self.ivar_noise_iso = operators.EllMatVecAlm(
+                ainfo, itau * b_ell, inplace=True)
+            self.ivar_noise_iso_adj = self.ivar_noise_iso
+            
         self.pcov_noise = operators.PixMatVecAlm(
             ainfo, cov_pix, minfo, spin, inplace=True, adjoint=True)
 
@@ -205,7 +239,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         alm_signal = self.icov_signal(alm_signal)
         alm_noise = self.ivar_noise_iso(alm_noise)
         alm_noise = self.pcov_noise(alm_noise)
-        alm_noise = self.ivar_noise_iso(alm_noise)
+        alm_noise = self.ivar_noise_iso_adj(alm_noise)
 
         alm = alm_noise
         alm += alm_signal
@@ -245,6 +279,9 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         diagonal suffices. Will update noise model to iN_ell^0.5 iN_wav iN_ell^0.5,
         so make sure iN_wav corresponds to the inverse noise covariance after
         flattening by iN_ell^0.5.
+    sfilt : (npol, nell) or (npol, npol, nell) array, optional
+        Symmetric positive definite scaling matrix, if diagonal only the diagonal
+        suffices.    
 
     Methods
     -------
@@ -253,7 +290,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
     
     def __init__(self, ainfo, icov_ell, icov_wav, w_ell, spin,
                  mask_pix=None, minfo_mask=None, itau_ell=None,
-                 b_ell=None, icov_noise_ell=None):
+                 b_ell=None, icov_noise_ell=None, sfilt=None):
 
         npol, nell = icov_ell.shape[-2:]
 
@@ -282,14 +319,29 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
                 ainfo, mask_pix, minfo_mask, spin, power=-1,
                 use_weights=True)
 
-        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau_ell, b_ell)
-        self.harmonic_prec = operators.EllMatVecAlm(ainfo, op, -1, inplace=True)
+        if sfilt is not None:
+            sftil = mat_utils.full_matrix(sfilt)
+
+        self.harmonic_prec = HarmonicPreconditioner(ainfo, icov_ell,
+                                    itau=itau_ell, b_ell=b_ell, sfilt=sfilt)
         
-        self.icov_signal = operators.EllMatVecAlm(
-            ainfo, icov_ell, inplace=True)
+        if sfilt is not None:
+            self.icov_signal = operators.EllMatVecAlm(
+                ainfo,
+                np.einsum('ijl, jkl, kol -> iol', sfilt, icov_ell, sfilt),
+                inplace=True)
+        else:
+            self.icov_signal = operators.EllMatVecAlm(
+                ainfo, icov_ell, inplace=True)
 
         self.beam = operators.EllMatVecAlm(
             ainfo, b_ell, inplace=True)
+
+        if sfilt is not None:
+            self.sfilt = operators.EllMatVecAlm(
+            ainfo, sfilt, inplace=True)
+        else:
+            sfilt = lambda x: x
 
         self.ivar_noise_iso = operators.EllMatVecAlm(
             ainfo, itau_ell, inplace=True)
@@ -325,6 +377,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         alm_noise = alm
 
         alm_signal = self.icov_signal(alm_signal)
+        alm_noise = self.sfilt(alm_noise)
         alm_noise = self.beam(alm_noise)
         alm_noise = self.imask(alm_noise)
         alm_noise = self.ivar_noise_iso(alm_noise)
@@ -332,6 +385,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         alm_noise = self.ivar_noise_iso(alm_noise)
         alm_noise = self.imask(alm_noise)
         alm_noise = self.beam(alm_noise)
+        alm_noise = self.sfilt(alm_noise)
 
         alm = alm_noise
         alm += alm_signal
@@ -368,6 +422,9 @@ class PseudoInvPreconditionerFWav(operators.MatVecAlm):
         Metainfo for pixel mask covariance.
     b_ell : (npol, nell) array, optional
         Beam window function.
+    sfilt : (npol, nell) or (npol, npol, nell) array, optional
+        Symmetric positive definite scaling matrix, if diagonal only the diagonal
+        suffices.    
 
     Methods
     -------
@@ -376,7 +433,7 @@ class PseudoInvPreconditionerFWav(operators.MatVecAlm):
     
     def __init__(self, ainfo, icov_ell, cov_wav, fkernelset, spin,
                  itau_ell, cov_noise_2d, mask_pix, minfo_mask,
-                 b_ell=None):
+                 b_ell=None, sfilt=None):
 
         self.npol, self.nell = icov_ell.shape[-2:]
 
@@ -394,13 +451,29 @@ class PseudoInvPreconditionerFWav(operators.MatVecAlm):
         self.minfo_mask = minfo_mask
         self.spin = spin
         
-        op = icov_ell + np.einsum('ijl, jkl, kol -> iol', b_ell, itau_ell, b_ell)
-        self.harmonic_prec = operators.EllMatVecAlm(ainfo, op, -1, inplace=True)
-        
-        self.icov_signal = operators.EllMatVecAlm(
-            ainfo, icov_ell, inplace=True)
+        if sfilt is not None:
+            sftil = mat_utils.full_matrix(sfilt)
+
+        self.harmonic_prec = HarmonicPreconditioner(ainfo, icov_ell,
+                                    itau=itau_ell, b_ell=b_ell, sfilt=sfilt)
+
+        if sfilt is not None:
+            self.icov_signal = operators.EllMatVecAlm(
+                ainfo,
+                np.einsum('ijl, jkl, kol -> iol', sfilt, icov_ell, sfilt),
+                inplace=True)
+        else:
+            self.icov_signal = operators.EllMatVecAlm(
+                ainfo, icov_ell, inplace=True)
+
         self.beam = operators.EllMatVecAlm(
             ainfo, b_ell, inplace=True)
+        if sfilt is not None:
+            self.sfilt = operators.EllMatVecAlm(
+            ainfo, sfilt, inplace=True)
+        else:
+            sfilt = lambda x: x
+
         self.ivar_noise_iso = operators.EllMatVecAlm(
             ainfo, itau_ell, inplace=True)
         self.cov_wav_op = operators.FWavMatVecF(cov_wav, fkernelset)
@@ -467,11 +540,13 @@ class PseudoInvPreconditionerFWav(operators.MatVecAlm):
         alm_noise = alm
 
         alm_signal = self.icov_signal(alm_signal)
+        alm_noise = self.sfilt(alm_noise)
         alm_noise = self.beam(alm_noise)
         alm_noise = self.ivar_noise_iso(alm_noise)
         alm_noise = self.pcov_noise(alm_noise)
         alm_noise = self.ivar_noise_iso(alm_noise)
         alm_noise = self.beam(alm_noise)
+        alm_noise = self.sfilt(alm_noise)
 
         alm = alm_noise
         alm += alm_signal
@@ -507,6 +582,9 @@ class MaskedPreconditioner(operators.MatVecAlm):
         level. See `multigrid.lowpass_filter`.
     nsteps : int, optional
         The amount of v-cycles used. Usually requires `n_jacobi` > 1.
+    sfilt : (npol, nell) or (npol, npol, nell) array, optional
+        Symmetric positive definite scaling matrix, if diagonal only the diagonal
+        suffices.    
 
     Methods
     -------
@@ -514,10 +592,15 @@ class MaskedPreconditioner(operators.MatVecAlm):
     '''
     
     def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo, min_pix=1000,
-                 n_jacobi=1, lmax_r_ell=6000, nsteps=1):
+                 n_jacobi=1, lmax_r_ell=6000, nsteps=1, sfilt=None):
 
         if icov_ell.ndim == 1:
             icov_ell = icov_ell[np.newaxis,:]
+
+        if sfilt is not None:
+            sfilt = mat_utils.full_matrix(sfilt)
+            icov_ell = mat_utils.full_matrix(icov_ell)
+            icov_ell = np.einsum('ijl, jkl, kol -> iol', sfilt, icov_ell, sfilt)
 
         self.npol = icov_ell.shape[0]        
         self.spin = spin
@@ -591,6 +674,9 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         Number of CG steps used.
     verbose : bool, optional
         Print info about CG convergence.
+    sfilt : (npol, nell) or (npol, npol, nell) array, optional
+        Symmetric positive definite scaling matrix, if diagonal only the diagonal
+        suffices.    
 
     Methods
     -------
@@ -603,13 +689,18 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
     '''
     
     def __init__(self, ainfo, icov_ell, spin, mask_bool, minfo, lmax_r_ell=None, 
-                 lmax=None, nsteps=15, verbose=False):
+                 lmax=None, nsteps=15, verbose=False, sfilt=None):
 
         self.spin = spin
         self.npol = icov_ell.shape[0]        
         self.ainfo = ainfo
         self.nsteps = nsteps
         self.verbose = verbose
+
+        if sfilt is not None:
+            sfilt = mat_utils.full_matrix(sfilt)
+            icov_ell = mat_utils.full_matrix(icov_ell)
+            icov_ell = np.einsum('ijl, jkl, kol -> iol', sfilt, icov_ell, sfilt)
 
         if lmax is not None:
             if lmax > self.ainfo.lmax:    
