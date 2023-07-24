@@ -9,7 +9,6 @@ import argparse
 import healpy as hp
 from astropy.io import fits
 from pixell import curvedsky, enplot, utils
-from enlib import cg
 
 from optweight import sht, map_utils, mat_utils, solvers, operators, preconditioners
 
@@ -45,7 +44,7 @@ def get_planck_b_ell(rimo_file, lmax):
     return b_ell
 
 def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
-         no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=1,
+         no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None,
          no_beam=False, lmax_masked_cg=1500, write_steps=False):
     '''
     
@@ -82,7 +81,8 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
 
     lmax = 2500
 
-    maskdir = '/home/adriaand/project/actpol/20201009_pcg_planck/meta'
+    #maskdir = '/home/adriaand/project/actpol/20201009_pcg_planck/meta'
+    maskdir = '/mnt/home/aduivenvoorden/project/actpol/20201009_pcg_planck/meta'
     imgdir = opj(basedir, 'img')
     odir = opj(basedir, 'out')
 
@@ -93,7 +93,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     cov = hp.read_map(opj(maskdir, 'HFI_SkyMap_100_2048_R3.01_full.fits'), field=(4, 5, 6, 7, 8, 9))
     cov *= 1e12 # Convert from K^2 to uK^2.
 
-    if noise_scaling != 1:
+    if noise_scaling is not None:
         cov *= noise_scaling
 
     cov, minfo = map_utils.healpix2gauss(cov, 2*lmax, area_pow=-1)
@@ -109,9 +109,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     cov_pix[2,2] = cov[5]
 
     # NOTE try thresholding low *cov* values.
-    cov_pix = map_utils.round_icov_matrix(cov_pix, rtol=1e-1, threshold=True)
-    cov_pix *= np.eye(3)[:,:,None]
-
+    #cov_pix = map_utils.round_icov_matrix(cov_pix, rtol=1e-1, threshold=True)
 
     for idx in range(3):
         for jdx in range(3):
@@ -130,7 +128,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
             plt.close(fig)
 
     icov_pix = mat_utils.matpow(cov_pix, -1)
-    #icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2)
+    icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2)
 
     for idx in range(3):
         for jdx in range(3):
@@ -229,7 +227,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     times = np.zeros(niter)
     qforms = np.zeros(niter)
 
-    solver = solvers.CGWienerMap.from_arrays(imap, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
+    solver = solvers.CGWienerMap.from_arrays(imap, minfo, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
                                              draw_constr=draw_constr, mask_pix=mask_gl, spin=[0, 2],
                                              swap_bm=True)
     
@@ -272,7 +270,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         solver.init_solver()
 
     cg_errors[0] = 1
-    chisqs[0] = solver.get_chisq()
+    #chisqs[0] = solver.get_chisq()
     errors[0,0] = np.sqrt(solver.dot(alm, alm))
     errors[1,0] = np.sqrt(solver.dot(alm[0], alm[0]))
     errors[2,0] = np.sqrt(solver.dot(alm[1], alm[1]))
@@ -287,7 +285,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
             hp.write_alm(opj(odir, f'alm_x_{idx}.fits'), solver.get_wiener(),
                          overwrite=True)
         residual = solver.get_residual()
-        chisq = solver.get_chisq()        
+        #chisq = solver.get_chisq()        
         diff = solver.x - alm
         
         cg_errors[idx+1] = solver.err
@@ -296,12 +294,15 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         errors[2,idx+1] = np.sqrt(solver.dot(diff[1], diff[1]))
         errors[3,idx+1] = np.sqrt(solver.dot(diff[2], diff[2]))
         residuals[idx+1] = residual
-        chisqs[idx+1] = chisq
+        #chisqs[idx+1] = chisq
         times[idx] = dt
         qforms[idx] = solver.get_qform()
         ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
         
-        print(f'{solver.i}, cg_err : {solver.err}, chisq : {chisq}, residual : {residual}, '
+        #print(f'{solver.i}, cg_err : {solver.err}, chisq : {chisq}, residual : {residual}, '
+        #      f'err[0] : {errors[1,idx+1]}, err[1] : {errors[2,idx+1]}, '
+        #      f'err[2] : {errors[3,idx+1]}, qform = {qforms[idx]}, dt : {dt}')
+        print(f'{solver.i}, cg_err : {solver.err}, residual : {residual}, '
               f'err[0] : {errors[1,idx+1]}, err[1] : {errors[2,idx+1]}, '
               f'err[2] : {errors[3,idx+1]}, qform = {qforms[idx]}, dt : {dt}')
 
@@ -330,7 +331,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
             hp.write_alm(opj(odir, f'alm_x_{idx}.fits'), solver.get_wiener(),
                          overwrite=True)
         residual = solver.get_residual()
-        chisq = solver.get_chisq()        
+        #chisq = solver.get_chisq()        
         diff = solver.x - alm
         
         cg_errors[idx+1] = solver.err * cg_errors[niter_cg]
@@ -339,12 +340,15 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         errors[2,idx+1] = np.sqrt(solver.dot(diff[1], diff[1]))
         errors[3,idx+1] = np.sqrt(solver.dot(diff[2], diff[2]))
         residuals[idx+1] = residual
-        chisqs[idx+1] = chisq
+        #chisqs[idx+1] = chisq
         times[idx] = dt
         qforms[idx] = solver.get_qform()
         ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
         
-        print(f'{solver.i}, cg_err : {solver.err}, chisq : {chisq}, residual : {residual}, '
+        #print(f'{solver.i}, cg_err : {solver.err}, chisq : {chisq}, residual : {residual}, '
+        #      f'err[0] : {errors[1,idx+1]}, err[1] : {errors[2,idx+1]}, '
+        #      f'err[2] : {errors[3,idx+1]}, qform = {qforms[idx]}, dt : {dt}')
+        print(f'{solver.i}, cg_err : {solver.err}, residual : {residual}, '
               f'err[0] : {errors[1,idx+1]}, err[1] : {errors[2,idx+1]}, '
               f'err[2] : {errors[3,idx+1]}, qform = {qforms[idx]}, dt : {dt}')
 
@@ -356,7 +360,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     np.save(opj(odir, 'errors'), errors)
     np.save(opj(odir, 'residuals'), residuals)
     np.save(opj(odir, 'times'), times)
-    np.save(opj(odir, 'chisqs'), chisqs)
+    #np.save(opj(odir, 'chisqs'), chisqs)
 
     fig, axs = plt.subplots(ncols=3, nrows=3, dpi=300, constrained_layout=True, squeeze=False)
     for ax in axs.ravel():
@@ -468,7 +472,7 @@ if __name__ == '__main__':
     parser.add_argument('--lmax-masked-cg', type=int, default=1500,
                         help="lmax_masked_cg")
     parser.add_argument('--write-steps', action='store_true',
-                        help="Write x to disk each step."
+                        help="Write x to disk each step.")
     args = parser.parse_args()
 
     print(args)
