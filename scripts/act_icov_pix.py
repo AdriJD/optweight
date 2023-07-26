@@ -8,7 +8,7 @@ import os
 import healpy as hp
 from astropy.io import fits
 from pixell import curvedsky, enplot, utils, enmap
-from enlib import cg
+#from enlib import cg
 
 from optweight import sht
 from optweight import map_utils
@@ -36,8 +36,10 @@ deflate_cg = True
 deflate_mg = True
 
 #basedir = '/home/adriaand/project/actpol/20201115_pcg_act'
-basedir = '/home/adriaand/project/actpol/20230228_pcg_act'
-imgdir = opj(basedir, 'img_adef1_scaled')
+#basedir = '/home/adriaand/project/actpol/20230228_pcg_act'
+basedir = '/mnt/home/aduivenvoorden/project/actpol/20230725_pcg_act'
+# img_adef1_scaled_new means with adef1 incorporated in precondition.py
+imgdir = opj(basedir, 'img_adef1_scaled_new')
 metadir = '/home/adriaand/project/actpol/20201029_noisebox'
 specdir = opj(metadir, 'spectra')
 maskdir = '/home/adriaand/project/actpol/20211206_pcg_act/mask'
@@ -234,26 +236,21 @@ prec_masked_mg = preconditioners.MaskedPreconditioner(
 if deflate_cg:
 
     # A-DEF1
-    #q_op = prec_masked_cg(alm)
-
-    #p_op = lambda alm : alm - solver.A(prec_masked_cg(alm))
-    #mp_op = lambda alm : prec_pinv(p_op(alm))
-
-    def prec_cg_adef1(alm):
-        q = prec_masked_cg(alm)
-        out = prec_pinv(alm - solver.A(q))
-        out += q
-        return out
+    # def prec_cg_adef1(alm):
+    #     q = prec_masked_cg(alm)
+    #     out = prec_pinv(alm - solver.A(q))
+    #     out += q
+    #     return out
    
-    solver.add_preconditioner(prec_cg_adef1)
-    #solver.add_preconditioner(mp_op)
-    #solver.add_preconditioner(prec_masked_cg)
+    # solver.add_preconditioner(prec_cg_adef1)
+
+    solver.add_preconditioner(
+        preconditioners.get_2level_prec(prec_pinv, prec_masked_cg, solver.A,
+                                        'ADEF-1', sel_masked=None))
 else:
 
-    # NOTE NOTE NOTE
     solver.add_preconditioner(prec_pinv)
     solver.add_preconditioner(prec_masked_cg)
-    #solver.add_preconditioner(prec_harm)
 
 omap = curvedsky.make_projectable_map_by_pos(
     [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(alm.shape[0],))
@@ -274,30 +271,25 @@ for idx in range(niter_cg):
 solver.reset_preconditioner()
 
 if deflate_mg:
-    def prec_masked_mg_pol(alm):
-        out = np.zeros_like(alm)
-        out[0] = prec_masked_mg(alm[0:1].copy())
-        return out
+    # def prec_masked_mg_pol(alm):
+    #     out = np.zeros_like(alm)
+    #     out[0] = prec_masked_mg(alm[0:1].copy())
+    #     return out
 
-    #p_op = lambda alm : alm - solver.A(prec_masked_mg_pol(alm))
-    #mp_op = lambda alm : prec_pinv(p_op(alm))
+    # def prec_mg_adef1(alm):
+    #     q = prec_masked_mg_pol(alm)
+    #     out = prec_pinv(alm - solver.A(q))
+    #     out += q
+    #     return out
 
-    #solver.add_preconditioner(mp_op)
-    #solver.add_preconditioner(prec_masked_mg, sel=np.s_[0])
-
-    def prec_mg_adef1(alm):
-        q = prec_masked_mg_pol(alm)
-        out = prec_pinv(alm - solver.A(q))
-        out += q
-        return out
-
-    solver.add_preconditioner(prec_mg_adef1)
+    # solver.add_preconditioner(prec_mg_adef1)
+    solver.add_preconditioner(
+        preconditioners.get_2level_prec(prec_pinv, prec_masked_mg, solver.A,
+                                        'ADEF-1', sel_masked=np.s_[0]))
 
 else:
-    # NOTE NOTE
     solver.add_preconditioner(prec_pinv)
     solver.add_preconditioner(prec_masked_mg, sel=np.s_[0])
-    #solver.add_preconditioner(prec_harm)
 
 solver.b_vec = solver.b0
 solver.init_solver(x0=solver.x)
