@@ -788,6 +788,129 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
         return alm
 
+def get_2level_prec(prec_main, prec_masked, mat_a, method, sel_masked=None):
+    '''
+    Return a callable 2-level preconditioner.
+
+    Parameters
+    ----------
+    prec_main : callable
+        The main preconditioner. Should take an alm-sized array as input.
+    prec_masked : callable
+        The preconditioner for the mask (i.e. Q). Should take an alm-sized array
+        as input.
+    mat_a : callable
+        The A matrix of the linear system.
+    method : str
+        Pick from "ADEF-1", "ADEF-2".
+    sel_masked : slice, optional
+        Slice into alm input array in case masked preconditioner is only to be 
+        applied to a slice.
+
+    
+    Returns
+    -------
+    prec_2level : callable
+        2-level preconditioner. Takes in an alm-sized array.
+    '''
+    
+    if method == 'ADEF-1':
+        return get_prec_adef1(prec_main, prec_masked, mat_a, sel_masked=sel_masked)
+    elif method == 'ADEF-2':
+        return get_prec_adef2(prec_main, prec_masked, mat_a, sel_masked=sel_masked)
+    else:
+        raise ValueError(f'method : {method} not supported.')
+
+def get_prec_adef1(prec_main, prec_masked, mat_a, sel_masked=None):
+    '''
+    Return the ADEF-1 preconditioner:
+
+    M^{-1}_2 = M^{-1} R + Q.
+
+    Parameters
+    ----------
+    prec_main : callable
+        The main preconditioner. Should take an alm-sized array as input.
+    prec_masked : callable
+        The preconditioner for the mask (i.e. Q). Should take an alm-sized array
+        as input.
+    mat_a : callable
+        The A matrix of the linear system.
+    sel_masked : slice, optional
+        Slice into alm input array in case masked preconditioner is only to be 
+        applied to a slice.
+
+    Returns
+    -------
+    prec_adef1 : callable
+        2-level preconditioner. Takes in an alm-sized array.    
+    '''
+    
+    def prec_adef1(alm):
+
+        if sel_masked is not None:
+            q_vec = alm.copy()
+            # Copying the slice is probably redundant, but we
+            # cannot be sure that the operator does not work in place.            
+            q_vec[sel_masked] = prec_masked(alm[sel_masked].copy())
+        else:
+            q_vec = prec_masked(alm)            
+        out = prec_main(alm - mat_a(q_vec))
+        out += q_vec
+        return out
+    
+    return prec_adef1
+
+def get_adef2_prec(prec_main, prec_masked, mat_a, sel_masked=None):
+    '''
+    Return the ADEF-2 preconditioner:
+
+    M^{-1}_2 = R^H M^{-1} + Q.
+
+    Parameters
+    ----------
+    prec_main : callable
+        The main preconditioner. Should take an alm-sized array as input.
+    prec_masked : callable
+        The preconditioner for the mask (i.e. Q). Should take an alm-sized array
+        as input.
+    mat_a : callable
+        The A matrix of the linear system.
+    sel_masked : slice, optional
+        Slice into alm input array in case masked preconditioner is only to be 
+        applied to a slice.
+
+    Returns
+    -------
+    prec_adef1 : callable
+        2-level preconditioner. Takes in an alm-sized array.    
+    '''
+
+    def prec_adef2(alm):
+
+        m_vec = prec_main(alm)
+
+        qam_vec = mat_a(m_vec)
+        if sel_masked is not None:
+            qam_vec[slice_masked] = prec_masked(qam_vec[slice_masked].copy())
+        else:
+            qam_vec = prec_masked(qam_vec)
+
+        m_vec -= qam_vec
+        del qam_vec
+
+        if sel_masked is not None:
+            q_vec = alm.copy()
+            q_vec[sel_masked] = prec_masked(alm[sel_masked].copy())
+        else:
+            q_vec = prec_masked(alm)            
+        
+        m_vec += q_vec
+        
+        return m_vec
+        
+    return prec_adef2
+    
 def get_itau_ell_harm(icov_ell, w_ell):
     '''
     Compute inverse variance per wavelet band.

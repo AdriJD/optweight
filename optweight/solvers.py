@@ -141,7 +141,7 @@ class CGWienerMap(utils.CG):
         prec : callable
             Callable that takes alm_data-shaped alm array as input and applies
             preconditioner.
-        sel : slice
+        sel : slice, optional
             Slice into alm input array in case preconditioner is only to be 
             applied to a slice.
         '''
@@ -601,7 +601,7 @@ class CGWiener(utils.CG):
         prec : callable
             Callable that takes alm_data-shaped alm array as input and applies
             preconditioner.
-        sel : slice
+        sel : slice, optional
             Slice into alm input array in case preconditioner is only to be 
             applied to a slice.
         '''
