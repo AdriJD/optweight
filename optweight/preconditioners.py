@@ -788,7 +788,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
         return alm
 
-def get_2level_prec(prec_main, prec_masked, mat_a, method, sel_masked=None):
+def get_2level_prec(prec_main, prec_masked, solver, method, sel_masked=None):
     '''
     Return a callable 2-level preconditioner.
 
@@ -799,8 +799,8 @@ def get_2level_prec(prec_main, prec_masked, mat_a, method, sel_masked=None):
     prec_masked : callable
         The preconditioner for the mask (i.e. Q). Should take an alm-sized array
         as input.
-    mat_a : callable
-        The A matrix of the linear system.
+    solver : solver.CGWienerMap instance
+        The initiated solver class.
     method : str
         Pick from "ADEF-1", "ADEF-2".
     sel_masked : slice, optional
@@ -815,13 +815,13 @@ def get_2level_prec(prec_main, prec_masked, mat_a, method, sel_masked=None):
     '''
     
     if method == 'ADEF-1':
-        return get_prec_adef1(prec_main, prec_masked, mat_a, sel_masked=sel_masked)
+        return get_prec_adef1(prec_main, prec_masked, solver, sel_masked=sel_masked)
     elif method == 'ADEF-2':
-        return get_prec_adef2(prec_main, prec_masked, mat_a, sel_masked=sel_masked)
+        return get_prec_adef2(prec_main, prec_masked, solver, sel_masked=sel_masked)
     else:
         raise ValueError(f'method : {method} not supported.')
 
-def get_prec_adef1(prec_main, prec_masked, mat_a, sel_masked=None):
+def get_prec_adef1(prec_main, prec_masked, solver, sel_masked=None):
     '''
     Return the ADEF-1 preconditioner:
 
@@ -834,8 +834,8 @@ def get_prec_adef1(prec_main, prec_masked, mat_a, sel_masked=None):
     prec_masked : callable
         The preconditioner for the mask (i.e. Q). Should take an alm-sized array
         as input.
-    mat_a : callable
-        The A matrix of the linear system.
+    solver : solver.CGWienerMap instance
+        The initiated solver class.
     sel_masked : slice, optional
         Slice into alm input array in case masked preconditioner is only to be 
         applied to a slice.
@@ -849,19 +849,19 @@ def get_prec_adef1(prec_main, prec_masked, mat_a, sel_masked=None):
     def prec_adef1(alm):
 
         if sel_masked is not None:
-            q_vec = alm.copy()
+            q_vec = np.zeros_like(alm)
             # Copying the slice is probably redundant, but we
             # cannot be sure that the operator does not work in place.            
             q_vec[sel_masked] = prec_masked(alm[sel_masked].copy())
         else:
             q_vec = prec_masked(alm)            
-        out = prec_main(alm - mat_a(q_vec))
+        out = prec_main(alm - solver.A(q_vec))
         out += q_vec
         return out
     
     return prec_adef1
 
-def get_adef2_prec(prec_main, prec_masked, mat_a, sel_masked=None):
+def get_prec_adef2(prec_main, prec_masked, solver, sel_masked=None):
     '''
     Return the ADEF-2 preconditioner:
 
@@ -874,8 +874,8 @@ def get_adef2_prec(prec_main, prec_masked, mat_a, sel_masked=None):
     prec_masked : callable
         The preconditioner for the mask (i.e. Q). Should take an alm-sized array
         as input.
-    mat_a : callable
-        The A matrix of the linear system.
+    solver : solver.CGWienerMap instance
+        The initiated solver class.
     sel_masked : slice, optional
         Slice into alm input array in case masked preconditioner is only to be 
         applied to a slice.
@@ -890,9 +890,11 @@ def get_adef2_prec(prec_main, prec_masked, mat_a, sel_masked=None):
 
         m_vec = prec_main(alm)
 
-        qam_vec = mat_a(m_vec)
+        qam_vec = solver.A(m_vec)
         if sel_masked is not None:
-            qam_vec[slice_masked] = prec_masked(qam_vec[slice_masked].copy())
+            tmp = qam_vec[sel_masked].copy()
+            qam_vec *= 0
+            qam_vec[sel_masked] = prec_masked(tmp)
         else:
             qam_vec = prec_masked(qam_vec)
 
@@ -900,7 +902,7 @@ def get_adef2_prec(prec_main, prec_masked, mat_a, sel_masked=None):
         del qam_vec
 
         if sel_masked is not None:
-            q_vec = alm.copy()
+            q_vec = np.zeros_like(alm)
             q_vec[sel_masked] = prec_masked(alm[sel_masked].copy())
         else:
             q_vec = prec_masked(alm)            

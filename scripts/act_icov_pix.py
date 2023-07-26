@@ -36,10 +36,10 @@ deflate_cg = True
 deflate_mg = True
 
 #basedir = '/home/adriaand/project/actpol/20201115_pcg_act'
-#basedir = '/home/adriaand/project/actpol/20230228_pcg_act'
-basedir = '/mnt/home/aduivenvoorden/project/actpol/20230725_pcg_act'
+basedir = '/home/adriaand/project/actpol/20230228_pcg_act'
+#basedir = '/mnt/home/aduivenvoorden/project/actpol/20230725_pcg_act'
 # img_adef1_scaled_new means with adef1 incorporated in precondition.py
-imgdir = opj(basedir, 'img_adef1_scaled_new')
+imgdir = opj(basedir, 'img_adef2_scaled_new')
 metadir = '/home/adriaand/project/actpol/20201029_noisebox'
 specdir = opj(metadir, 'spectra')
 maskdir = '/home/adriaand/project/actpol/20211206_pcg_act/mask'
@@ -245,8 +245,8 @@ if deflate_cg:
     # solver.add_preconditioner(prec_cg_adef1)
 
     solver.add_preconditioner(
-        preconditioners.get_2level_prec(prec_pinv, prec_masked_cg, solver.A,
-                                        'ADEF-1', sel_masked=None))
+        preconditioners.get_2level_prec(prec_pinv, prec_masked_cg, solver,
+                                        'ADEF-2', sel_masked=None))
 else:
 
     solver.add_preconditioner(prec_pinv)
@@ -284,8 +284,8 @@ if deflate_mg:
 
     # solver.add_preconditioner(prec_mg_adef1)
     solver.add_preconditioner(
-        preconditioners.get_2level_prec(prec_pinv, prec_masked_mg, solver.A,
-                                        'ADEF-1', sel_masked=np.s_[0]))
+        preconditioners.get_2level_prec(prec_pinv, prec_masked_mg, solver,
+                                        'ADEF-2', sel_masked=np.s_[0]))
 
 else:
     solver.add_preconditioner(prec_pinv)
