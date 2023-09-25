@@ -4,10 +4,11 @@ from pixell import curvedsky, sharp, utils
 
 from optweight import (operators, alm_utils, map_utils, preconditioners, sht, mat_utils,
                        noise_utils, dft)
+from optweight import sht as sht_tools
 
 class CGWienerMap(utils.CG):
     '''
-    Given the data model d = Ps + n, where s is input signal in SH
+    Given the data model d = P s + n, where s is input signal in SH
     coefficients and the projection matrix P is given by Mf M Y B,
     construct a CG solver for x in the equation system A x = b where:
 
@@ -278,17 +279,21 @@ class CGWienerMap(utils.CG):
         return self.scale_filter(self.x.copy())
 
     def get_icov(self):
-        '''Return copy of (S + B^-1 N B^-1)^-1 B^-1 filtered input at current state.'''
+        '''Return copy of inverse covariance filtered input at current state.'''
 
         return self.icov_signal(self.get_wiener())
 
     def get_chisq(self):
-        '''Return x^dagger S^-1 x + (a - x)^dagger B M N^-1 M B (a - x) at current state.'''
+        '''Return x^dagger S^-1 x + (d - P x)^dagger N^-1 (d - P x) at current state.'''
 
-        raise NotImplementedError
+        x_w = self.get_wiener()
+        out = self.dot(x_w, self.icov_signal(x_w))
+        res = (self.imap - self.proj(x_w))
+        out += np.sum(res * self.icov_noise(res))
+        return out
 
     def get_residual(self):
-        '''Return sqrt[(A(x) - b)^dagger (A(x) - b)] at current state'''
+        '''Return sqrt[(A x - b)^dagger (A x - b)] at current state'''
 
         r = self.A(self.x) - self.b0
         return np.sqrt(self.dot(r, r))
@@ -339,7 +344,7 @@ class CGWienerMap(utils.CG):
         '''
 
         if spin is None:
-            spin = sht.default_spin(alm_data.shape)
+            spin = sht_tools.default_spin(imap.shape)
 
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
         icov_noise = operators.PixMatVecMap(icov_pix, 1, inplace=False)
@@ -432,7 +437,7 @@ class CGWienerMap(utils.CG):
         '''
 
         if spin is None:
-            spin = sht.default_spin(alm_data.shape)
+            spin = sht_tools.default_spin(imap.shape)
 
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
         if cov_noise_2d is not None:

@@ -148,7 +148,7 @@ def default_spin(shape):
 
     if len(shape) > 2:
         raise ValueError(f'Cannot determine default spin for alm/map with more than '
-                         'one leading dimension. Got shape : {shape}')
+                         f'one leading dimension. Got shape : {shape}')
     if len(shape) == 1 or shape[0] == 1:
         return 0
     elif shape[0] == 2:
