@@ -933,7 +933,7 @@ def round_icov_matrix(icov_pix, rtol=1e-2, threshold=False):
 
         median = np.median(icov_pix[index][mask_nonzero])
         mask = icov_pix[index] < rtol * median
-        
+
         if threshold: 
             val = rtol * median
         else:
@@ -1023,7 +1023,7 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     wcs : astropy.wcs.WCS object
         The wcs object of the enmap geometry
     mtype : string
-        The CAR variant. Right now only "CC" supported.
+        The CAR variant. Right now only "CC" and "fejer1" supported.
 
     Returns
     -------
@@ -1036,7 +1036,8 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
         If mtype is not understood.
     ValueError
         If input map does not span the whole sphere in RA.
-        If the input geometry does not confom to the Clenshaw-Curtis rule.    
+        If the input geometry does not confom to the Clenshaw-Curtis or
+        fejer1 rules.
 
     Notes
     -----
@@ -1045,25 +1046,33 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     but instead modify the libsharp's map info object if we need to flip something.
     '''
 
-    if mtype != 'CC':
-        raise NotImplementedError('Only "CC" `mtype` is implemented for now.')
-            
+    if mtype not in ('CC', 'fejer1'):
+        raise NotImplementedError('Only "CC" or "fejer1" `mtype` implemented for now.')
+    if mtype == 'fejer1':
+        yo = 0
+    elif mtype == 'CC':
+        yo = 1
+    
     # Determine number of y and x pixels on the full sky.
     nx   = utils.nint(np.abs(360 / wcs.wcs.cdelt[0]))
     if nx != shape[-1]:
         raise ValueError(f'Input needs to span full range in phi, {shape[-1]}, {nx} ')
     
-    # Add 1 because Clenshaw Curtis has a pixel on both poles.
-    ny = utils.nint(abs(180 / wcs.wcs.cdelt[1]) + 1)
+    # If CC, add 1 because Clenshaw Curtis has a pixel on both poles.
+    ny = utils.nint(abs(180 / wcs.wcs.cdelt[1]) + yo)
 
     phi0 = enmap.pix2sky(shape, wcs, [0,0])[1]
 
     # Create full sky minfo.
     stride_lon = np.sign(wcs.wcs.cdelt[0])
     stride_lat = np.abs(np.sign(wcs.wcs.cdelt[1])) * nx
-    minfo = sharp.map_info_clenshaw_curtis(
-        ny, nphi=nx, phi0=phi0, stride_lon=stride_lon, stride_lat=stride_lat)
-
+    if mtype == 'CC':
+        minfo = sharp.map_info_clenshaw_curtis(
+            ny, nphi=nx, phi0=phi0, stride_lon=stride_lon, stride_lat=stride_lat)
+    else:
+        minfo = sharp.map_info_fejer1(
+            ny, nphi=nx, phi0=phi0, stride_lon=stride_lon, stride_lat=stride_lat)
+        
     # Now find indices of first and last rings.
     # This is also where you crash if you don't find a match.
     ntheta = shape[-2]
@@ -1074,11 +1083,11 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     atol = 1e-6
     idx_start = np.flatnonzero(np.abs(theta[0] - minfo.theta) < atol)
     if idx_start.size != 1:
-        raise ValueError(f'Input geometry is not CC at atol = {atol}')
+        raise ValueError(f'Input geometry is not {mtype} at atol = {atol}')
 
     idx_end = np.flatnonzero(np.abs(theta[-1] - minfo.theta) < atol)
     if idx_end.size != 1:
-        raise ValueError(f'Input geometry is not CC at atol = {atol}')
+        raise ValueError(f'Input geometry is not {mtype} at atol = {atol}')
 
     idx_start, idx_end = idx_start[0], idx_end[0]
     slice2keep = np.s_[min(idx_start, idx_end):max(idx_start, idx_end)+1]

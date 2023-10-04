@@ -1019,6 +1019,34 @@ class TestMapUtilsIO(unittest.TestCase):
         sht.map2alm(omap, alm_out, minfo, ainfo, 0)
         np.testing.assert_allclose(alm_out, alm)
 
+    def test_match_enmap_minfo_f1(self):
+
+        # Full sky f1 CAR map first.
+        ny, nx = 37, 72
+        res = [np.pi / (ny - 0), 2 * np.pi / nx]
+
+        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx),
+                                            variant="fejer1")
+        minfo = map_utils.match_enmap_minfo(shape, wcs, mtype='fejer1')
+
+        lmax = int(np.floor((ny - 1) / 2))
+        cov_ell = np.ones((1, lmax + 1))
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+
     def test_match_enmap_minfo_cutsky(self):
 
         # Same but with cut-sky map. Can only do alm2map test now.
@@ -1042,6 +1070,30 @@ class TestMapUtilsIO(unittest.TestCase):
 
         np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
 
+    def test_match_enmap_minfo_cutsky_f1(self):
+
+        # Same but with cut-sky map. Can only do alm2map test now.
+        ny, nx = 37, 72
+        res = [np.pi / (ny - 0), 2 * np.pi / nx]
+        dec_cut = np.radians([-60, 30])
+        shape, wcs = enmap.band_geometry(
+            dec_cut, res=res, proj='car', variant='fejer1')
+
+        minfo = map_utils.match_enmap_minfo(shape, wcs, mtype='fejer1')
+
+        lmax = int(np.floor((ny - 1) / 2))
+        cov_ell = np.ones((1, lmax + 1))
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+        
     def test_match_enmap_minfo_variations(self):
 
         # Check all the cdelt variations.
@@ -1116,6 +1168,81 @@ class TestMapUtilsIO(unittest.TestCase):
         sht.map2alm(omap, alm_out, minfo, ainfo, 0)
         np.testing.assert_allclose(alm_out, alm)
 
+    def test_match_enmap_minfo_variations_f1(self):
+
+        # Check all the cdelt variations.
+        ny, nx = 37, 72
+        res = [np.pi / (ny - 0), 2 * np.pi / nx]
+        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx),
+                                            variant='fejer1')
+
+        lmax = int(np.floor((ny - 1) / 2))
+        cov_ell = np.ones((1, lmax + 1))
+        alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+
+        # ************
+        # cdelt_x * -1
+        # ************
+        wcs.wcs.cdelt[0] *= -1
+        minfo = map_utils.match_enmap_minfo(shape, wcs, mtype='fejer1')
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+
+        # ************
+        # cdelt_y * -1
+        # ************
+        wcs.wcs.cdelt[0] *= -1
+        wcs.wcs.cdelt[1] *= -1
+
+        minfo = map_utils.match_enmap_minfo(shape, wcs, mtype='fejer1')
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+
+        # **************************
+        # cdelt_x * -1, cdelt_y * -1
+        # **************************
+        wcs.wcs.cdelt[0] *= -1
+
+        minfo = map_utils.match_enmap_minfo(shape, wcs, mtype='fejer1')
+
+        omap = enmap.zeros((1,) + shape, wcs).reshape(1, minfo.npix)
+        omap_exp = enmap.zeros((1,) + shape, wcs)
+
+        # Compare alm2map to pixell.
+        sht.alm2map(alm, omap, ainfo, minfo, 0)
+        curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
+
+        np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
+
+        # Compare to input alm.
+        alm_out = alm.copy()
+        sht.map2alm(omap, alm_out, minfo, ainfo, 0)
+        np.testing.assert_allclose(alm_out, alm)
+                
     def test_minfo2wcs(self):
 
         lmax = 10
