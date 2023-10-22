@@ -12,6 +12,117 @@ from optweight import map_utils, sht, wavtrans
 
 class TestMapUtils(unittest.TestCase):
 
+    def test_mapinfo_init(self):
+
+        ntheta = 5
+        theta = np.linspace(0, np.pi, num=ntheta, endpoint=True)
+        nphi = np.asarray([3, 6, 10, 6, 3])
+        weight = np.ones(ntheta)
+        phi0 = np.zeros(ntheta)
+        stride = np.ones(ntheta)
+        offsets = np.asarray([0, 3, 9, 19, 25])
+
+        minfo = map_utils.MapInfo(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
+                                  stride=stride)
+
+        self.assertFalse(np.shares_memory(theta, minfo.theta))
+        self.assertFalse(np.shares_memory(weight, minfo.weight))
+        self.assertFalse(np.shares_memory(nphi, minfo.nphi))
+        self.assertFalse(np.shares_memory(phi0, minfo.phi0))
+        self.assertFalse(np.shares_memory(stride, minfo.stride))
+        self.assertFalse(np.shares_memory(offsets, minfo.offsets))
+
+        self.assertEqual(minfo.nrow, ntheta)
+        self.assertEqual(minfo.npix, 28)
+
+        np.testing.assert_allclose(minfo.theta, theta)
+        np.testing.assert_allclose(minfo.weight, weight)
+        np.testing.assert_allclose(minfo.nphi, nphi)
+        np.testing.assert_allclose(minfo.phi0, phi0)
+        np.testing.assert_allclose(minfo.stride, stride)
+        np.testing.assert_allclose(minfo.offsets, offsets)
+
+        self.assertEqual(minfo.theta.dtype, np.float64)
+        self.assertEqual(minfo.weight.dtype, np.float64)
+        self.assertEqual(minfo.phi0.dtype, np.float64)
+        self.assertEqual(minfo.nphi.dtype, np.uint64)
+        self.assertEqual(minfo.stride.dtype, np.int64)
+        self.assertEqual(minfo.offsets.dtype, np.uint64)
+
+    def test_mapinfo_init_alt(self):
+
+        ntheta = 5
+        theta = np.linspace(0, np.pi, num=ntheta, endpoint=True)
+        weight = np.ones(ntheta)
+
+        minfo = map_utils.MapInfo(theta, weight)
+
+        # Defaults to 0 phi samples, so empty map.
+        self.assertEqual(minfo.nrow, ntheta)
+        self.assertEqual(minfo.npix, 0)
+
+        # Again, with 2 phi pixels per ring.
+        minfo = map_utils.MapInfo(theta, weight, nphi=2)
+
+        self.assertEqual(minfo.nrow, ntheta)
+        self.assertEqual(minfo.npix, 2 * ntheta)
+
+        np.testing.assert_allclose(minfo.stride, np.ones(ntheta))
+        np.testing.assert_allclose(minfo.phi0, np.zeros(ntheta))        
+
+        offsets_exp = np.asarray([0, 2, 4, 6, 8])
+        np.testing.assert_allclose(minfo.offsets, offsets_exp)
+
+    def test_map_info_healpix(self):
+
+        nside = 4
+        minfo = map_utils.MapInfo.map_info_healpix(nside)
+
+        self.assertEqual(minfo.npix, 12 * nside ** 2)
+        self.assertAlmostEqual(np.sum(minfo.weight * minfo.nphi), 4 * np.pi)
+        self.assertAlmostEqual(np.sum(minfo.nphi), 12 * nside ** 2)        
+
+    def test_map_info_gauss_legendre(self):
+
+        ntheta = 4
+        nphi = 2
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(ntheta, nphi=nphi)
+
+        self.assertAlmostEqual(np.sum(minfo.weight * minfo.nphi), 4 * np.pi)
+        
+    def test_map_info_clenshaw_curtis(self):
+
+        ntheta = 4
+        nphi = 2
+        minfo = map_utils.MapInfo.map_info_clenshaw_curtis(ntheta, nphi=nphi)
+
+        theta_exp = np.linspace(0, np.pi, num=ntheta, endpoint=True)
+        self.assertAlmostEqual(np.sum(minfo.weight * minfo.nphi), 4 * np.pi)
+        np.testing.assert_allclose(minfo.theta, theta_exp)
+
+    def test_map_info_fejer1(self):
+
+        ntheta = 4
+        nphi = 2
+        minfo = map_utils.MapInfo.map_info_fejer1(ntheta, nphi=nphi)
+
+        theta_exp = np.linspace(0, np.pi, num=ntheta + 1, endpoint=True)[:-1]
+        theta_exp += np.pi / ntheta / 2
+        
+        self.assertAlmostEqual(np.sum(minfo.weight * minfo.nphi), 4 * np.pi)
+        np.testing.assert_allclose(minfo.theta, theta_exp)
+
+    def test_map_info_fejer2(self):
+
+        ntheta = 4
+        nphi = 2
+        minfo = map_utils.MapInfo.map_info_fejer2(ntheta, nphi=nphi)
+
+        theta_exp = np.linspace(0, np.pi, num=ntheta + 2, endpoint=True)[1:-1]
+        
+        self.assertAlmostEqual(np.sum(minfo.weight * minfo.nphi), 4 * np.pi)
+        np.testing.assert_allclose(minfo.theta, theta_exp)
+        
     def test_get_gauss_minfo(self):
 
         lmax = 5
@@ -1093,7 +1204,7 @@ class TestMapUtilsIO(unittest.TestCase):
         curvedsky.alm2map(alm, omap_exp, ainfo=ainfo)
 
         np.testing.assert_allclose(omap.reshape(*omap_exp.shape), omap_exp)
-        
+
     def test_match_enmap_minfo_variations(self):
 
         # Check all the cdelt variations.
@@ -1242,7 +1353,7 @@ class TestMapUtilsIO(unittest.TestCase):
         alm_out = alm.copy()
         sht.map2alm(omap, alm_out, minfo, ainfo, 0)
         np.testing.assert_allclose(alm_out, alm)
-                
+
     def test_minfo2wcs(self):
 
         lmax = 10
@@ -1254,14 +1365,14 @@ class TestMapUtilsIO(unittest.TestCase):
 
         # Test if GL map raises error.
         minfo_gl = map_utils.get_gauss_minfo(lmax)
-        self.assertRaises(ValueError, map_utils.minfo2wcs, minfo_gl)        
+        self.assertRaises(ValueError, map_utils.minfo2wcs, minfo_gl)
 
     def test_fmul_pix(self):
 
         lmax = 10
-        minfo = map_utils.get_cc_minfo(lmax)        
+        minfo = map_utils.get_cc_minfo(lmax)
         imap = np.ones((2, minfo.npix))
-        
+
         ny = minfo.nrow
         nx = minfo.nphi[0]
 
@@ -1270,4 +1381,3 @@ class TestMapUtilsIO(unittest.TestCase):
 
         omap_exp = imap * 2
         np.testing.assert_allclose(omap, omap_exp)
-        

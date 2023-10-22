@@ -1,18 +1,289 @@
 '''
-A collection of functions for dealing with Gauss-Legendre or other libsharp compatible 
-pixelated maps.
+A collection of functions to deal with maps defined as sets of iso-latitude
+rings.
 '''
 import numpy as np
 from scipy.interpolate import (NearestNDInterpolator, RectBivariateSpline,
                                interp1d)
+from scipy.special import roots_legendre
 import os
 
 from pixell import enmap, sharp, utils, wcsutils
 import healpy as hp
 import h5py
+import ducc0
 
 from optweight import wavtrans, sht, mat_utils, type_utils, alm_c_utils, dft
 
+class MapInfo():
+    '''
+    Map info object that mimics the map_info object used for libsharp.
+    Contains geometry information needed for spherical harmonic transforms.
+
+    Parameters
+    ----------
+    theta : (ntheta) array
+        Co-latitudes.
+    weight : (ntheta) array
+        Quadrature per pixel per ring.    
+    nphi : int or (ntheta) int array, optional
+        Number of samples per ring.
+    phi0 : float or (ntheta) array, optional
+        First longitude coordinate per ring.
+    offsets : (ntheta) int array, optional
+        The pixel index of the first pixel per ring.
+    stride : int or (ntheta) int array, optional
+        Stride per ring.
+
+    Attributes
+    ----------
+    theta : (ntheta) array
+        Co-latitudes.
+    weight : (ntheta) array
+        Quadrature per pixel per ring.    
+    nphi : int or (ntheta) int array, optional
+        Number of samples per ring.
+    phi0 : float or (ntheta) array, optional
+        First longitude coordinate per ring.
+    offsets : (ntheta) int array, optional
+        The pixel index of the first pixel per ring.
+    stride : int or (ntheta) int array, optional
+        Stride per ring.
+    nrow : int
+        ntheta.
+    npix : int
+        Number of pixels in map.
+    '''
+    
+    def __init__(self, theta, weight, nphi=0, phi0=0, offsets=None, stride=None):
+        
+        self.theta = np.array(theta, dtype=np.float64)
+        if self.theta.ndim != 1:
+            raise ValueError(f'theta array must be 1d, got {self.theta.ndim}')
+
+        self.nrow = self.theta.size
+        
+        self.weight = np.array(weight, dtype=np.float64)
+        if self.weight.shape != (self.nrow,):
+            raise ValueError(
+                f'weight must be ({self.nrow},) got {self.weight.shape}')
+        
+        self.nphi = np.array(nphi, dtype=np.uint64)
+        if not self.nphi.shape in ((), (self.nrow,)):
+            raise ValueError(
+                f'nphi must be 0d or ({self.nrow},) got {self.nphi.shape}')
+        if self.nphi.ndim == 0:
+            self.nphi = np.full(self.nrow, self.nphi, dtype=self.nphi.dtype)
+
+        self.phi0 = np.array(phi0, dtype=np.float64)
+        if not self.phi0.shape in ((), (self.nrow,)):
+            raise ValueError(
+                f'phi0 must be 0d or ({self.nrow},) got {self.phi0.shape}')
+        if self.phi0.ndim == 0:
+            self.phi0 = np.full(self.nrow, self.phi0, dtype=self.phi0.dtype)
+
+        if offsets is None:
+            self.offsets = np.concatenate([[0],np.cumsum(self.nphi[:-1])])
+        else:
+            self.offsets = np.array(offsets, dtype=np.uint64)
+        if self.offsets.shape != (self.nrow,):
+            raise ValueError(
+                f'offsets must be ({self.nrow},) got {self.offseets.shape}')
+
+        if stride is None:
+            self.stride = np.ones(self.nrow, np.int64)
+        else:
+            self.stride = np.array(stride, dtype=np.int64)
+        if not self.stride.shape in ((), (self.nrow,)):
+            raise ValueError(
+            f'stride must be 0d or ({self.nrow},) got {self.stride.shape}')
+        if self.stride.ndim == 0:
+            self.stride = np.full(
+                self.nrow, self.stride, dtype=self.stride.dtype)
+            
+        self.npix = np.sum(self.nphi)
+
+    @classmethod
+    def map_info_healpix(cls, nside):
+        '''
+        Construct a new map_info object for the HEALPix pixelization in the RING
+        scheme.
+
+        Parameters
+        ----------
+        nside : int
+            NSIDE parameter.
+
+        Returns
+        -------
+        minfo : map_utils.MapInfo object
+            Map_info object.
+        '''
+
+        HB = ducc0.healpix.Healpix_Base(nside, 'RING')
+        hdict = HB.sht_info()
+        theta = hdict['theta']
+        nphi = hdict['nphi']
+        phi0 = hdict['phi0']
+        offsets = hdict['ringstart']
+        stride = 1
+        
+        npix = 12 * nside ** 2
+        weight = 4 * np.pi / npix
+        weight = np.full(theta.size, weight)
+        
+        return cls(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
+                   stride=stride)
+        
+    @classmethod
+    def map_info_gauss_legendre(cls, nrings, nphi, phi0=0,
+                                stride_lon=None, stride_lat=None):
+        '''
+        Construct a new map_info object for the Gauss-Legendre pixelization.
+
+        Parameters
+        ----------
+        nrings : int
+            Number of rings.
+        nphi : int or (ntheta) int array
+            Number of samples per ring.
+        phi0 : float or (ntheta) array, optional
+            First longitude coordinate per ring.
+        stride_lon : int or (ntheta) int array, optional
+            Stride per ring.
+        stride_lat : int or (ntheta) int array, optional
+            The pixel index of the first pixel per ring.
+
+        Returns
+        -------
+        minfo : map_utils.MapInfo object
+            Map_info object.
+        '''
+
+        theta, weight = roots_legendre(nrings)
+        theta = np.ascontiguousarray(np.arccos(theta)[::-1])
+        weight = np.ascontiguousarray(weight[::-1] * 2 * np.pi)        
+        weight /= nphi
+
+        if stride_lat is not None:
+            offsets = np.arange(theta.size) * stride_lat
+        else:
+            offsets = None
+        return cls(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
+                    stride=stride_lon)
+
+    @classmethod
+    def map_info_clenshaw_curtis(cls, nrings, nphi, phi0=0,
+                                 stride_lon=None, stride_lat=None):
+        '''
+        Construct a new map_info object for the Clenshaw-Curtis pixelization.
+
+        Parameters
+        ----------
+        nrings : int
+            Number of rings.
+        nphi : int or (ntheta) int array
+            Number of samples per ring.
+        phi0 : float or (ntheta) array, optional
+            First longitude coordinate per ring.
+        stride_lon : int or (ntheta) int array, optional
+            Stride per ring.
+        stride_lat : int or (ntheta) int array, optional
+            The pixel index of the first pixel per ring.
+
+        Returns
+        -------
+        minfo : map_utils.MapInfo object
+            Map_info object.
+        '''
+        
+        theta = np.linspace(0, np.pi, num=nrings, endpoint=True)
+        weight = ducc0.sht.experimental.get_gridweights(
+            geometry='CC', ntheta=nrings)
+        weight /= nphi
+
+        if stride_lat is not None:
+            offsets = np.arange(theta.size) * stride_lat
+        else:
+            offsets = None
+        return cls(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
+                    stride=stride_lon)
+
+    @classmethod
+    def map_info_fejer1(cls, nrings, nphi, phi0=0,
+                        stride_lon=None, stride_lat=None):
+        '''
+        Construct a new map_info object for the Fejer1 pixelization.
+
+        Parameters
+        ----------
+        nrings : int
+            Number of rings.
+        nphi : int or (ntheta) int array
+            Number of samples per ring.
+        phi0 : float or (ntheta) array, optional
+            First longitude coordinate per ring.
+        stride_lon : int or (ntheta) int array, optional
+            Stride per ring.
+        stride_lat : int or (ntheta) int array, optional
+            The pixel index of the first pixel per ring.
+
+        Returns
+        -------
+        minfo : map_utils.MapInfo object
+            Map_info object.
+        '''
+        
+        theta = np.linspace(0, np.pi, num=nrings + 1, endpoint=True)[:-1]
+        theta += np.pi / nrings / 2
+        weight = ducc0.sht.experimental.get_gridweights(
+            geometry='F1', ntheta=nrings)
+        weight /= nphi
+
+        if stride_lat is not None:
+            offsets = np.arange(theta.size) * stride_lat
+        else:
+            offsets = None
+        return cls(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
+                    stride=stride_lon)
+
+    @classmethod
+    def map_info_fejer2(cls, nrings, nphi, phi0=0,
+                        stride_lon=None, stride_lat=None):
+        '''
+        Construct a new map_info object for the Fejer2 pixelization.
+
+        Parameters
+        ----------
+        nrings : int
+            Number of rings.
+        nphi : int or (ntheta) int array
+            Number of samples per ring.
+        phi0 : float or (ntheta) array, optional
+            First longitude coordinate per ring.
+        stride_lon : int or (ntheta) int array, optional
+            Stride per ring.
+        stride_lat : int or (ntheta) int array, optional
+            The pixel index of the first pixel per ring.
+
+        Returns
+        -------
+        minfo : map_utils.MapInfo object
+            Map_info object.
+        '''
+        
+        theta = np.linspace(0, np.pi, num=nrings + 2, endpoint=True)[1:-1]
+        weight = ducc0.sht.experimental.get_gridweights(
+            geometry='F2', ntheta=nrings)
+        weight /= nphi
+
+        if stride_lat is not None:
+            offsets = np.arange(theta.size) * stride_lat
+        else:
+            offsets = None
+        return cls(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
+                    stride=stride_lon)
+    
 def view_2d(imap, minfo):
     '''
     Expand last dimension to 2D, return view.
