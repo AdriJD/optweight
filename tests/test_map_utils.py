@@ -1095,9 +1095,9 @@ class TestMapUtilsIO(unittest.TestCase):
         minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, pad=np.radians(90),
                                           mtype='CC')
         self.assertTrue(np.all((
-            minfo.theta > np.radians(0)) & (minfo.theta < np.radians(180))))
-        self.assertTrue(0 < np.degrees(minfo.theta.min()) < 1)
-        self.assertTrue(179 < np.degrees(minfo.theta.max()) < 180)
+            minfo.theta >= np.radians(0)) & (minfo.theta <= np.radians(180))))
+        self.assertTrue(0 <= np.degrees(minfo.theta.min()) < 1)
+        self.assertTrue(179 < np.degrees(minfo.theta.max()) <= 180)
 
     def test_match_enmap_minfo(self):
 
@@ -1373,8 +1373,8 @@ class TestMapUtilsIO(unittest.TestCase):
         minfo = map_utils.get_cc_minfo(lmax)
         imap = np.ones((2, minfo.npix))
 
-        ny = minfo.nrow
-        nx = minfo.nphi[0]
+        ny = int(minfo.nrow)
+        nx = int(minfo.nphi[0])
 
         fmat2d = np.full((ny, nx // 2 + 1), 2, dtype=np.complex128)
         omap = map_utils.fmul_pix(imap, minfo, fmat2d)

@@ -83,7 +83,8 @@ class MapInfo():
             self.phi0 = np.full(self.nrow, self.phi0, dtype=self.phi0.dtype)
 
         if offsets is None:
-            self.offsets = np.concatenate([[0],np.cumsum(self.nphi[:-1])])
+            self.offsets = np.concatenate(
+                [[0],np.cumsum(self.nphi[:-1])]).astype(np.uint64)
         else:
             self.offsets = np.array(offsets, dtype=np.uint64)
         if self.offsets.shape != (self.nrow,):
@@ -292,7 +293,7 @@ def view_2d(imap, minfo):
     ----------
     imap : (..., npix) array
         Input map.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for map.
 
     Returns
@@ -323,7 +324,7 @@ def view_1d(imap, minfo):
     ----------
     imap : (..., ny, nx) array
         Input map.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for map.
 
     Returns
@@ -355,7 +356,7 @@ def equal_area_gauss_copy_2d(imap, minfo):
     ----------
     imap : (..., npix) array
         Input map.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for map.
 
     Returns
@@ -404,7 +405,7 @@ def get_ring_slice(ring_idx, minfo):
     ----------
     ring_idx : int
        Ring index.
-    minfo : shapr.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for map.
 
     Returns
@@ -413,9 +414,9 @@ def get_ring_slice(ring_idx, minfo):
         Slice object such that map[ring_slice] gives you the i'th ring.
     '''
 
-    return slice(minfo.offsets[ring_idx],
-                 minfo.offsets[ring_idx] + minfo.nphi[ring_idx],
-                 minfo.stride[ring_idx])    
+    return slice(int(minfo.offsets[ring_idx]),
+                 int(minfo.offsets[ring_idx] + minfo.nphi[ring_idx]),
+                 int(minfo.stride[ring_idx]))    
 
 def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
                 mode='constant'):
@@ -426,7 +427,7 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
     ----------
     imap : (..., ny, nx) enmap
         Input map(s)
-    lmax : int or sharp.map_info object
+    lmax : int or map_utils.MapInfo object
         Band limit supported by Gauss-Legendre grid or map_info object that
         describes output geometry.
     order : int, optional
@@ -446,7 +447,7 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
     -------
     omap : (..., npix) array
         Output map(s).
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         Metadata of output map.
 
     Raises
@@ -455,7 +456,7 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
         If enmap is not cylindrical.
     '''
     
-    if isinstance(lmax, sharp.map_info):
+    if isinstance(lmax, MapInfo):
         minfo = lmax
     else:
         minfo = get_enmap_minfo(imap.shape, imap.wcs, lmax)
@@ -514,7 +515,7 @@ def healpix2gauss(imap, lmax, nest=False, area_pow=0):
     -------
     omap : (..., npix) array
         Output map(s).
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         Metadata of output map.
     '''
 
@@ -553,9 +554,9 @@ def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0):
 
     imap : (..., npix) array
         Input map.
-    minfo_in : sharp.map_info object
+    minfo_in : map_utils.MapInfo object
         Metainfo input map.
-    minfo_out : sharp.map_info object
+    minfo_out : map_utils.MapInfo object
         Metainfo output map.
     order : int
         Order of the spline used for interpolation.
@@ -601,9 +602,9 @@ def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
 
     imap : (..., npix) array
         Input map.
-    minfo_in : sharp.map_info object
+    minfo_in : map_utils.MapInfo object
         Metainfo input map.
-    minfo_out : sharp.map_info object
+    minfo_out : map_utils.MapInfo object
         Metainfo output map.
     order : int
         Order of the spline used for interpolation.
@@ -665,7 +666,7 @@ def _get_gauss_coords(map_info):
 
     Parameters
     ----------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         Metadata of Gauss-Legendre map.
 
     Returns
@@ -712,16 +713,16 @@ def get_minfo(mtype, nrings, nphi, theta_min=None, theta_max=None, return_arc_le
 
     Returns
     -------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         metadata of Gausss-Legendre grid.
     arc_lengths : (ntheta) array
         If return_arc_len is set: arc length of rings along the theta direction.
     '''
 
     if mtype == 'GL':
-        map_info = sharp.map_info_gauss_legendre(nrings, nphi)
+        map_info = MapInfo.map_info_gauss_legendre(nrings, nphi)
     elif mtype == 'CC':
-        map_info = sharp.map_info_clenshaw_curtis(nrings, nphi)
+        map_info = MapInfo.map_info_clenshaw_curtis(nrings, nphi)
     else:
         raise ValueError(f'mtype : {mtype} not supported')
 
@@ -741,8 +742,8 @@ def get_minfo(mtype, nrings, nphi, theta_min=None, theta_max=None, return_arc_le
         offsets -= offsets[0]
 
         # Create new map_info corresponding to truncated theta range.
-        map_info = sharp.map_info(theta, nphi=nphi, phi0=0, offsets=offsets,
-                                  stride=stride, weight=weight)
+        map_info = MapInfo(theta, nphi=nphi, phi0=0, offsets=offsets,
+                           stride=stride, weight=weight)
         if return_arc_len:
             arc_len = arc_len[theta_mask]
 
@@ -769,7 +770,7 @@ def get_cc_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
 
     Returns
     -------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         metadata of Gausss-Legendre grid.
     arc_lengths : (ntheta) array
         If return_arc_len is set: arc length of rings along the theta direction.
@@ -798,7 +799,7 @@ def get_gauss_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
 
     Returns
     -------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         metadata of Gausss-Legendre grid.
     arc_lengths : (ntheta) array
         If return_arc_len is set: arc length of rings along the theta direction.
@@ -816,7 +817,7 @@ def get_equal_area_minfo(minfo, orig_band=np.pi/8, ratio_pow=1.):
 
     Parameters
     ----------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metadata of input grid.
     orig_band : float, optional
         Angle in radians away from equator that determines the band 
@@ -829,7 +830,7 @@ def get_equal_area_minfo(minfo, orig_band=np.pi/8, ratio_pow=1.):
 
     Returns
     -------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         metadata of grid.    
     '''
 
@@ -859,7 +860,7 @@ def get_equal_area_minfo(minfo, orig_band=np.pi/8, ratio_pow=1.):
         nphi_reduced[tidx] = max(2, int(np.round(minfo.nphi[tidx] * ratio)))
         weight_reduced[tidx] = area_pix * minfo.nphi[tidx] / nphi_reduced[tidx]
 
-    return sharp.map_info(minfo.theta, nphi=nphi_reduced, weight=weight_reduced)
+    return MapInfo(minfo.theta, nphi=nphi_reduced, weight=weight_reduced)
 
 def get_equal_area_gauss_minfo(lmax, theta_min=None, theta_max=None, 
                                gl_band=np.pi/8, ratio_pow=1.):
@@ -886,7 +887,7 @@ def get_equal_area_gauss_minfo(lmax, theta_min=None, theta_max=None,
 
     Returns
     -------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         metadata of grid.
 
     Notes
@@ -993,7 +994,7 @@ def inv_qweight_map(imap, minfo, inplace=False, qweight=False):
     ----------
     imap : (..., npix) array
         Input maps.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixelization of input maps.    
     ainfo : sharp.alm_info object
         Metainfo for internally used alms.
@@ -1042,7 +1043,7 @@ def get_isotropic_ivar(icov_pix, minfo, mask=None):
     ----------
     icov_pix : (npol, npol, npix) or (npol, npix) array
         Inverse covariance matrix.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo specifying pixelization of covariance matrix.
     mask : (npol, npix) array, optional
         Sky mask, usually 1 for observed pixels, 0 for unobserved, but 
@@ -1094,7 +1095,7 @@ def get_ivar_ell(icov_wav, w_ell, mask=None, minfo_mask=None):
         Wavelet kernels.
     mask : (npol, npix) array, optional
         Sky mask, usually 1 for observed pixels, 0 for unobserved.
-    minfo_mask : sharp.map_info object, optional
+    minfo_mask : map_utils.MapInfo object, optional
         Meta info for mask, only required if mask if given.
     
     Returns
@@ -1239,7 +1240,7 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
 
     Returns
     -------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         metadata of grid.
 
     Raises
@@ -1298,7 +1299,7 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
 
     Returns
     -------
-    map_info : sharp.map_info object
+    map_info : map_utils.MapInfo object
         metadata of grid.
 
     Raises
@@ -1338,10 +1339,10 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     stride_lon = np.sign(wcs.wcs.cdelt[0])
     stride_lat = np.abs(np.sign(wcs.wcs.cdelt[1])) * nx
     if mtype == 'CC':
-        minfo = sharp.map_info_clenshaw_curtis(
+        minfo = MapInfo.map_info_clenshaw_curtis(
             ny, nphi=nx, phi0=phi0, stride_lon=stride_lon, stride_lat=stride_lat)
     else:
-        minfo = sharp.map_info_fejer1(
+        minfo = MapInfo.map_info_fejer1(
             ny, nphi=nx, phi0=phi0, stride_lon=stride_lon, stride_lat=stride_lat)
         
     # Now find indices of first and last rings.
@@ -1377,9 +1378,9 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
         theta2keep = np.ascontiguousarray(theta2keep[::-1])
         weight2keep = np.ascontiguousarray(weight2keep[::-1])
 
-    minfo_cut = sharp.map_info(theta2keep, nphi=nx, phi0=phi0,
-                               offsets=offsets2keep,
-                               stride=stride.astype(np.int32), weight=weight2keep)
+    minfo_cut = MapInfo(theta2keep, nphi=nx, phi0=phi0,
+                        offsets=offsets2keep,
+                        stride=stride.astype(np.int32), weight=weight2keep)
 
     return minfo_cut    
 
@@ -1392,7 +1393,7 @@ def select_mask_edge(mask, minfo):
     ----------
     mask : (..., npix) bool array
         False underneath the mask, True otherwise.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixelization of input maps.
 
     Returns
@@ -1438,7 +1439,7 @@ def inpaint_nearest(imap, mask, minfo):
         Input map.
     mask : (..., npix) or (npix) bool array
         Mask, False for bad areas.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for map and mask.
 
     Returns
@@ -1479,7 +1480,7 @@ def inpaint_nearest(imap, mask, minfo):
     edges = select_mask_edge(mask, minfo)
 
     pix = np.mgrid[:minfo.nrow,:minfo.nphi[0]]
-    pix = pix.reshape(2, minfo.nrow * minfo.nphi[0])
+    pix = pix.reshape(2, minfo.nrow * int(minfo.nphi[0]))
     
     pix_edge = [pix[:,edges[midx]] for midx in range(mask.shape[0])]
     pix_masked = [pix[:,~mask[midx]] for midx in range(mask.shape[0])]
@@ -1508,7 +1509,7 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
         Input map.
     lmat : (npol, npol, nell) or (npol, nell) array
         Matrix in multipole domain, if diagonal only the diaganal suffices.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo input map.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.    
@@ -1593,7 +1594,7 @@ def minfo2lmax(minfo):
 
     Parameters
     ----------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo of map.
 
     Returns
@@ -1610,7 +1611,7 @@ def minfo2wcs(minfo):
 
     Parameters
     ----------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo of map.
 
     Returns
@@ -1650,18 +1651,18 @@ def copy_minfo(minfo):
 
     Parameters
     ----------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Object to be copied.
 
     Returns
     -------
-    minfo_copy : sharp.map_info object
+    minfo_copy : map_utils.MapInfo object
         Copy.
     '''
 
-    return sharp.map_info(theta=minfo.theta, nphi=minfo.nphi,
-                          phi0=minfo.phi0, offsets=minfo.offsets,
-                          stride=minfo.stride, weight=minfo.weight)
+    return MapInfo(theta=minfo.theta, nphi=minfo.nphi,
+                   phi0=minfo.phi0, offsets=minfo.offsets,
+                   stride=minfo.stride, weight=minfo.weight)
 
 def minfo_is_equiv(minfo_1, minfo_2):
     '''
@@ -1669,9 +1670,9 @@ def minfo_is_equiv(minfo_1, minfo_2):
 
     Parameters
     ----------
-    minfo_1 : sharp.map_info object
+    minfo_1 : map_utils.MapInfo object
         First map info object.
-    minfo_2 : sharp.map_info object
+    minfo_2 : map_utils.MapInfo object
         Second map info object.
 
     Returns
@@ -1700,7 +1701,7 @@ def write_minfo(fname, minfo):
     ----------
     fname : str
         Path to file. Will append .hdf5 if no file extension is found.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object to be stored.    
     '''
 
@@ -1719,7 +1720,7 @@ def append_minfo_to_hdf(hfile, minfo):
     ----------
     hfile : HDF5 file or group
         Writeable hdf file or group.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object to be stored.        
     '''
     
@@ -1741,7 +1742,7 @@ def read_minfo(fname):
 
     Returns
     -------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object.
     '''
 
@@ -1762,7 +1763,7 @@ def minfo_from_hdf(hfile):
     
     Returns
     -------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object.
     '''
     
@@ -1773,9 +1774,9 @@ def minfo_from_hdf(hfile):
     stride = hfile['stride'][()]
     weight = hfile['weight'][()]
 
-    return sharp.map_info(theta=theta, nphi=nphi,
-                          phi0=phi0, offsets=offsets,
-                          stride=stride, weight=weight)
+    return MapInfo(theta=theta, nphi=nphi,
+                   phi0=phi0, offsets=offsets,
+                   stride=stride, weight=weight)
 
 def write_map(fname, imap, minfo, symm_axes=None):
     '''
@@ -1787,7 +1788,7 @@ def write_map(fname, imap, minfo, symm_axes=None):
         Path to file.  Will append .hdf5 if no file extension is found.
     imap : (..., npix) array
         Map to be stored.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object to be stored.
     symm_axes : array-like, optional
         Map is symmetric in these adjacent axes, only store upper 
@@ -1812,7 +1813,7 @@ def append_map_to_hdf(hfile, imap, minfo, symm_axes=None):
         Writeable hdf file or group.
     imap : (..., npix) array
         Map to be stored.        
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object to be stored.
     symm_axes : array-like, or array-like of array-like, optional
         Map is symmetric in these adjacent axes, only store upper 
@@ -1851,7 +1852,7 @@ def read_map(fname):
     -------
     omap : (..., npix) array
         Map array.        
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object.
     '''
 
@@ -1875,7 +1876,7 @@ def map_from_hdf(hfile):
     -------
     omap : (..., npix) array
         Map array.        
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info object.
     '''
     
