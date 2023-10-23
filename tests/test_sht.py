@@ -44,7 +44,7 @@ class TestSHT(unittest.TestCase):
 
         sht.alm2map(alm, omap, ainfo, minfo, spin)
         sht.map2alm(omap, alm_out, minfo, ainfo, spin)
-
+        
         np.testing.assert_array_almost_equal(alm_out, alm)
         np.testing.assert_allclose(alm_out, alm)
 

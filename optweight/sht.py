@@ -5,7 +5,7 @@ import numpy as np
 from pixell import enmap, sharp
 import ducc0
 
-from optweight import mat_utils, map_utils
+from optweight import mat_utils, map_utils, map_c_utils
 
 def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     '''
@@ -77,10 +77,9 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
             if adjoint:
                 map_tmp = np.asarray(imap[idxs][i1:i2,:])
             else:
-                map_tmp = np.asarray(imap[idxs][i1:i2,:].copy())
+                map_tmp = np.asarray(imap[idxs][i1:i2,:]).copy()
                 # Inplace multiplication with weight.
-                map_tmp_2d = map_utils.view_2d(map_tmp, minfo)
-                map_tmp_2d *= minfo.weight[None,:,None]
+                map_c_utils.apply_ringweight(map_tmp, minfo)
 
             ducc0.sht.experimental.adjoint_synthesis(
                 map=map_tmp,
@@ -169,6 +168,7 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     for idxs in np.ndindex(preshape):
         for s, i1, i2 in enmap.spin_helper(spin, npol):
             map_slice = np.asarray(omap[idxs][i1:i2,:])
+
             ducc0.sht.experimental.synthesis(
                 alm=alm[idxs][i1:i2,:],
                 map=map_slice,
@@ -188,9 +188,8 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
 
             if adjoint:
                 # Inplace multiplication with weight.
-                map_slice_2d = map_utils.view_2d(map_slice, minfo)
-                map_slice_2d *= minfo.weight[None,:,None]
-
+                map_c_utils.apply_ringweight(map_slice, minfo)
+                
 def default_spin(shape):
     '''
     Infer spin from alm/map shape.

@@ -353,9 +353,18 @@ class TestMapUtils(unittest.TestCase):
         m = m.reshape(npol, minfo.npix)
 
         out = map_utils.inv_qweight_map(m, minfo, inplace=False)
-
         np.testing.assert_array_almost_equal(out, np.ones_like(m))
 
+        # Inverse.
+        m = np.ones((npol, minfo.npix))
+        m = m.reshape(npol, minfo.nrow, minfo.nphi[0])
+        m[:,:,:] = 1 / minfo.weight[np.newaxis,:,np.newaxis]
+        m = m.reshape(npol, minfo.npix)
+
+        out = map_utils.inv_qweight_map(m, minfo, inplace=False,
+                                        qweight=True)
+        np.testing.assert_array_almost_equal(out, np.ones_like(m))
+        
     def test_rand_map(self):
 
         cov_pix = np.ones((2, 2, 3))

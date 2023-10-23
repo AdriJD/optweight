@@ -13,7 +13,8 @@ import healpy as hp
 import h5py
 import ducc0
 
-from optweight import wavtrans, sht, mat_utils, type_utils, alm_c_utils, dft
+from optweight import (wavtrans, sht, mat_utils, type_utils, alm_c_utils,
+                       dft, map_c_utils)
 
 class MapInfo():
     '''
@@ -1019,16 +1020,15 @@ def inv_qweight_map(imap, minfo, inplace=False, qweight=False):
     if dim_in == 1:
         out = out[np.newaxis,:]
 
-    for ridx in range(minfo.nrow):
-        if qweight:
-            iweight = minfo.weight[ridx]
-        else:
-            iweight = 1 / minfo.weight[ridx]
-        stride = int(minfo.stride[ridx])
-        start = int(minfo.offsets[ridx])
-        end = start + (int(minfo.nphi[ridx])) * stride
-        out[...,start:end:stride] *= iweight
-
+    if qweight:
+        custom_weight = None
+    else:
+        custom_weight = 1 / minfo.weight
+        
+    preshape = out.shape[:-1]
+    for idxs in np.ndindex(preshape):
+        map_c_utils.apply_ringweight(
+            out[idxs], minfo, custom_weight=custom_weight)
     if dim_in == 1:
         imap = out[0]
 

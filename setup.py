@@ -22,6 +22,10 @@ compile_opts_mat = {
     'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall'],
     'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib')]}
 
+compile_opts_map = {
+    'extra_compile_args' : ['-shared', '-std=c99', '-g', '-Wall'],
+    'extra_link_args' : ['-Wl,-rpath,' + opj(path, 'lib')]}
+
 compiler_directives = {'language_level' : 3}
 
 def presrc():
@@ -49,7 +53,14 @@ ext_modules = [Extension('optweight.alm_c_utils',
                          library_dirs=[opj(path, 'lib')],
                          include_dirs=[opj(path, 'include'),
                                        np.get_include()],
-                         **compile_opts_mat)]
+                         **compile_opts_mat),
+               Extension('optweight.map_c_utils',
+                         [opj(path, 'cython', 'map_c_utils.pyx')],
+                         libraries=['optweight_c_utils'],
+                         library_dirs=[opj(path, 'lib')],
+                         include_dirs=[opj(path, 'include'),
+                                       np.get_include()],
+                         **compile_opts_map)]
 
 setup(name='optweight',
       packages=['optweight'],
