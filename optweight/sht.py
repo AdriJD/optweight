@@ -1,7 +1,11 @@
+import os
+import multiprocessing
 import numpy as np
 
 from pixell import enmap, sharp
-from optweight import mat_utils
+import ducc0
+
+from optweight import mat_utils, map_utils
 
 def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     '''
@@ -21,8 +25,8 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
     adjoint : bool, optional
-        If set, compute adjoint synthesis: Yt, so map2alm without 
-        theta integration weights.    
+        If set, compute adjoint synthesis: Yt, so map2alm without
+        theta integration weights.
 
     Raises
     ------
@@ -49,17 +53,52 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
         raise ValueError(f'Mismatch leading dimension of map and alm :'
                          f'{imap.shape[:-1]} and {alm.shape[:-1]}')
 
-    if adjoint:
-        job_type = 2
-    else:
-        job_type = 0
-
     npol = imap.shape[-2]
     preshape = imap.shape[:-2]
+
+    theta = minfo.theta.astype(np.float64, copy=False)
+    nphi = minfo.nphi.astype(np.uint64, copy=False)
+    phi0 = minfo.phi0.astype(np.float64, copy=False)
+    mstart = ainfo.mstart.astype(np.uint64, copy=False)
+    ringstart = minfo.offsets.astype(np.uint64, copy=False)
+    lstride = int(ainfo.stride)
+    pixstride = int(minfo.stride[0])
+    lmax = int(ainfo.lmax)
+    mmax = int(ainfo.mmax)
+
+    # Default to OMP_NUM_THREADS. If not availble, use cpu_count.
+    try:
+        nthreads = int(os.environ["OMP_NUM_THREADS"])
+    except KeyError:
+        nthreads = multiprocessing.cpu_count()
+
     for idxs in np.ndindex(preshape):
-        for s, i1, i2 in enmap.spin_helper(spin, npol):    
-            sharp.execute(job_type, ainfo, alm[idxs][i1:i2,:],
-                          minfo, imap[idxs][i1:i2,:], spin=s)
+        for s, i1, i2 in enmap.spin_helper(spin, npol):
+            if adjoint:
+                map_tmp = np.asarray(imap[idxs][i1:i2,:])
+            else:
+                map_tmp = np.asarray(imap[idxs][i1:i2,:].copy())
+                # Inplace multiplication with weight.
+                map_tmp_2d = map_utils.view_2d(map_tmp, minfo)
+                map_tmp_2d *= minfo.weight[None,:,None]
+
+            ducc0.sht.experimental.adjoint_synthesis(
+                map=map_tmp,
+                alm=alm[idxs][i1:i2,:],
+                theta=theta,
+                lmax=lmax,
+                nphi=nphi,
+                phi0=phi0,
+                mstart=mstart,
+                ringstart=ringstart,
+                lstride=lstride,
+                pixstride=pixstride,
+                spin=s,
+                mmax=mmax,
+                mode='STANDARD',
+                theta_interpol=False,
+                nthreads=nthreads)
+
 
 def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     '''
@@ -101,26 +140,57 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     if alm.shape[-1] != ainfo.nelem:
         raise ValueError(
             f'Wrong alm size, got {alm.shape[-1]} expected {ainfo.nelem}')
-    
+
     omap = mat_utils.atleast_nd(omap, 3)
     alm = mat_utils.atleast_nd(alm, 3)
 
     if alm.shape[:-1] != omap.shape[:-1]:
         raise ValueError(f'Mismatch leading dimension of map and alm :'
                          f'{omap.shape[:-1]} and {alm.shape[:-1]}')
-
-    if adjoint:
-        job_type = 3
-    else:
-        job_type = 1
-
     npol = omap.shape[-2]
     preshape = omap.shape[:-2]
+
+    theta = minfo.theta.astype(np.float64, copy=False)
+    nphi = minfo.nphi.astype(np.uint64, copy=False)
+    phi0 = minfo.phi0.astype(np.float64, copy=False)
+    mstart = ainfo.mstart.astype(np.uint64, copy=False)
+    ringstart = minfo.offsets.astype(np.uint64, copy=False)
+    lstride = int(ainfo.stride)
+    pixstride = int(minfo.stride[0])
+    lmax = int(ainfo.lmax)
+    mmax = int(ainfo.mmax)
+
+    # Default to OMP_NUM_THREADS. If not availble, use cpu_count.
+    try:
+        nthreads = int(os.environ["OMP_NUM_THREADS"])
+    except KeyError:
+        nthreads = multiprocessing.cpu_count()
+
     for idxs in np.ndindex(preshape):
-        for s, i1, i2 in enmap.spin_helper(spin, npol):    
-            sharp.execute(job_type, ainfo, alm[idxs][i1:i2,:],
-                          minfo, omap[idxs][i1:i2,:], spin=s)
-        
+        for s, i1, i2 in enmap.spin_helper(spin, npol):
+            map_slice = np.asarray(omap[idxs][i1:i2,:])
+            ducc0.sht.experimental.synthesis(
+                alm=alm[idxs][i1:i2,:],
+                map=map_slice,
+                theta=theta,
+                lmax=lmax,
+                nphi=nphi,
+                phi0=phi0,
+                mstart=mstart,
+                ringstart=ringstart,
+                lstride=lstride,
+                pixstride=pixstride,
+                spin=s,
+                mmax=mmax,
+                mode='STANDARD',
+                theta_interpol=False,
+                nthreads=nthreads)
+
+            if adjoint:
+                # Inplace multiplication with weight.
+                map_slice_2d = map_utils.view_2d(map_slice, minfo)
+                map_slice_2d *= minfo.weight[None,:,None]
+
 def default_spin(shape):
     '''
     Infer spin from alm/map shape.
@@ -133,7 +203,7 @@ def default_spin(shape):
     Returns
     -------
     spin : int, list
-        Spin argument for SH transforms. 
+        Spin argument for SH transforms.
 
     Raises
     ------

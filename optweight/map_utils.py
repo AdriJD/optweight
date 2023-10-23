@@ -1024,9 +1024,9 @@ def inv_qweight_map(imap, minfo, inplace=False, qweight=False):
             iweight = minfo.weight[ridx]
         else:
             iweight = 1 / minfo.weight[ridx]
-        stride = minfo.stride[ridx]
-        start = minfo.offsets[ridx]
-        end = start + (minfo.nphi[ridx]) * stride
+        stride = int(minfo.stride[ridx])
+        start = int(minfo.offsets[ridx])
+        end = start + (int(minfo.nphi[ridx])) * stride
         out[...,start:end:stride] *= iweight
 
     if dim_in == 1:
