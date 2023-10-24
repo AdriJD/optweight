@@ -9,8 +9,7 @@ from optweight import mat_utils, map_utils, map_c_utils
 
 def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     '''
-    Wrapper around pixell's libsharp wrapper that does not
-    require enmaps.
+    Wrapper around ducc's adjoint_synthesis. Computes YtW or Yt.
 
     Parameters
     ----------
@@ -18,7 +17,7 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
         Input map(s).
     alm : (..., npol, nelem) complex array
         Output alm array(s), will be overwritten.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info for input map.
     ainfo : sharp.alm_info object
         alm info for output alm.
@@ -57,10 +56,10 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     preshape = imap.shape[:-2]
 
     theta = minfo.theta.astype(np.float64, copy=False)
-    nphi = minfo.nphi.astype(np.uint64, copy=False)
+    nphi = minfo._nphi.astype(np.uint64, copy=False)
     phi0 = minfo.phi0.astype(np.float64, copy=False)
     mstart = ainfo.mstart.astype(np.uint64, copy=False)
-    ringstart = minfo.offsets.astype(np.uint64, copy=False)
+    ringstart = minfo._offsets.astype(np.uint64, copy=False)
     lstride = int(ainfo.stride)
     pixstride = int(minfo.stride[0])
     lmax = int(ainfo.lmax)
@@ -101,8 +100,7 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
 
 def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     '''
-    Wrapper around pixell's libsharp wrapper that does not
-    require enmaps.
+    Wrapper around ducc's synthesis. Computes Y or WY.
 
     Parameters
     ----------
@@ -112,7 +110,7 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
         Output map, will be overwritten.
     ainfo : sharp.alm_info object
         alm info for inpu alm.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Map info for output map.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
@@ -150,10 +148,10 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     preshape = omap.shape[:-2]
 
     theta = minfo.theta.astype(np.float64, copy=False)
-    nphi = minfo.nphi.astype(np.uint64, copy=False)
+    nphi = minfo._nphi.astype(np.uint64, copy=False)
     phi0 = minfo.phi0.astype(np.float64, copy=False)
     mstart = ainfo.mstart.astype(np.uint64, copy=False)
-    ringstart = minfo.offsets.astype(np.uint64, copy=False)
+    ringstart = minfo._offsets.astype(np.uint64, copy=False)
     lstride = int(ainfo.stride)
     pixstride = int(minfo.stride[0])
     lmax = int(ainfo.lmax)

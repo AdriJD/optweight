@@ -253,7 +253,7 @@ def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
         Covariance diagonal in pixel space.
     ainfo : sharp.alm_info object
         Metainfo for output alms.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo specifying pixelization of covariance.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.

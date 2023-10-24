@@ -45,9 +45,11 @@ class TestMapUtils(unittest.TestCase):
         self.assertEqual(minfo.theta.dtype, np.float64)
         self.assertEqual(minfo.weight.dtype, np.float64)
         self.assertEqual(minfo.phi0.dtype, np.float64)
-        self.assertEqual(minfo.nphi.dtype, np.uint64)
-        self.assertEqual(minfo.stride.dtype, np.int64)
-        self.assertEqual(minfo.offsets.dtype, np.uint64)
+        self.assertEqual(minfo.stride.dtype, np.int64)        
+        self.assertEqual(minfo._nphi.dtype, np.uint64)
+        self.assertEqual(minfo._offsets.dtype, np.uint64)
+        self.assertEqual(minfo.nphi.dtype, np.int64)
+        self.assertEqual(minfo.offsets.dtype, np.int64)
 
     def test_mapinfo_init_alt(self):
 
@@ -263,7 +265,7 @@ class TestMapUtils(unittest.TestCase):
         nrings = lmax + 1
         nphi = 2 * lmax + 1
 
-        minfo_2 = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
         m_gl_exp = np.zeros((1, minfo_2.npix))
         sht.alm2map(alm, m_gl_exp, ainfo, minfo_2, spin)
 
@@ -290,7 +292,7 @@ class TestMapUtils(unittest.TestCase):
         nrings = lmax + 1
         nphi = 2 * lmax + 1
 
-        minfo_2 = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
         m_gl_exp = np.zeros((1, minfo_2.npix))
         sht.alm2map(alm, m_gl_exp, ainfo, minfo_2, spin)
 
@@ -345,7 +347,7 @@ class TestMapUtils(unittest.TestCase):
         npol = 3
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         m = np.ones((npol, minfo.npix))
         m = m.reshape(npol, minfo.nrow, minfo.nphi[0])
@@ -410,7 +412,7 @@ class TestMapUtils(unittest.TestCase):
         npol = 3
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         icov_pix = np.ones((npol, npol, minfo.npix))
         icov_pix[0,0] = 10
@@ -437,7 +439,7 @@ class TestMapUtils(unittest.TestCase):
         npol = 3
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         icov_pix = np.ones((npol, minfo.npix))
         icov_pix[0] = 10
@@ -459,7 +461,7 @@ class TestMapUtils(unittest.TestCase):
 
         lmax = 3
         npol = 3
-        minfo = sharp.map_info_gauss_legendre(lmax + 1)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(lmax + 1, 2 * lmax + 1)
 
         icov_pix = np.ones((npol, minfo.npix))
 
@@ -515,13 +517,13 @@ class TestMapUtils(unittest.TestCase):
 
         # Add first map.
         lmax = 3
-        minfo1 = sharp.map_info_gauss_legendre(lmax + 1)
+        minfo1 = map_utils.MapInfo.map_info_gauss_legendre(lmax + 1, 2 * lmax + 1)
         cov_pix = np.ones((npol, npol, minfo1.npix))
         cov_wav.add((0,0), cov_pix, minfo1)
 
         # Second map.
         lmax = 4
-        minfo2 = sharp.map_info_gauss_legendre(lmax + 1)
+        minfo2 = map_utils.MapInfo.map_info_gauss_legendre(lmax + 1, 2 * lmax + 1)
         cov_pix = np.ones((npol, npol, minfo2.npix))
         cov_wav.add((1,1), cov_pix, minfo2)
 

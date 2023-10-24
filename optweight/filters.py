@@ -49,7 +49,7 @@ class CGPixFilter(object):
             (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
             noise that deviates from the white noise described by the icov maps
             as function of multipole.
-        minfo : sharp.map_info object
+        minfo : map_utils.MapInfo object
             Metainfo for inverse noise covariance icov_pix in case a Gauss-Legendre
             map is provided.
         include_te : bool
@@ -420,7 +420,7 @@ def cg_pix_filter(imap, theory_cls, b_ell, lmax,
         (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
         noise that deviates from the white noise described by the icov_pix maps
         as function of multipole.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for inverse noise covariance icov_pix.
     rtol_icov: float, optional
         Elements below rtol_icov times the median of nonzero elements 
@@ -541,7 +541,7 @@ class CGPixFilterOld(object):
             (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
             noise that deviates from the white noise described by the icov maps
             as function of multipole.
-        minfo : sharp.map_info object
+        minfo : map_utils.MapInfo object
             Metainfo for inverse noise covariance icov_pix in case a Gauss-Legendre
             is provided.
         include_te : bool
@@ -872,7 +872,7 @@ def cg_pix_filter_old(alm, theory_cls, b_ell, lmax,
         (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
         noise that deviates from the white noise described by the icov_pix maps
         as function of multipole.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for inverse noise covariance icov_pix.
     rtol_icov: float, optional
         Elements below rtol_icov times the median of nonzero elements 

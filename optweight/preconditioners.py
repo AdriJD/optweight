@@ -21,7 +21,7 @@ class HarmonicPreconditioner(operators.MatVecAlm):
     icov_pix : (npol, npol, npix) or (npol, npix) array, optional
         Inverse noise covariance. If diagonal, only the diagonal suffices. Only
         needed when `itau` or `icov_wav` are not given.
-    minfo : sharp.map_info object, optional
+    minfo : map_utils.MapInfo object, optional
         Metainfo for inverse noise covariance. Needed if `icov_pix` and/or 
         mask_pix are provided.
     icov_wav : wavtrans.Wav object, optional
@@ -136,7 +136,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
         Inverse signal covariance, If diagonal, only the diagonal suffices.
     icov_pix : (npol, npol, npix) or (npol, npix) array
         Inverse noise covariance. If diagonal, only the diagonal suffices.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for inverse noise covariance.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
@@ -267,7 +267,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
         Spin values for transform, should be compatible with npol.
     mask_pix = (npol, npix) array, optional
         Pixel mask.
-    minfo_mask : sharp.map_info object, optional
+    minfo_mask : map_utils.MapInfo object, optional
         Metainfo for pixel mask covariance.
     itau_ell : (npol, npol, nell) array
         Isotropic noise (co)variance. Inferred from icov_wav or icov_noise_ell 
@@ -418,7 +418,7 @@ class PseudoInvPreconditionerFWav(operators.MatVecAlm):
         diagonal suffices.
     mask_pix = (npol, npix) array
         Pixel mask.
-    minfo_mask : sharp.map_info object
+    minfo_mask : map_utils.MapInfo object
         Metainfo for pixel mask covariance.
     b_ell : (npol, nell) array, optional
         Beam window function.
@@ -570,7 +570,7 @@ class MaskedPreconditioner(operators.MatVecAlm):
         Spin values for transform, should be compatible with npol.
     mask_bool = (npol, npix) array
         Pixel mask, True for observed pixels.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixel mask covariance.
     min_pix : int, optional
         Once this number of masked pixels is reached or exceeded in any
@@ -663,7 +663,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
         Spin values for transform, should be compatible with npol.
     mask_bool = (npol, npix) array
         Pixel mask, True for observed pixels.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixel mask covariance.
     lmax_r_ell : int, optional
         Lmax parameter for r_ell filter that is applied to the masked equation 

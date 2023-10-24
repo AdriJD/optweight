@@ -52,7 +52,7 @@ class Wav():
     Create upper-triangular part of 2x2 matrix.
 
     >>> indices = np.asarray([(0,0), (0,1), (1,1)])
-    >>> minfos = np.asarray([sharp.map_info_gauss_legendre(lmax) for
+    >>> minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(lmax) for
     ...                      lmax in [100, 100, 400]])
     >>> preshape = (3,)
     >>> wavmat = Wav(2, indices=indices, minfos=minfos, preshape=preshape)
@@ -134,7 +134,7 @@ class Wav():
             Index to block vector/matrix.
         m_arr : (preshape) + (npix) array
             Map array to be placed at this index.
-        minfo : sharp.map_info object
+        minfo : map_utils.MapInfo object
             Metainfo describing map array.
 
         Raises
@@ -261,7 +261,7 @@ class Wav():
 
         Returns
         -------
-        minfos : (ndiag) list of sharp.map_info objects
+        minfos : (ndiag) list of map_utils.MapInfo objects
             Map_info objects of the diagonal.
         '''
 
@@ -502,7 +502,7 @@ def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
         for widx in indices:
 
             lmax_w = winfos[widx].lmax
-            minfos.append(sharp.map_info_gauss_legendre(
+            minfos.append(map_utils.MapInfo.map_info_gauss_legendre(
                 lmax_w + 1, nphi=2 * lmax_w + 1))
 
         minfos = np.asarray(minfos)

@@ -153,7 +153,7 @@ class TestMultiGrid(unittest.TestCase):
 
     def test_interpolate(self):
 
-        lmax = 5
+        lmax = 5        
         npol = 3
         spin = [0, 2]
         ells = np.arange(lmax + 1)
@@ -161,10 +161,12 @@ class TestMultiGrid(unittest.TestCase):
         # Create 2 masks.
         minfo_out = map_utils.get_gauss_minfo(2 * lmax)
         mask_out = np.ones((3, minfo_out.npix), dtype=bool)
-        mask_out[0,np.random.randint(0, minfo_out.npix, size=50)] = False
-        mask_out[1,np.random.randint(0, minfo_out.npix, size=50)] = False
-        mask_out[2,np.random.randint(0, minfo_out.npix, size=50)] = False
 
+        # Large mask to make sure that there are still masked pixel in downgraded version.
+        mask_out[0,int(0.2 * minfo_out.npix):int(0.8 * minfo_out.npix)] = False
+        mask_out[1,int(0.3 * minfo_out.npix):int(0.9 * minfo_out.npix)] = False
+        mask_out[2,int(0.4 * minfo_out.npix):int(1 * minfo_out.npix)] = False        
+        
         minfo_in = map_utils.get_gauss_minfo(2 * lmax / 2)
         mask_in = map_utils.gauss2gauss(
             mask_out.astype(np.float32), minfo_out, minfo_in, order=1)

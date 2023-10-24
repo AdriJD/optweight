@@ -19,7 +19,7 @@ class Level():
     ----------
     mask : (npol, npix) or (npix) bool array
         Mask, True for observed pixels.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Meta info mask.
     d_ell : (npol, npol, nell) array
         Lowpass filtered inverse signal power spectrum.
@@ -33,7 +33,7 @@ class Level():
     ----------
     mask_unobs : (npol, npix) bool array
         Mask, False for observed pixels.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Meta info mask.
     npol : int
         Number of polarizations
@@ -100,7 +100,9 @@ class Level():
         for pidx in range(self.npol):
 
             test_map[pidx,sample_idx[pidx]] = 1.
+            
             omap = self.g_op(test_map)
+
             m_prec[pidx] = 1 / omap[pidx,sample_idx[pidx]]
             test_map[pidx,sample_idx[pidx]] = 0
 
@@ -112,7 +114,7 @@ class Level():
     def _init_dense_smoother(self):
         '''
         Initialize the exact solver by computing the (pseudo) inverse of the
-        G matrix. Should be used the most coarse level.
+        G matrix. Should be used for the most coarse level.
 
         Returns
         -------
@@ -160,7 +162,7 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
     ----------
     mask : (npol, npix) or (npix) bool array
         Mask, True for observed pixels.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Meta info mask.
     icov_ell : (npol, npol, nell) or (npol, nell) array
         Inverse signal power spectrum.
@@ -253,7 +255,7 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
     ----------
     mask_bool : (..., npix) bool array
         Input mask, True for observed regions.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Meta info mask.
     lmax : int, optional
         Band-limit of output map.
@@ -262,7 +264,7 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
     -------
     mask_out : (..., npix') bool array
         Ouput mask.
-    minfo_out : sharp.map_info object
+    minfo_out : map_utils.MapInfo object
         Meta info output mask.
     '''
 

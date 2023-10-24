@@ -69,12 +69,12 @@ class MapInfo():
             raise ValueError(
                 f'weight must be ({self.nrow},) got {self.weight.shape}')
         
-        self.nphi = np.array(nphi, dtype=np.uint64)
-        if not self.nphi.shape in ((), (self.nrow,)):
+        self._nphi = np.array(nphi, dtype=np.uint64)
+        if not self._nphi.shape in ((), (self.nrow,)):
             raise ValueError(
-                f'nphi must be 0d or ({self.nrow},) got {self.nphi.shape}')
-        if self.nphi.ndim == 0:
-            self.nphi = np.full(self.nrow, self.nphi, dtype=self.nphi.dtype)
+                f'nphi must be 0d or ({self.nrow},) got {self._nphi.shape}')
+        if self._nphi.ndim == 0:
+            self._nphi = np.full(self.nrow, self._nphi, dtype=self._nphi.dtype)
 
         self.phi0 = np.array(phi0, dtype=np.float64)
         if not self.phi0.shape in ((), (self.nrow,)):
@@ -84,11 +84,11 @@ class MapInfo():
             self.phi0 = np.full(self.nrow, self.phi0, dtype=self.phi0.dtype)
 
         if offsets is None:
-            self.offsets = np.concatenate(
+            self._offsets = np.concatenate(
                 [[0],np.cumsum(self.nphi[:-1])]).astype(np.uint64)
         else:
-            self.offsets = np.array(offsets, dtype=np.uint64)
-        if self.offsets.shape != (self.nrow,):
+            self._offsets = np.array(offsets, dtype=np.uint64)
+        if self._offsets.shape != (self.nrow,):
             raise ValueError(
                 f'offsets must be ({self.nrow},) got {self.offseets.shape}')
 
@@ -103,8 +103,18 @@ class MapInfo():
             self.stride = np.full(
                 self.nrow, self.stride, dtype=self.stride.dtype)
             
-        self.npix = np.sum(self.nphi)
+        self.npix = int(np.sum(self.nphi))
 
+    @property
+    def nphi(self):
+        '''Return signed int version.'''
+        return self._nphi.astype(np.int64)
+
+    @property
+    def offsets(self):
+        '''Return signed int version.'''
+        return self._offsets.astype(np.int64)
+        
     @classmethod
     def map_info_healpix(cls, nside):
         '''

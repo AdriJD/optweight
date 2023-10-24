@@ -3,7 +3,7 @@ import numpy as np
 
 from pixell import sharp
 
-from optweight import alm_utils, wavtrans
+from optweight import alm_utils, wavtrans, map_utils
 
 class TestAlmUtils(unittest.TestCase):
 
@@ -251,7 +251,7 @@ class TestAlmUtils(unittest.TestCase):
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         npol = 3
         spin = [0, 2]
@@ -270,7 +270,7 @@ class TestAlmUtils(unittest.TestCase):
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         npol = 3
         spin = [0, 2]

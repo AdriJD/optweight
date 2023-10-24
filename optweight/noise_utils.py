@@ -155,7 +155,7 @@ def estimate_cov_pix(imap, minfo, diag=False, fwhm=None, lmax=None,
     ---------
     imap : (ncomp, npol, npix)
         Input noise map.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo input map.
     diag : bool, optional
         If set, only estimate elements diagonal in pol.
@@ -243,7 +243,7 @@ def norm_cov_est(cov_est, minfo, kernel_ell, inplace=False):
     ---------
     cov_est : (..., npix) array
         Input maps.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo input map
     kernel_ell : (nell) array
         The support in multipole of the noise map from which input covariance 
@@ -431,7 +431,7 @@ def unit_var_wav(minfos, preshape, dtype, seed=None):
     
     Arguments
     ---------
-    minfos : (ndiag) array-like of sharp.map_info objects
+    minfos : (ndiag) array-like of map_utils.MapInfo objects
         Map info objects describing each wavelet map.
     preshape : tuple
         First dimensions of the maps, i.e. map.shape = preshape + (npix,)
@@ -517,7 +517,7 @@ def smooth_locally(imap, minfo, w_ell, features, spin, inplace=False):
     ---------
     imap : (1, npix)
         Input map.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo input map.
     features : (1, npix) array
         Feature map with edges etc. that need to be smoothed less.

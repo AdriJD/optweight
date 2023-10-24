@@ -203,7 +203,7 @@ class TestNoiseBoxUtils(unittest.TestCase):
     
     def test_unit_var_wav(self):
 
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         preshape = (2, 3)
         dtype = np.float32

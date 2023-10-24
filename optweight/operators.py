@@ -54,7 +54,7 @@ class YMatVecAlm(MatVecAlm):
     ----------
     ainfo : sharp.alm_info object
         Metainfo for input alms.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixelization of output map.
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
@@ -109,7 +109,7 @@ class YTWMatVecMap(MatVecMap):
 
     Parameters
     ----------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixelization of input map.
     ainfo : sharp.alm_info object
         Metainfo for output alms.
@@ -415,7 +415,7 @@ class FInvFWavFMatVecMap(MatVecMap):
 
     Parameters
     ----------
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for input maps.
     m_wav : wavtrans.Wav object
         Wavelet container for wavelet matrix.
@@ -556,7 +556,7 @@ class PixMatVecAlm(MatVecAlm):
     m_pix : (npol, npol, npix) array or (npol, npix) array
         Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
         in which case only the diagonal elements are needed.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixelization of the M matrix.
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
@@ -815,7 +815,7 @@ class EllPixEllMatVecAlm(MatVecAlm):
     x_ell : (npol, npol, nell) array or (npol, nell) array
         A matrix, either symmetric but dense in first two axes or diagonal,
         in which case only the diagonal elements are needed.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixelization of the M matrix.
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
@@ -988,7 +988,7 @@ class PixEllPixMatVecMap(MatVecMap):
     x_ell : (npol, npol, nell) array or (npol, nell) array
         A matrix, either symmetric but dense in first two axes or diagonal,
         in which case only the diagonal elements are needed.
-    minfo : sharp.map_info object
+    minfo : map_utils.MapInfo object
         Metainfo for pixelization of input map and the M matrix.
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
@@ -1099,7 +1099,7 @@ class FMatVecAlm(MatVecAlm):
         in which case only the diagonal elements are needed. WCS should correspond to 
         Fourier space and fftshift should have been applied to Y axis such that (ly, lx) = 0
         lies at (lny // 2 + 1, 0).
-    minfo_cc : sharp.map_info object
+    minfo_cc : map_utils.MapInfo object
         Metainfo for pixelization of (Clenshaw Curtis) map used for SHTs.
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be compatible with npol.
@@ -1140,7 +1140,7 @@ class FMatVecAlm(MatVecAlm):
         self.tmp_map = enmap.zeros((self.npol, minfo_cc.nrow, minfo_cc.nphi[0]),
                                    map_utils.minfo2wcs(minfo_cc), dtype=m_k.dtype)
 
-        ft_shape = (minfo_cc.nrow, minfo_cc.nphi[0] // 2 + 1)
+        ft_shape = (minfo_cc.nrow, int(minfo_cc.nphi[0]) // 2 + 1)
         self.ft_map = np.zeros((self.npol,) + ft_shape,
                           dtype=type_utils.to_complex(m_k.dtype))
 

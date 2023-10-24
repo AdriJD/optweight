@@ -13,7 +13,7 @@ class TestWavTrans(unittest.TestCase):
     def test_wav_init_vec(self):
         
         indices = np.asarray([3, 4, 6])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         preshape = (3,)
         wavvec = wavtrans.Wav(1, indices=indices, minfos=minfos, preshape=preshape)
@@ -40,7 +40,7 @@ class TestWavTrans(unittest.TestCase):
     def test_wav_diag_vec(self):
         
         indices = np.asarray([3, 4, 6])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         preshape = (3,)
         wavvec_orig = wavtrans.Wav(1, indices=indices, minfos=minfos, preshape=preshape)
@@ -101,7 +101,7 @@ class TestWavTrans(unittest.TestCase):
         np.testing.assert_array_equal(wavvec.indices, np.zeros((0, 1), dtype=int))
 
         # Add first map.
-        minfo = sharp.map_info_gauss_legendre(3)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr = np.ones((1, minfo.npix))
         index = 10
 
@@ -133,7 +133,7 @@ class TestWavTrans(unittest.TestCase):
 
         # Overwrite first map.
         index = 10
-        minfo_2 = sharp.map_info_gauss_legendre(5)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(5, 9)
         m_arr_2 = np.ones((1, minfo_2.npix))
 
         wavvec.add(index, m_arr_2, minfo_2)
@@ -153,7 +153,7 @@ class TestWavTrans(unittest.TestCase):
         wavvec = wavtrans.Wav(1)
 
         # Add first map.
-        minfo = sharp.map_info_gauss_legendre(3)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr = np.ones((2, 2, minfo.npix))
         m_arr *= np.asarray([[1, 2], [3, 4]])[:,:,np.newaxis]
         index = 10
@@ -184,7 +184,7 @@ class TestWavTrans(unittest.TestCase):
         wavvec = wavtrans.Wav(1)
 
         # Add first map.
-        minfo = sharp.map_info_gauss_legendre(3)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr = np.ones((2, 2, minfo.npix))
         index = 10
         wavvec.add(index, m_arr.copy(), minfo)
@@ -204,7 +204,7 @@ class TestWavTrans(unittest.TestCase):
         wavvec = wavtrans.Wav(1, dtype=np.float64)
 
         # Add map with wrong dtype.
-        minfo = sharp.map_info_gauss_legendre(3)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr = np.ones((1, minfo.npix), dtype=np.float32)
         index = 10
 
@@ -215,7 +215,7 @@ class TestWavTrans(unittest.TestCase):
         wavvec = wavtrans.Wav(1, preshape=(3,))
 
         # Add first map.
-        minfo = sharp.map_info_gauss_legendre(3)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr = np.ones((2, minfo.npix))
         index = 10
 
@@ -237,7 +237,7 @@ class TestWavTrans(unittest.TestCase):
     def test_wav_init_mat(self):
         
         indices = np.asarray([(0,0), (0,1), (1,1)])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         preshape = (3,)
         wavmat = wavtrans.Wav(2, indices=indices, minfos=minfos, preshape=preshape)
@@ -264,7 +264,7 @@ class TestWavTrans(unittest.TestCase):
     def test_wav_diag_mat(self):
         
         indices = np.asarray([(0,0), (0,1), (1,1)])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         preshape = (3,)
         wavmat_orig = wavtrans.Wav(2, indices=indices, minfos=minfos, preshape=preshape)
@@ -331,7 +331,7 @@ class TestWavTrans(unittest.TestCase):
         np.testing.assert_array_equal(wavmat.indices, np.zeros((0, 2), dtype=int))
 
         # Add first map.
-        minfo = sharp.map_info_gauss_legendre(3)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr = np.ones((1, minfo.npix))
         index = (10, 10)
 
@@ -366,7 +366,7 @@ class TestWavTrans(unittest.TestCase):
 
         # Overwrite first map.
         index = (10, 10)
-        minfo_2 = sharp.map_info_gauss_legendre(5)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(5, 9)
         m_arr_2 = np.ones((1, minfo_2.npix))
 
         wavmat.add(index, m_arr_2, minfo_2)
@@ -383,7 +383,7 @@ class TestWavTrans(unittest.TestCase):
 
     def test_wav_init_err(self):
         
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         preshape = (3,)
 
@@ -425,7 +425,7 @@ class TestWavTrans(unittest.TestCase):
                                      dtype=np.complex64)]
 
         winfos_exp = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
-        minfos_exp = np.asarray([sharp.map_info_gauss_legendre(
+        minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
         sht.alm2map(wlms_exp[0], maps_exp[0], winfos_exp[0], minfos_exp[0], spin)
@@ -460,7 +460,7 @@ class TestWavTrans(unittest.TestCase):
                                          dtype=np.complex128))
 
         winfos_exp = [sharp.alm_info(lmax=2), sharp.alm_info(lmax=3)]
-        minfos_exp = np.asarray([sharp.map_info_gauss_legendre(
+        minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [2, 3]])
         maps_exp = [np.zeros((3, minfos_exp[idx].npix), dtype=np.float64) 
                     for idx in [0, 1]]
@@ -488,7 +488,7 @@ class TestWavTrans(unittest.TestCase):
                                      dtype=np.complex64)]
 
         winfos_exp = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
-        minfos_exp = np.asarray([sharp.map_info_gauss_legendre(
+        minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
         sht.alm2map(wlms_exp[0], maps_exp[0], winfos_exp[0], minfos_exp[0], spin)
@@ -519,7 +519,7 @@ class TestWavTrans(unittest.TestCase):
                                      dtype=np.complex64)]
 
         winfos_exp = [sharp.alm_info(lmax=2), sharp.alm_info(lmax=3)]
-        minfos_exp = np.asarray([sharp.map_info_gauss_legendre(
+        minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [2, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
         sht.alm2map(wlms_exp[0], maps_exp[0], winfos_exp[0], minfos_exp[0], spin)
@@ -545,7 +545,7 @@ class TestWavTrans(unittest.TestCase):
                                      dtype=np.complex64)]
 
         winfos_exp = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
-        minfos_exp = np.asarray([sharp.map_info_gauss_legendre(
+        minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
         sht.alm2map(wlms_exp[0], maps_exp[0], winfos_exp[0],
@@ -582,7 +582,7 @@ class TestWavTrans(unittest.TestCase):
                                    dtype=np.complex128))
 
         winfos_exp = [sharp.alm_info(lmax=2), sharp.alm_info(lmax=3)]
-        minfos_exp = np.asarray([sharp.map_info_gauss_legendre(
+        minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [2, 3]])
         maps_exp = [np.zeros((3, minfos_exp[idx].npix), dtype=np.float64) 
                     for idx in [0, 1]]
@@ -601,7 +601,7 @@ class TestWavTrans(unittest.TestCase):
 
         ainfo = sharp.alm_info(lmax=3)
         alm = np.zeros((1, ainfo.nelem), dtype=np.complex128)
-        minfos_exp = np.asarray([sharp.map_info_gauss_legendre(
+        minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
         w_ell = np.zeros((2, 4))
         w_ell[0,:2] = 1
@@ -651,7 +651,7 @@ class TestWavTrans(unittest.TestCase):
     def test_wav_get_indices_diag(self):
         
         indices = np.asarray([(0,0), (0,1), (1,1)])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         wavmat = wavtrans.Wav(2, indices=indices, minfos=minfos)
 
@@ -660,7 +660,7 @@ class TestWavTrans(unittest.TestCase):
 
         # Again, but with block vector.
         indices = np.asarray([3, 4, 6])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         wavvec = wavtrans.Wav(1, indices=indices, minfos=minfos)
 
@@ -670,7 +670,7 @@ class TestWavTrans(unittest.TestCase):
     def test_wav_get_minfos_diag(self):
         
         indices = np.asarray([(0,0), (0,1), (1,1)])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         wavmat = wavtrans.Wav(2, indices=indices, minfos=minfos)
 
@@ -690,7 +690,7 @@ class TestWavTrans(unittest.TestCase):
 
         # Again, but with block vector.
         indices = np.asarray([3, 4, 6])
-        minfos = np.asarray([sharp.map_info_gauss_legendre(
+        minfos = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [3, 3, 4]])
         wavvec = wavtrans.Wav(1, indices=indices, minfos=minfos)
 
@@ -782,14 +782,14 @@ class TestWavTransIO(unittest.TestCase):
         wavvec = wavtrans.Wav(1)
 
         # Add first map.
-        minfo_1 = sharp.map_info_gauss_legendre(3)
+        minfo_1 = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr_1 = np.ones((3, minfo_1.npix))
         index_1 = 10
 
         wavvec.add(index_1, m_arr_1, minfo_1)
 
         # Add second map.
-        minfo_2 = sharp.map_info_gauss_legendre(4)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(4, 7)
         m_arr_2 = np.ones((3, minfo_2.npix))
         index_2 = 5
 
@@ -819,14 +819,14 @@ class TestWavTransIO(unittest.TestCase):
         wavvec = wavtrans.Wav(1)
 
         # Add first map.
-        minfo_1 = sharp.map_info_gauss_legendre(3)
+        minfo_1 = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr_1 = np.ones((3, minfo_1.npix))
         index_1 = 10
 
         wavvec.add(index_1, m_arr_1, minfo_1)
 
         # Add second map.
-        minfo_2 = sharp.map_info_gauss_legendre(4)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(4, 7)
         m_arr_2 = np.ones((3, minfo_2.npix))
         index_2 = 5
 
@@ -862,14 +862,14 @@ class TestWavTransIO(unittest.TestCase):
         wavmat = wavtrans.Wav(2)
 
         # Add first map.
-        minfo_1 = sharp.map_info_gauss_legendre(3)
+        minfo_1 = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr_1 = np.ones((1, minfo_1.npix))
         index_1 = (10, 10)
 
         wavmat.add(index_1, m_arr_1, minfo_1)
 
         # Add second map.
-        minfo_2 = sharp.map_info_gauss_legendre(4)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(4, 7)
         m_arr_2 = np.ones((1, minfo_2.npix))
         index_2 = (5, 5)
 
@@ -899,14 +899,14 @@ class TestWavTransIO(unittest.TestCase):
         wavmat = wavtrans.Wav(2)
 
         # Add first map.
-        minfo_1 = sharp.map_info_gauss_legendre(3)
+        minfo_1 = map_utils.MapInfo.map_info_gauss_legendre(3, 5)
         m_arr_1 = np.ones((1, minfo_1.npix))
         index_1 = (10, 10)
 
         wavmat.add(index_1, m_arr_1, minfo_1)
 
         # Add second map.
-        minfo_2 = sharp.map_info_gauss_legendre(4)
+        minfo_2 = map_utils.MapInfo.map_info_gauss_legendre(4, 7)
         m_arr_2 = np.ones((1, minfo_2.npix))
         index_2 = (5, 5)
 

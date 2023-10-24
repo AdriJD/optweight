@@ -3,7 +3,7 @@ import numpy as np
 
 from pixell import curvedsky, sharp
 
-from optweight import sht
+from optweight import sht, map_utils
 
 class TestSHT(unittest.TestCase):
 
@@ -18,7 +18,7 @@ class TestSHT(unittest.TestCase):
         nrings = lmax + 1
         nphi = 2 * lmax + 1
 
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
         omap = np.zeros((1, minfo.npix))
 
         sht.alm2map(alm, omap, ainfo, minfo, spin)
@@ -38,7 +38,7 @@ class TestSHT(unittest.TestCase):
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         omap = np.zeros((3, minfo.npix))
 
@@ -63,7 +63,7 @@ class TestSHT(unittest.TestCase):
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         omap = np.zeros((2, 3, minfo.npix))
 
@@ -83,7 +83,7 @@ class TestSHT(unittest.TestCase):
         nrings = lmax + 1
         nphi = 2 * lmax + 1
 
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
         imap = np.zeros((1, minfo.npix))
         omap = np.zeros_like(imap)
 
@@ -105,7 +105,7 @@ class TestSHT(unittest.TestCase):
         nrings = lmax + 1
         nphi = 2 * lmax + 1
 
-        minfo_full = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo_full = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         # Only keep rings in the middle.
         theta_mask = [False, False, True, True, True, False]
@@ -116,8 +116,8 @@ class TestSHT(unittest.TestCase):
         offsets = minfo_full.offsets[theta_mask]
         offsets -= offsets[0]
 
-        minfo = sharp.map_info(theta, nphi=nphi, phi0=0, offsets=offsets,
-                               stride=stride, weight=weight)
+        minfo = map_utils.MapInfo(theta, weight, nphi=nphi, phi0=0, offsets=offsets,
+                               stride=stride)
 
         imap_full = np.zeros((1, minfo_full.npix))
         omap = np.zeros((1, minfo.npix))
@@ -146,7 +146,7 @@ class TestSHT(unittest.TestCase):
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
         imap = np.zeros((1, minfo.npix))
 
         # Wrong spin.
@@ -169,7 +169,7 @@ class TestSHT(unittest.TestCase):
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
         omap = np.zeros((1, minfo.npix))
 
         # Wrong spin.

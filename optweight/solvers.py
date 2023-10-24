@@ -314,7 +314,7 @@ class CGWienerMap(utils.CG):
         ----------
         imap : (npol, npix) array
             Input map
-        minfo : sharp.map_info object
+        minfo : map_utils.MapInfo object
             Metainfo for input map.
         ainfo : sharp.alm_info object
             Metainfo for output alms.
@@ -328,7 +328,7 @@ class CGWienerMap(utils.CG):
             Beam window functions.
         mask_pix = (npol, npix) array, optional
             Pixel mask.
-        minfo_mask : sharp.map_info object
+        minfo_mask : map_utils.MapInfo object
             Metainfo for pixel mask.
         draw_constr : bool, optional
             If set, initialize for constrained realization instead of Wiener.
@@ -398,7 +398,7 @@ class CGWienerMap(utils.CG):
         ----------
         imap : (npol, npix) array
             Input map
-        minfo : sharp.map_info object
+        minfo : map_utils.MapInfo object
             Metainfo for input map.
         ainfo : sharp.alm_info object
             Metainfo for output alms.
@@ -416,7 +416,7 @@ class CGWienerMap(utils.CG):
             Beam window functions.
         mask_pix = (npol, npix) array, optional
             Pixel mask.
-        minfo_mask : sharp.map_info object
+        minfo_mask : map_utils.MapInfo object
             Metainfo for pixel mask.
         draw_constr : bool, optional
             If set, initialize for constrained realization instead of Wiener.
@@ -769,7 +769,7 @@ class CGWiener(utils.CG):
             Inverse signal covariance. If diagonal, only the diagonal suffices.
         icov_pix : (npol, npol, npix) or (npol, npix) array
             Inverse noise covariance. If diagonal, only the diagonal suffices.
-        minfo : sharp.map_info object
+        minfo : map_utils.MapInfo object
             Metainfo for inverse noise covariance.
         *extra_args
             Possible extra arguments to init, used for inherited classes.
@@ -792,7 +792,7 @@ class CGWiener(utils.CG):
         kfilt : (npol, npol, ky, kx) or (npol, ky, kx) ndmap, optional
             Fourier filter, WCS should correspond to Fourier space and fftshift should 
             have been applied to Y axis such that (ly, lx) = 0 lies at (lny // 2 + 1, 0).
-        minfo_kfilt : sharp.map_info object, optional
+        minfo_kfilt : map_utils.MapInfo object, optional
             Metainfo for Clenshaw Curtis map used for Fourier filter.
         '''
 
@@ -868,7 +868,7 @@ class CGWiener(utils.CG):
             Beam window functions.
         mask_pix = (npol, npix) array, optional
             Pixel mask.
-        minfo_mask : sharp.map_info object
+        minfo_mask : map_utils.MapInfo object
             Metainfo for pixel mask.
         draw_constr : bool, optional
             If set, initialize for constrained realization instead of Wiener.
@@ -886,7 +886,7 @@ class CGWiener(utils.CG):
         kfilt : (npol, npol, ky, kx) or (npol, ky, kx) ndmap, optional
             Fourier filter, WCS should correspond to Fourier space and fftshift should 
             have been applied to Y axis such that (ly, lx) = 0 lies at (lny // 2 + 1, 0).
-        minfo_kfilt : sharp.map_info object, optional
+        minfo_kfilt : map_utils.MapInfo object, optional
             Metainfo for Clenshaw Curtis map used for Fourier filter.
         '''
 

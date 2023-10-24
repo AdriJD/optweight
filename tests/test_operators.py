@@ -9,6 +9,7 @@ from optweight import sht
 from optweight import alm_utils
 from optweight import noise_utils
 from optweight import dft
+from optweight import map_utils
 
 class TestOperators(unittest.TestCase):
     
@@ -143,7 +144,7 @@ class TestOperators(unittest.TestCase):
         spin = [0, 2]
         power = 1
 
-        minfo = sharp.map_info_gauss_legendre(3) # (lmax + 1).
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5) # (lmax + 1).
 
         # This function should do Yt icov Y. So if we make icov = W, where
         # W are the quadrature weights, the functions should do Yt W Y = 1.
@@ -172,7 +173,7 @@ class TestOperators(unittest.TestCase):
         spin = [0, 2]
         power = 0.5
 
-        minfo = sharp.map_info_gauss_legendre(3) # (lmax + 1).
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(3, 5) # (lmax + 1).
 
         # This function should do Yt icov Y. So if we make icov = W^2, where
         # W are the quadrature weights, the functions should do Yt sqrt(W^2) Y = 1.
@@ -203,13 +204,15 @@ class TestOperators(unittest.TestCase):
         m_wav = wavtrans.Wav(2)
 
         # Add first map.
-        minfo1 = sharp.map_info_gauss_legendre(lmaxs[0] + 1)
+        minfo1 = map_utils.MapInfo.map_info_gauss_legendre(
+            lmaxs[0] + 1, 2 * lmaxs[0] + 1)
         m_arr1 = np.ones((1, minfo1.npix)) * 10
         index1 = (0, 0)
         m_wav.add(index1, m_arr1, minfo1)
 
         # Add second map.
-        minfo2 = sharp.map_info_gauss_legendre(lmaxs[1] + 1)
+        minfo2 = map_utils.MapInfo.map_info_gauss_legendre(
+            lmaxs[1] + 1, 2 * lmaxs[1] + 1)
         m_arr2 = np.ones((1, minfo2.npix)) * 20
         index2 = (1, 1)
         m_wav.add(index2, m_arr2, minfo2)
@@ -250,13 +253,15 @@ class TestOperators(unittest.TestCase):
         m_wav = wavtrans.Wav(2, preshape=(npol,))
 
         # Add first map.
-        minfo1 = sharp.map_info_gauss_legendre(lmaxs[0] + 1)
+        minfo1 = map_utils.MapInfo.map_info_gauss_legendre(
+            lmaxs[0] + 1, 2 * lmaxs[0] + 1)
         m_arr1 = np.ones((npol, minfo1.npix)) * 10
         index1 = (0, 0)
         m_wav.add(index1, m_arr1, minfo1)
 
         # Add second map.
-        minfo2 = sharp.map_info_gauss_legendre(lmaxs[1] + 1)
+        minfo2 = map_utils.MapInfo.map_info_gauss_legendre(
+            lmaxs[1] + 1, 2 * lmaxs[1] + 1)
         m_arr2 = np.ones((npol, minfo2.npix)) * 20
         index2 = (1, 1)
         m_wav.add(index2, m_arr2, minfo2)
@@ -396,7 +401,7 @@ class TestOperators(unittest.TestCase):
         # Example of how to deal with complex alms.
         lmax = 3
         ainfo = sharp.alm_info(lmax)
-        minfo = sharp.map_info_gauss_legendre(lmax + 1)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(lmax + 1, 2 * lmax + 1)
 
         def alm2map_real(alm_real):
             alm = alm_real.view(np.complex64)
@@ -421,7 +426,7 @@ class TestOperators(unittest.TestCase):
         # the functions should do W Y Yt W = W.
 
         lmax = 2
-        minfo = sharp.map_info_gauss_legendre(lmax + 1)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(lmax + 1, 2 * lmax + 1)
         spin = [0, 2]
 
         m_pix = np.zeros((3, 3, minfo.nrow, minfo.nphi[0]))
@@ -461,14 +466,14 @@ class TestOperators(unittest.TestCase):
         lmax = 10
         spin = [0, 2]
         ainfo = sharp.alm_info(lmax)
-        minfo = sharp.map_info_clenshaw_curtis(2 * lmax + 1)
+        minfo = map_utils.MapInfo.map_info_clenshaw_curtis(2 * lmax + 1, 2 * lmax + 1)
 
         # Create smaller patch for 2D power spectrum.
         ny = 6
         nx = 11
         shape, wcs = enmap.geometry([0,0], res=10, deg=True, shape=(ny, nx))
         lwcs = dft.lwcs_real(shape, wcs)
-        m_k = enmap.ones((3, minfo.nrow, minfo.nphi[0] // 2 + 1), 
+        m_k = enmap.ones((3, minfo.nrow, int(minfo.nphi[0]) // 2 + 1), 
                          lwcs)
         
         alm = np.arange(1, 1 + 3 * ainfo.nelem).reshape(3, ainfo.nelem)
@@ -585,7 +590,7 @@ class TestOperators(unittest.TestCase):
         
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         imap = np.zeros((3, minfo.npix))
         omap_exp = imap.copy()
@@ -606,7 +611,7 @@ class TestOperators(unittest.TestCase):
         
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         imap = np.zeros((3, minfo.npix))
         omap_exp = imap.copy()
@@ -629,7 +634,7 @@ class TestOperators(unittest.TestCase):
         
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         imap = np.zeros((3, minfo.npix))
         omap_exp = imap.copy()
@@ -650,7 +655,7 @@ class TestOperators(unittest.TestCase):
         
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         imap = np.zeros((3, minfo.npix))    
         sht.alm2map(alm, imap, ainfo, minfo, spin)        
@@ -673,7 +678,7 @@ class TestOperators(unittest.TestCase):
         
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         imap = np.zeros((3, minfo.npix))    
         sht.alm2map(alm, imap, ainfo, minfo, spin)        
@@ -698,7 +703,7 @@ class TestOperators(unittest.TestCase):
         
         nrings = lmax + 1
         nphi = 2 * lmax + 1
-        minfo = sharp.map_info_gauss_legendre(nrings, nphi)
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(nrings, nphi)
 
         imap = np.zeros((3, minfo.npix))    
         sht.alm2map(alm, imap, ainfo, minfo, spin)        
