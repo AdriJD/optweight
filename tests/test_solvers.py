@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import sharp, utils
+from pixell import curvedsky, utils
 
 from optweight import solvers
 from optweight import alm_utils
@@ -177,7 +177,7 @@ class TestCGWiener(unittest.TestCase):
     def test_CGWiener_from_arrays(self):
         
         lmax = 2
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
         alm_data = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm_data = alm_data[np.newaxis,:]
         
@@ -279,7 +279,7 @@ class TestCGWienerScaled(unittest.TestCase):
     def test_CGWienerScaled_from_arrays(self):
         
         lmax = 2
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
         alm_data = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm_data = alm_data[np.newaxis,:]
         

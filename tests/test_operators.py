@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import sharp, curvedsky, enmap
+from pixell import curvedsky, enmap
 
 from optweight import operators
 from optweight import wavtrans
@@ -20,7 +20,7 @@ class TestOperators(unittest.TestCase):
     def test_EllMatVecAlm(self):
 
         alm = np.zeros((3, 6), dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         alm[0] = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm[1] = np.asarray([0, 0, 6, 0, 10j, 12])
         alm[2] = np.asarray([0, 0, 9, 0, 15j, 18])
@@ -43,7 +43,7 @@ class TestOperators(unittest.TestCase):
     def test_EllMatVecAlm_sqrt(self):
 
         alm = np.zeros((3, 6), dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         alm[0] = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm[1] = np.asarray([0, 0, 6, 0, 10j, 12])
         alm[2] = np.asarray([0, 0, 9, 0, 15j, 18])
@@ -66,7 +66,7 @@ class TestOperators(unittest.TestCase):
     def test_matvec_pow_ell_alm_diag(self):
         
         alm = np.zeros((3, 6), dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         alm[0] = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm[1] = np.asarray([0, 0, 6, 0, 10j, 12])
         alm[2] = np.asarray([0, 0, 9, 0, 15j, 18])
@@ -89,7 +89,7 @@ class TestOperators(unittest.TestCase):
     def test_matvec_pow_ell_alm_diag_sqrt(self):
         
         alm = np.zeros((3, 6), dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         alm[0] = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm[1] = np.asarray([0, 0, 6, 0, 10j, 12])
         alm[2] = np.asarray([0, 0, 9, 0, 15j, 18])
@@ -112,7 +112,7 @@ class TestOperators(unittest.TestCase):
     def test_matvec_pow_ell_alm_sqrt_inplace(self):
         
         alm = np.zeros((3, 6), dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         alm[0] = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm[1] = np.asarray([0, 0, 6, 0, 10j, 12])
         alm[2] = np.asarray([0, 0, 9, 0, 15j, 18])
@@ -137,7 +137,7 @@ class TestOperators(unittest.TestCase):
     def test_matvec_pow_pix_alm(self):
         
         alm = np.zeros((3, 6), dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         alm[0] = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm[1] = np.asarray([0, 0, 6, 0, 10j, 12])
         alm[2] = np.asarray([0, 0, 9, 0, 15j, 18])
@@ -166,7 +166,7 @@ class TestOperators(unittest.TestCase):
     def test_matvec_pow_pix_alm_sqrt(self):
         
         alm = np.zeros((3, 6), dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         alm[0] = np.asarray([1, 2, 3, 4j, 5j, 6])
         alm[1] = np.asarray([0, 0, 6, 0, 10j, 12])
         alm[2] = np.asarray([0, 0, 9, 0, 15j, 18])
@@ -195,7 +195,7 @@ class TestOperators(unittest.TestCase):
     def test_WavMatVecAlm(self):
 
         lmax = 3
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
         spin = 0
         w_ell = np.zeros((2, lmax + 1))
         lmaxs = [1, lmax]
@@ -244,7 +244,7 @@ class TestOperators(unittest.TestCase):
 
         lmax = 3
         npol = 3
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
         spin = [0, 2]
         w_ell = np.zeros((2, lmax + 1))
         lmaxs = [2, lmax]
@@ -294,10 +294,12 @@ class TestOperators(unittest.TestCase):
         # pixel, compare wavelet weighting to N^-1_ell weighting.
         ny = 50
         nx = 100
-        omap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], 10, dims=(1,), oversample=4)
-        shape = omap.shape[-2:]
-        wcs = omap.wcs
+
+        oversample = 4
+        lmax_map = 10
+        shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax_map),
+                                                 2 * np.pi / (2 * oversample * lmax_map + 1)])
+        omap = enmap.zeros((1,) + shape, wcs)
 
         lmax = 30
         bins = np.arange(lmax + 1)
@@ -322,7 +324,7 @@ class TestOperators(unittest.TestCase):
 
         icov_wav = noise_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
 
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
         spin = 0
         alm = np.ones((1, ainfo.nelem), dtype=np.complex128)
         icov_noise = operators.WavMatVecAlm(ainfo, icov_wav, w_ell, spin)
@@ -338,11 +340,13 @@ class TestOperators(unittest.TestCase):
         # pixel, compare wavelet weighting to N^-1_ell weighting.
         ny = 50
         nx = 100
-        omap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], 10, dims=(1,), oversample=4)
-        shape = omap.shape[-2:]
-        wcs = omap.wcs
 
+        oversample = 4
+        lmax_map = 10
+        shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax_map),
+                                                 2 * np.pi / (2 * oversample * lmax_map + 1)])
+        omap = enmap.zeros((1,) + shape, wcs)
+        
         lmax = 30
         bins = np.arange(lmax + 1)
         # Create almost flat spectrum. Scale by conversion factor
@@ -366,7 +370,7 @@ class TestOperators(unittest.TestCase):
 
         icov_wav = noise_utils.noisebox2wavmat(noisebox, bins, w_ell, offsets=[0])
 
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
         spin = 0
         alm = np.ones((1, ainfo.nelem), dtype=np.complex128)
         icov_noise = operators.WavMatVecAlm(ainfo, icov_wav, w_ell, spin)
@@ -400,7 +404,7 @@ class TestOperators(unittest.TestCase):
 
         # Example of how to deal with complex alms.
         lmax = 3
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         minfo = map_utils.MapInfo.map_info_gauss_legendre(lmax + 1, 2 * lmax + 1)
 
         def alm2map_real(alm_real):
@@ -465,7 +469,7 @@ class TestOperators(unittest.TestCase):
 
         lmax = 10
         spin = [0, 2]
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         minfo = map_utils.MapInfo.map_info_clenshaw_curtis(2 * lmax + 1, 2 * lmax + 1)
 
         # Create smaller patch for 2D power spectrum.
@@ -585,7 +589,7 @@ class TestOperators(unittest.TestCase):
         lmax = 4
         spin = [0, 2]
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
         
         nrings = lmax + 1
@@ -606,7 +610,7 @@ class TestOperators(unittest.TestCase):
         lmax = 4
         spin = [0, 2]
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
         
         nrings = lmax + 1
@@ -629,7 +633,7 @@ class TestOperators(unittest.TestCase):
         lmax = 4
         spin = [0, 2]
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
         
         nrings = lmax + 1
@@ -650,7 +654,7 @@ class TestOperators(unittest.TestCase):
         lmax = 4
         spin = [0, 2]
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
         
         nrings = lmax + 1
@@ -673,7 +677,7 @@ class TestOperators(unittest.TestCase):
         lmax = 4
         spin = [0, 2]
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
         
         nrings = lmax + 1
@@ -698,7 +702,7 @@ class TestOperators(unittest.TestCase):
         lmax = 4
         spin = [0, 2]
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.ones((3, ainfo.nelem), dtype=np.complex128)
         
         nrings = lmax + 1

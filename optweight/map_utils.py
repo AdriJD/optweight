@@ -8,7 +8,7 @@ from scipy.interpolate import (NearestNDInterpolator, RectBivariateSpline,
 from scipy.special import roots_legendre
 import os
 
-from pixell import enmap, sharp, utils, wcsutils
+from pixell import enmap, utils, wcsutils, curvedsky
 import healpy as hp
 import h5py
 import ducc0
@@ -609,7 +609,7 @@ def gauss2gauss(imap, minfo_in, minfo_out, order=3, area_pow=0):
 def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
     '''
     Interpolate one Gauss-Legendre map to an equal-area GL map (or a generic 
-    libsharp compatible map) at different resolution.
+    ducc compatible map) at different resolution.
 
     imap : (..., npix) array
         Input map.
@@ -1007,7 +1007,7 @@ def inv_qweight_map(imap, minfo, inplace=False, qweight=False):
         Input maps.
     minfo : map_utils.MapInfo object
         Metainfo for pixelization of input maps.    
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for internally used alms.
     inplace : bool, optional
         Perform operation in place.
@@ -1231,7 +1231,7 @@ def round_icov_matrix(icov_pix, rtol=1e-2, threshold=False):
 
 def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
     '''
-    Compute map_info metadata for a Libsharp grid
+    Compute map_info metadata for a Ducc grid
     given a cylindrical enmap shape and wcs.
 
     Parameters
@@ -1296,7 +1296,7 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
 def match_enmap_minfo(shape, wcs, mtype='CC'):
     '''
     Given a enmap in the Clenshaw-Curtis CAR variant, find the matching 
-    map_info object for libsharp.
+    map_info object for ducc.
 
     Parameters
     ----------
@@ -1325,7 +1325,7 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     -----
     Different from the methods in pixell.curvedsky in the sense that we
     don't modifiy the input map, e.g. flipping it horizontally, vertically,
-    but instead modify the libsharp's map info object if we need to flip something.
+    but instead modify the ducc's map info object if we need to flip something.
     '''
 
     if mtype not in ('CC', 'fejer1'):
@@ -1359,7 +1359,7 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     # This is also where you crash if you don't find a match.
     ntheta = shape[-2]
     theta = enmap.pix2sky(shape, wcs, [np.arange(ntheta),np.zeros(ntheta)])[0]
-    # Convert to colatitude, which is what libsharp uses.
+    # Convert to colatitude, which is what ducc uses.
     theta = np.pi / 2 - theta
 
     atol = 1e-6
@@ -1537,7 +1537,7 @@ def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
     npol = imap.shape[0]
 
     lmax = lmat.shape[-1] - 1
-    ainfo = sharp.alm_info(lmax)
+    ainfo = curvedsky.alm_info(lmax)
     alm = np.zeros((npol, ainfo.nelem), dtype=type_utils.to_complex(imap.dtype))
 
     sht.map2alm(imap, alm, minfo, ainfo, spin, adjoint=False)

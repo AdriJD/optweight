@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-from pixell import sharp, enmap, utils
+from pixell import curvedsky, enmap, utils
 
 from optweight import (sht, dft, wavtrans, alm_utils, type_utils, alm_c_utils,
                        mat_utils, map_utils)
@@ -52,7 +52,7 @@ class YMatVecAlm(MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     minfo : map_utils.MapInfo object
         Metainfo for pixelization of output map.
@@ -111,7 +111,7 @@ class YTWMatVecMap(MatVecMap):
     ----------
     minfo : map_utils.MapInfo object
         Metainfo for pixelization of input map.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for output alms.
     spin : int, array-like
         Spin values for spherical harmonic transforms, should be
@@ -197,7 +197,7 @@ class EllMatVecAlm(MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     m_ell : (npol, npol, nell) array or (npol, nell) array
         M matrix, either symmetric but dense in first two axes or diagonal,
@@ -551,7 +551,7 @@ class PixMatVecAlm(MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     m_pix : (npol, npol, npix) array or (npol, npix) array
         Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
@@ -635,7 +635,7 @@ class EllWavEllMatVecAlm(MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     m_wav : wavtrans.Wav object
         Wavelet block matrix.
@@ -693,7 +693,7 @@ class WavMatVecAlm(MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     m_wav : wavtrans.Wav object
         Wavelet block matrix.
@@ -742,7 +742,7 @@ class WavMatVecAlm(MatVecAlm):
             # Note, only valid for Gauss Legendre pixels.
             # We use nphi to support maps with cuts in theta.
             lmax = (minfo.nphi[0] - 1) // 2
-            winfos[index] = sharp.alm_info(lmax=lmax)
+            winfos[index] = curvedsky.alm_info(lmax=lmax)
 
         self.winfos = winfos
 
@@ -807,7 +807,7 @@ class EllPixEllMatVecAlm(MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     m_pix : (npol, npol, npix) array or (npol, npix) array
         Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
@@ -1034,7 +1034,7 @@ class PixEllPixMatVecMap(MatVecMap):
         self.npol = x_ell.shape[0]
         if lmax is None:
             lmax = map_utils.minfo2lmax(minfo)
-        self.ainfo = sharp.alm_info(lmax)
+        self.ainfo = curvedsky.alm_info(lmax)
         self.minfo = minfo
         self.spin = spin
         self.inplace = inplace
@@ -1092,7 +1092,7 @@ class FMatVecAlm(MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     m_k : (npol, npol, nly, nlx) array or (npol, nly, nlx) ndmap
         Matrix, diagonal in 2D Fourier domain, either dense in first two axes or diagonal,

@@ -4,7 +4,7 @@ import os
 import tempfile
 import pathlib
 
-from pixell import sharp, enmap, curvedsky
+from pixell import enmap, curvedsky
 
 from optweight import wavtrans, sht, map_utils, dft, fkernel
 
@@ -414,7 +414,7 @@ class TestWavTrans(unittest.TestCase):
     def test_alm2wav(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
@@ -424,7 +424,7 @@ class TestWavTrans(unittest.TestCase):
                     0.5 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10],
                                      dtype=np.complex64)]
 
-        winfos_exp = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
+        winfos_exp = [curvedsky.alm_info(lmax=1), curvedsky.alm_info(lmax=3)]
         minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
@@ -443,7 +443,7 @@ class TestWavTrans(unittest.TestCase):
         alm[0] = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex128)
         alm[1] = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex128) * 2
         alm[2] = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex128) * 3
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4))
         w_ell[0,:3] = 1
         w_ell[1,3:] = 0.5
@@ -459,7 +459,7 @@ class TestWavTrans(unittest.TestCase):
                                           [0, 0, 0, 12, 0, 0, 21, 0, 27, 30]],
                                          dtype=np.complex128))
 
-        winfos_exp = [sharp.alm_info(lmax=2), sharp.alm_info(lmax=3)]
+        winfos_exp = [curvedsky.alm_info(lmax=2), curvedsky.alm_info(lmax=3)]
         minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [2, 3]])
         maps_exp = [np.zeros((3, minfos_exp[idx].npix), dtype=np.float64) 
@@ -477,7 +477,7 @@ class TestWavTrans(unittest.TestCase):
     def test_alm2wav_wav(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
@@ -487,7 +487,7 @@ class TestWavTrans(unittest.TestCase):
                     0.5 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10],
                                      dtype=np.complex64)]
 
-        winfos_exp = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
+        winfos_exp = [curvedsky.alm_info(lmax=1), curvedsky.alm_info(lmax=3)]
         minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
@@ -506,7 +506,7 @@ class TestWavTrans(unittest.TestCase):
     def test_alm2wav_lmaxs(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
@@ -518,7 +518,7 @@ class TestWavTrans(unittest.TestCase):
                     0.5 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10],
                                      dtype=np.complex64)]
 
-        winfos_exp = [sharp.alm_info(lmax=2), sharp.alm_info(lmax=3)]
+        winfos_exp = [curvedsky.alm_info(lmax=2), curvedsky.alm_info(lmax=3)]
         minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [2, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
@@ -534,7 +534,7 @@ class TestWavTrans(unittest.TestCase):
     def test_alm2wav_adjoint(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
@@ -544,7 +544,7 @@ class TestWavTrans(unittest.TestCase):
                     0.5 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10],
                                      dtype=np.complex64)]
 
-        winfos_exp = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
+        winfos_exp = [curvedsky.alm_info(lmax=1), curvedsky.alm_info(lmax=3)]
         minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
         maps_exp = [np.zeros(minfos_exp[idx].npix, dtype=np.float32) for idx in [0, 1]]
@@ -565,7 +565,7 @@ class TestWavTrans(unittest.TestCase):
         alm[0] = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex128)
         alm[1] = np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10], dtype=np.complex128) * 2
         alm[2] = np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10], dtype=np.complex128) * 3
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4))
         w_ell[0,:3] = 1
         w_ell[1,3:] = 1
@@ -581,7 +581,7 @@ class TestWavTrans(unittest.TestCase):
                                     [0, 0, 0, 12, 0, 0, 21, 0, 27, 30]],
                                    dtype=np.complex128))
 
-        winfos_exp = [sharp.alm_info(lmax=2), sharp.alm_info(lmax=3)]
+        winfos_exp = [curvedsky.alm_info(lmax=2), curvedsky.alm_info(lmax=3)]
         minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [2, 3]])
         maps_exp = [np.zeros((3, minfos_exp[idx].npix), dtype=np.float64) 
@@ -599,7 +599,7 @@ class TestWavTrans(unittest.TestCase):
 
     def test_wav2alm_adjoint(self):
 
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         alm = np.zeros((1, ainfo.nelem), dtype=np.complex128)
         minfos_exp = np.asarray([map_utils.MapInfo.map_info_gauss_legendre(
             lmax + 1, 2 * lmax + 1) for lmax in [1, 3]])
@@ -615,8 +615,8 @@ class TestWavTrans(unittest.TestCase):
 
         wavtrans.wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=True)
 
-        ainfo_1 = sharp.alm_info(lmax=1)
-        ainfo_2 = sharp.alm_info(lmax=3)
+        ainfo_1 = curvedsky.alm_info(lmax=1)
+        ainfo_2 = curvedsky.alm_info(lmax=3)
 
         alm_1 = np.zeros((1, ainfo_1.nelem), dtype=np.complex128)
         alm_2 = np.zeros((1, ainfo_2.nelem), dtype=np.complex128)
@@ -1018,10 +1018,11 @@ class TestWavTransIO(unittest.TestCase):
         lmax = 30
 
         preshape = (2,)
-        imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=preshape,
-            oversample=1)
-
+        oversample = 1
+        shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
+                                         2 * np.pi / (2 * oversample * lmax + 1)])
+        imap = enmap.zeros(preshape + shape, wcs)
+        
         ly, lx = dft.laxes_real(imap.shape, imap.wcs)
         modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(
@@ -1043,10 +1044,11 @@ class TestWavTransIO(unittest.TestCase):
         lmax = 30
 
         preshape = (2,)
-        imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=preshape,
-            oversample=1)
-
+        oversample = 1
+        shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
+                                         2 * np.pi / (2 * oversample * lmax + 1)])
+        imap = enmap.zeros(preshape + shape, wcs)
+        
         ly, lx = dft.laxes_real(imap.shape, imap.wcs)
         modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(
@@ -1068,10 +1070,11 @@ class TestWavTransIO(unittest.TestCase):
         lmax = 30
 
         preshape = (2,)
-        imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=preshape,
-            oversample=1)
-
+        oversample = 1
+        shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
+                                         2 * np.pi / (2 * oversample * lmax + 1)])
+        imap = enmap.zeros(preshape + shape, wcs)
+        
         ly, lx = dft.laxes_real(imap.shape, imap.wcs)
         modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(

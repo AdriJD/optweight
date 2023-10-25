@@ -1,9 +1,9 @@
 import unittest
 import numpy as np
 
-from pixell import sharp
+from pixell import curvedsky
 
-from optweight import mat_utils, wavtrans
+from optweight import mat_utils, wavtrans, map_utils
 
 class TestMatUtils(unittest.TestCase):
 
@@ -249,7 +249,7 @@ class TestMatUtils(unittest.TestCase):
         power = 0.5
         lmax = 3
         npol = 3
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
         spin = [0, 2]
         w_ell = np.zeros((2, lmax + 1))
         lmaxs = [2, lmax]
@@ -258,14 +258,14 @@ class TestMatUtils(unittest.TestCase):
         m_wav = wavtrans.Wav(2)
 
         # Add first map.
-        minfo1 = sharp.map_info_gauss_legendre(lmaxs[0] + 1)
+        minfo1 = map_utils.MapInfo.map_info_gauss_legendre(lmaxs[0] + 1, 2 * lmaxs[0] + 1)
         m_arr1 = np.ones((npol, npol, minfo1.npix)) + 10 * \
                  np.eye(3)[:,:,np.newaxis]
         index1 = (0, 0)
         m_wav.add(index1, m_arr1, minfo1)
 
         # Add second map.
-        minfo2 = sharp.map_info_gauss_legendre(lmaxs[1] + 1)
+        minfo2 = map_utils.MapInfo.map_info_gauss_legendre(lmaxs[1] + 1, 2 * lmaxs[0] + 1)
         m_arr2 = np.ones((npol, minfo2.npix)) + 20 * \
                  np.eye(3)[:,:,np.newaxis]
         index2 = (1, 1)

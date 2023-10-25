@@ -1,7 +1,7 @@
 import numpy as np
 
 import healpy as hp
-from pixell import sharp
+from pixell import curvedsky
 
 from optweight import map_utils, sht, type_utils, wavtrans, alm_c_utils
 
@@ -61,7 +61,7 @@ def alm2wlm_axisym(alm, ainfo, w_ell, lmaxs=None):
     -------
     wlms : (nwav) list of (..., nelem') arrays
         Output wavelets with lmax possibly varing for each wlm.
-    winfos : (nwav) list of sharp.alm_info objects
+    winfos : (nwav) list of pixell.curvedsky.alm_info objects
         Metainfo for each wavelet.
 
     Raises
@@ -109,7 +109,7 @@ def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
     ----------
     wlms : (nwav) list of (..., nelem') arrays
         Input wavelets with lmax possibly varing for each wlm.
-    winfos : (nwav) list of sharp.alm_info object
+    winfos : (nwav) list of pixell.curvedsky.alm_info object
         Metainfo for each wavelet.
     w_ell : (nwav, nell) array
         Wavelet kernels.
@@ -140,7 +140,7 @@ def wlm2alm_axisym(wlms, winfos, w_ell, alm=None, ainfo=None):
     lmax_w = np.max([winfo.lmax for winfo in winfos])
 
     if ainfo is None:
-        ainfo = sharp.alm_info(lmax=lmax_w)
+        ainfo = curvedsky.alm_info(lmax=lmax_w)
     else:
         if ainfo.lmax < lmax_w:
             raise ValueError('lmax alm {} < lmax wavelets {}'.
@@ -190,7 +190,7 @@ def trunc_alm(alm, ainfo, lmax):
     ----------
     alm : array
         Input alm.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Meta info input alm.
     lmax : int
         New lmax.
@@ -199,7 +199,7 @@ def trunc_alm(alm, ainfo, lmax):
     -------
     alm_trunc : array
         Output alm.
-    ainfo_trunc : sharp.alm_info object
+    ainfo_trunc : pixell.curvedsky.alm_info object
         Metainfo output alm.
 
     Raises
@@ -220,7 +220,7 @@ def trunc_alm(alm, ainfo, lmax):
     mmax = min(ainfo.mmax, lmax)
     stride = ainfo.stride
 
-    ainfo_trunc = sharp.alm_info(
+    ainfo_trunc = curvedsky.alm_info(
         lmax=lmax, mmax=mmax, stride=stride, layout=layout)
 
     alm_trunc = np.zeros(alm.shape[:-1] + (ainfo_trunc.nelem,), dtype=alm.dtype)
@@ -251,7 +251,7 @@ def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
     ----------
     cov_pix : (npol, npol, npix) or (npol, npix) array
         Covariance diagonal in pixel space.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for output alms.
     minfo : map_utils.MapInfo object
         Metainfo specifying pixelization of covariance.
@@ -284,7 +284,7 @@ def rand_alm_wav(cov_wav, ainfo, w_ell, spin, adjoint=False):
     ----------
     cov_wav : (nwav, nwav) wavtrans.Wav object.
         Block diagonal wavelet covariance matrix.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for output alms.
     w_ell : (nwav, nell) array
         Wavelet kernels.
@@ -315,7 +315,7 @@ def rand_alm_wav(cov_wav, ainfo, w_ell, spin, adjoint=False):
         # Note, only valid for Gauss Legendre pixels.
         # We use nphi to support maps with cuts in theta.
         lmax = (minfo.nphi[0] - 1) // 2
-        winfo = sharp.alm_info(lmax=lmax)
+        winfo = curvedsky.alm_info(lmax=lmax)
 
         wlm = np.zeros(alm_shape[:-1] + (winfo.nelem,),
                        dtype=alm_dtype)
@@ -337,9 +337,9 @@ def add_to_alm(alm, blm, ainfo, binfo, overwrite=False):
         Base SH coeffcients.
     blm : (..., nelem') array
         SH coefficients to be added to alm.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for alm.
-    binfo : sharp.alm_info object
+    binfo : pixell.curvedsky.alm_info object
         Metainfo for blm.
     overwrite : bool, optional
         If set, do not add but overwrite alm with blm.

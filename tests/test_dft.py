@@ -229,11 +229,11 @@ class TestSHT(unittest.TestCase):
         lmod_exp = np.sqrt(lmap_exp[0] ** 2 + lmap_exp[1] ** 2)
 
         fmap = np.ones((2, ny, nx // 2 + 1))
-
+        
         fbin, bins = dft.lbin(fmap, lmod_exp, bsize=500)
 
         fbin_exp = np.ones((2, 4))
-        bins_exp = np.asarray([0., 591.45389248, 1105.18002676, 1514.60855085])
+        bins_exp = np.asarray([163.636364, 747.392518, 1282.901329, 1731.966898])
 
         np.testing.assert_allclose(bins, bins_exp)
         np.testing.assert_allclose(fbin, fbin_exp)

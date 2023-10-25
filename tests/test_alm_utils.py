@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import sharp
+from pixell import curvedsky
 
 from optweight import alm_utils, wavtrans, map_utils
 
@@ -10,7 +10,7 @@ class TestAlmUtils(unittest.TestCase):
     def test_trunc_alm(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6], dtype=np.complex128)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         lmax_new = 1
         alm_new_exp = np.asarray([1, 2, 4], dtype=np.complex128)
 
@@ -24,7 +24,7 @@ class TestAlmUtils(unittest.TestCase):
         alm[0] = np.asarray([1, 2, 3, 4, 5, 6])
         alm[1] = np.asarray([1, 2, 3, 4, 5, 6]) * 2
 
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         lmax_new = 1
         alm_new_exp = np.zeros((2, 3), dtype=np.complex128)
         alm_new_exp[0] = np.asarray([1, 2, 4])
@@ -37,7 +37,7 @@ class TestAlmUtils(unittest.TestCase):
     def test_trunc_alm_err(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6])
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         lmax_new = 3
 
         self.assertRaises(ValueError, alm_utils.trunc_alm, alm, ainfo, lmax_new)
@@ -45,7 +45,7 @@ class TestAlmUtils(unittest.TestCase):
     def test_alm2wlm_axisym(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
@@ -63,7 +63,7 @@ class TestAlmUtils(unittest.TestCase):
 
     def test_alm2wlm_axisym_nd(self):
 
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         alm = np.zeros((2, 3, ainfo.nelem), dtype=np.complex64)
         alm[:,:] = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
@@ -91,7 +91,7 @@ class TestAlmUtils(unittest.TestCase):
     def test_alm2wlm_axisym_lmaxs(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
@@ -112,7 +112,7 @@ class TestAlmUtils(unittest.TestCase):
     def test_alm2wlm_axisym_err(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 5), dtype=np.float32) # Does not match lmax.
         w_ell[0,:2] = 1
         w_ell[1,2:] = 0.5
@@ -121,7 +121,7 @@ class TestAlmUtils(unittest.TestCase):
 
     def test_wlm2alm_axisym(self):
 
-        ainfo_exp = sharp.alm_info(lmax=3)
+        ainfo_exp = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = -1
@@ -129,7 +129,7 @@ class TestAlmUtils(unittest.TestCase):
 
         wlms = [np.asarray([1, 2, 5], dtype=np.complex64),
                 -1 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10], dtype=np.complex64)]
-        winfos = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
+        winfos = [curvedsky.alm_info(lmax=1), curvedsky.alm_info(lmax=3)]
 
         alm, ainfo = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell)
 
@@ -137,7 +137,7 @@ class TestAlmUtils(unittest.TestCase):
 
     def test_wlm2alm_axisym_2d(self):
 
-        ainfo_exp = sharp.alm_info(lmax=3)
+        ainfo_exp = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4))
         w_ell[0,:2] = 1
         w_ell[1,2:] = -1
@@ -149,7 +149,7 @@ class TestAlmUtils(unittest.TestCase):
                 -1 * np.asarray([[0, 0, 3, 4, 0, 6, 7, 8, 9, 10],
                                  [0, 0, 6, 8, 0, 12, 14, 16, 18, 20]])]
         wlms = [w.astype(np.complex128) for w in wlms]
-        winfos = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
+        winfos = [curvedsky.alm_info(lmax=1), curvedsky.alm_info(lmax=3)]
 
         alm, ainfo = alm_utils.wlm2alm_axisym(wlms, winfos, w_ell)
 
@@ -157,19 +157,19 @@ class TestAlmUtils(unittest.TestCase):
 
     def test_wlm2alm_axisym_err(self):
 
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         w_ell = np.zeros((2, 4))
         w_ell[0,:2] = 1
         w_ell[1,2:] = -1
 
         wlms = [np.asarray([1, 2, 5]),
                 -1 * np.asarray([0, 0, 3, 4, 0, 6, 7, 8, 9, 10])]
-        winfos = [sharp.alm_info(lmax=1), sharp.alm_info(lmax=3)]
+        winfos = [curvedsky.alm_info(lmax=1), curvedsky.alm_info(lmax=3)]
 
         self.assertRaises(ValueError, alm_utils.wlm2alm_axisym, wlms, winfos, w_ell,
                           **dict(ainfo=ainfo))
 
-        ainfo = sharp.alm_info(lmax=3, stride=2)
+        ainfo = curvedsky.alm_info(lmax=3, stride=2)
 
         self.assertRaises(NotImplementedError, alm_utils.wlm2alm_axisym, wlms, winfos, w_ell,
                           **dict(ainfo=ainfo))
@@ -177,7 +177,7 @@ class TestAlmUtils(unittest.TestCase):
     def test_alm2wlm_axisym_roundtrip(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
         w_ell = np.zeros((2, 4), dtype=np.float32)
         w_ell[0,:2] = 1
         w_ell[1,2:] = -1
@@ -191,10 +191,10 @@ class TestAlmUtils(unittest.TestCase):
     def test_add_to_alm(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
 
         blm = np.asarray([1, 2, 3, 4, 5j, 6j, 7j, 8j, 9j, 10j], dtype=np.complex64)
-        binfo = sharp.alm_info(lmax=3)
+        binfo = curvedsky.alm_info(lmax=3)
 
         alm_utils.add_to_alm(alm, blm, ainfo, binfo)
 
@@ -207,10 +207,10 @@ class TestAlmUtils(unittest.TestCase):
     def test_add_to_alm_diff_size(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
 
         blm = np.asarray([1, 2, 3, 4j, 5j, 6j], dtype=np.complex64)
-        binfo = sharp.alm_info(lmax=2)
+        binfo = curvedsky.alm_info(lmax=2)
 
         alm_utils.add_to_alm(alm, blm, ainfo, binfo)
 
@@ -222,10 +222,10 @@ class TestAlmUtils(unittest.TestCase):
     def test_add_to_alm_overwrite(self):
 
         alm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=3)
+        ainfo = curvedsky.alm_info(lmax=3)
 
         blm = np.asarray([1, 2, 3, 4j, 5j, 6j], dtype=np.complex64)
-        binfo = sharp.alm_info(lmax=2)
+        binfo = curvedsky.alm_info(lmax=2)
 
         alm_utils.add_to_alm(alm, blm, ainfo, binfo, overwrite=True)
 
@@ -237,17 +237,17 @@ class TestAlmUtils(unittest.TestCase):
     def test_add_to_alm_err(self):
 
         alm = np.asarray([1, 2, 3, 4j, 5j, 6j], dtype=np.complex64)
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
 
         blm = np.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.complex64)
-        binfo = sharp.alm_info(lmax=3)
+        binfo = curvedsky.alm_info(lmax=3)
 
         self.assertRaises(ValueError, alm_utils.add_to_alm, alm, blm, ainfo, binfo)
 
     def test_rand_alm_pix(self):
 
         lmax = 3
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1
@@ -266,7 +266,7 @@ class TestAlmUtils(unittest.TestCase):
     def test_rand_alm_wav(self):
 
         lmax = 3
-        ainfo = sharp.alm_info(lmax=lmax)
+        ainfo = curvedsky.alm_info(lmax=lmax)
 
         nrings = lmax + 1
         nphi = 2 * lmax + 1

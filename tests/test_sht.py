@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import curvedsky, sharp
+from pixell import curvedsky
 
 from optweight import sht, map_utils
 
@@ -53,7 +53,7 @@ class TestSHT(unittest.TestCase):
         lmax = 4
         spin = [0, 2]
         cov_ell = np.ones((3, 3, lmax + 1))
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.zeros((2, 3, ainfo.nelem), dtype=np.complex128)
         alm[0] = curvedsky.rand_alm(cov_ell, return_ainfo=False)
         alm[1] = curvedsky.rand_alm(cov_ell, return_ainfo=False)
@@ -141,7 +141,7 @@ class TestSHT(unittest.TestCase):
 
         lmax = 4
         spin = 0
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.zeros((1, ainfo.nelem), dtype=np.complex128)
 
         nrings = lmax + 1
@@ -164,7 +164,7 @@ class TestSHT(unittest.TestCase):
 
         lmax = 4
         spin = 0
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.zeros((1, ainfo.nelem), dtype=np.complex128)
 
         nrings = lmax + 1

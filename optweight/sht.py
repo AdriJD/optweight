@@ -2,7 +2,7 @@ import os
 import multiprocessing
 import numpy as np
 
-from pixell import enmap, sharp
+from pixell import enmap
 import ducc0
 
 from optweight import mat_utils, map_utils, map_c_utils
@@ -19,7 +19,7 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
         Output alm array(s), will be overwritten.
     minfo : map_utils.MapInfo object
         Map info for input map.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         alm info for output alm.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
@@ -108,7 +108,7 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
         Input alm array.
     omap : (ntrans, npol, npix) array
         Output map, will be overwritten.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         alm info for inpu alm.
     minfo : map_utils.MapInfo object
         Map info for output map.

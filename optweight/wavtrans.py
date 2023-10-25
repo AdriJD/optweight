@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from pixell import sharp
+from pixell import curvedsky
 import h5py
 
 from optweight import (alm_utils, sht, type_utils, type_utils, map_utils, 
@@ -19,7 +19,7 @@ class Wav():
     indices : (nwav, ndim) array, optional
         Indices to wavelet maps. ndim is one for vector indices, two
         for matrix indices.
-    minfos : (nwav) object array of sharp.mapinfo objects, optional
+    minfos : (nwav) object array of map_utils.MapInfo objects, optional
         Map_info metadata for each entry of indices array.
     preshape : tuple, optional
         First dimensions of the maps, i.e. map.shape = preshape + (npix,)
@@ -30,7 +30,7 @@ class Wav():
     ----------
     maps : dict of arrays
         Wavelet maps.
-    minfos : dict of sharp.mapinfo objects
+    minfos : dict of map_utils.MapInfo objects
         Metainfo for each wavelet map.
     shape : tuple
         Shape of corresponding dense vector or matrix.
@@ -413,7 +413,7 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
         Vector of wavelet maps.
     alm : (npol, nelem) array
         Output SH coefficients. Will be overwritten!
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo output alms.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
@@ -427,7 +427,7 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
     -------
     alm : (npol, nelem) array
         Output SH coefficients. 
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo output alms.
     
     Raises
@@ -453,7 +453,7 @@ def wav2alm(wav, alm, ainfo, spin, w_ell, adjoint=False):
             imap = imap[np.newaxis,:]
 
         dtype = type_utils.to_complex(imap.dtype)
-        winfo = sharp.alm_info(lmax=lmax_w)
+        winfo = curvedsky.alm_info(lmax=lmax_w)
         wlm = np.zeros((alm.shape[:-1]) + (winfo.nelem,), dtype=dtype)
 
         sht.map2alm(imap, wlm, wav.minfos[idx], winfo, spin,
@@ -472,7 +472,7 @@ def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
     ----------
     alm : (..., npol, nelem) array
         SH coefficients.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo input alms.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
@@ -610,7 +610,7 @@ def get_enmap_minfos(shape, wcs, w_ell, pad_factor=10):
 
     Returns
     -------
-    minfos : (nwav) object array of sharp.mapinfo objects
+    minfos : (nwav) object array of map_utils.MapInfo objects
         Map_info metadata for each wavelet kernel described by `w_ell`.
     '''    
 

@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import enmap, wcsutils, sharp
+from pixell import enmap, wcsutils, curvedsky
 
 from optweight import noise_utils, map_utils, wlm_utils
 

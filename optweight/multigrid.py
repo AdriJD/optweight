@@ -4,7 +4,7 @@ https://arxiv.org/pdf/1710.00621.pdf and https://github.com/dagss/cmbcr.
 '''
 import numpy as np
 
-from pixell import sharp
+from pixell import curvedsky
 
 from optweight import (map_utils, operators, noise_utils, alm_utils, alm_c_utils,
                        type_utils, sht)
@@ -321,8 +321,8 @@ def restrict(imap, level_in, level_out, spin, adjoint=False):
     lmax_in = map_utils.minfo2lmax(minfo_in)
     lmax_out = map_utils.minfo2lmax(minfo_out)
 
-    ainfo_in = sharp.alm_info(lmax_in)
-    ainfo_out = sharp.alm_info(lmax_out)
+    ainfo_in = curvedsky.alm_info(lmax_in)
+    ainfo_out = curvedsky.alm_info(lmax_out)
 
     omap = np.zeros((imap.shape[0], minfo_out.npix), dtype=imap.dtype)
     imap = imap * level_in.mask_unobs

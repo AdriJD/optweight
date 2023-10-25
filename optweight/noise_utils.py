@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from pixell import enmap, sharp
+from pixell import enmap, curvedsky
 import healpy as hp
 
 from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht, dft
@@ -15,7 +15,7 @@ def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, wav_template=None,
     ----------
     alm : (ncomp, npol, nelem) complex array
         Noise alms.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo input alms.
     w_ell : (nwav, nell) array
         Wavelet kernels.    
@@ -562,7 +562,7 @@ def smooth_locally(imap, minfo, w_ell, features, spin, inplace=False):
         omap = imap
 
     lmax = map_utils.minfo2lmax(minfo)        
-    ainfo = sharp.alm_info(lmax)
+    ainfo = curvedsky.alm_info(lmax)
     alm = np.empty((1, ainfo.nelem), dtype=type_utils.to_complex(imap.dtype))
 
     sht.map2alm(imap, alm, minfo, ainfo, spin)

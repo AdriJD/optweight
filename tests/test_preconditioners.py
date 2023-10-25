@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 import healpy as hp
-from pixell import curvedsky, sharp
+from pixell import curvedsky
 
 from optweight import preconditioners
 from optweight import map_utils, sht, alm_c_utils, alm_utils, mat_utils
@@ -12,7 +12,7 @@ class TestPreconditioners(unittest.TestCase):
     def test_maskedpreconditioner(self):
 
         lmax = 10
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         spin = 0
         minfo = map_utils.get_gauss_minfo(2 * lmax)
         mask_bool = np.ones((1, minfo.npix), dtype=bool)

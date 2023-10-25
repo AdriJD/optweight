@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 import healpy as hp
-from pixell import curvedsky, sharp
+from pixell import curvedsky
 
 from optweight import multigrid
 from optweight import map_utils, sht, alm_c_utils, alm_utils, mat_utils

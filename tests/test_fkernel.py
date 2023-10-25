@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import curvedsky
+from pixell import curvedsky, enmap
 
 from optweight import fkernel
 from optweight import wlm_utils
@@ -65,9 +65,9 @@ class TestWlmUtils(unittest.TestCase):
         lamb = 3
         lmax = 30
 
-        imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
-
+        imap = enmap.zeros(
+            *enmap.fullsky_geometry(res=[np.pi / lmax, 2 * np.pi / (2 * lmax + 1)]))
+        
         ly, lx = dft.laxes_real(imap.shape, imap.wcs)
         modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(
@@ -81,9 +81,9 @@ class TestWlmUtils(unittest.TestCase):
         lamb = 3
         lmax = 30
 
-        imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
-
+        imap = enmap.zeros(
+            *enmap.fullsky_geometry(res=[np.pi / lmax, 2 * np.pi / (2 * lmax + 1)]))
+        
         ly, lx = dft.laxes_real(imap.shape, imap.wcs)
         modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(
@@ -105,9 +105,9 @@ class TestWlmUtils(unittest.TestCase):
         lamb = 3
         lmax = 30
 
-        imap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=1)
-
+        imap = enmap.zeros(
+            *enmap.fullsky_geometry(res=[np.pi / lmax, 2 * np.pi / (2 * lmax + 1)]))
+        
         ly, lx = dft.laxes_real(imap.shape, imap.wcs)
         modlmap = dft.laxes2modlmap(ly, lx, dtype=np.float64)
         fkernels = fkernel.get_sd_kernels_fourier(

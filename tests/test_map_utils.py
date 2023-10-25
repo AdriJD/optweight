@@ -5,7 +5,7 @@ import os
 import tempfile
 import pathlib
 
-from pixell import sharp, enmap, curvedsky
+from pixell import enmap, curvedsky
 import h5py
 
 from optweight import map_utils, sht, wavtrans
@@ -255,8 +255,11 @@ class TestMapUtils(unittest.TestCase):
         cov_ell = np.ones((1, lmax + 1))
         cov_ell[:,5:] = 0
         alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
-        omap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=6)
+        oversample = 6
+        shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
+                                         2 * np.pi / (2 * oversample * lmax + 1)])
+        omap = enmap.zeros((1,) + shape, wcs)
+
         curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
 
         m_gl, minfo = map_utils.enmap2gauss(omap, 2 * lmax)
@@ -282,8 +285,11 @@ class TestMapUtils(unittest.TestCase):
         cov_ell = np.ones((1, lmax + 1))
         cov_ell[:,5:] = 0
         alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
-        omap = curvedsky.make_projectable_map_by_pos(
-            [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(1,), oversample=6)
+        oversample = 6
+        shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
+                                         2 * np.pi / (2 * oversample * lmax + 1)])
+        omap = enmap.zeros((1,) + shape, wcs)
+        
         curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
 
         m_gl, minfo = map_utils.enmap2gauss(omap, 2 * lmax, area_pow=area_pow)
@@ -1112,7 +1118,7 @@ class TestMapUtilsIO(unittest.TestCase):
 
     def test_match_enmap_minfo(self):
 
-        # Check if we can just feed the enmap to libsharp without interpolation.
+        # Check if we can just feed the enmap to ducc without interpolation.
         # And without having to copy the data like pixell does.
 
         # Full sky CC CAR map first.

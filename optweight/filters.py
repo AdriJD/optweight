@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 from timeit import default_timer as timer
 
-from pixell import curvedsky, sharp, utils, enmap
+from pixell import curvedsky, utils, enmap, curvedsky
 
 from optweight import map_utils, mat_utils, solvers, preconditioners
 
@@ -206,7 +206,7 @@ class CGPixFilter(object):
         lmax_masked_cg : int
             Band-limit for preconditioner for masked solver. Should be set to multipole
             where SNR becomes smaller 1.
-        ainfo : sharp.alm_info object
+        ainfo : pixell.curvedsky.alm_info object
             Metainfo for internally used alms. Will be determined from the alm
             size if not specified.
         verbose : bool
@@ -246,8 +246,8 @@ class CGPixFilter(object):
         ##else:
         #    raise ValueError
             
-        #ainfo = sharp.alm_info(nalm=alm.shape[-1]) if ainfo is None else ainfo
-        ainfo = sharp.alm_info(self.lmax)
+        #ainfo = curvedsky.alm_info(nalm=alm.shape[-1]) if ainfo is None else ainfo
+        ainfo = curvedsky.alm_info(self.lmax)
         mask_pix = self.mask_bool.astype(np.float32)# if self.swap_bm else None
         #solver = solvers.CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
         #                                      self.icov_pix, self.minfo, b_ell=self.b_ell,
@@ -438,7 +438,7 @@ def cg_pix_filter(imap, theory_cls, b_ell, lmax,
         The type of pre-conditioner to use. 
         Choose from 'cg', 'cg_scaled', 'pcg_harm' and 'pcg_pinv'.
         The default is 'pcg_pinv'.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for internally used alms. Will be determined from the alm
         size if not specified.
     niter_masked_cg : int
@@ -686,7 +686,7 @@ class CGPixFilterOld(object):
         lmax_masked_cg : int
             Band-limit for preconditioner for masked solver. Should be set to multipole
             where SNR becomes smaller 1.
-        ainfo : sharp.alm_info object
+        ainfo : pixell.curvedsky.alm_info object
             Metainfo for internally used alms. Will be determined from the alm
             size if not specified.
         verbose : bool
@@ -724,7 +724,7 @@ class CGPixFilterOld(object):
         else:
             raise ValueError
             
-        ainfo = sharp.alm_info(nalm=alm.shape[-1]) if ainfo is None else ainfo
+        ainfo = curvedsky.alm_info(nalm=alm.shape[-1]) if ainfo is None else ainfo
         mask_pix = self.mask_bool.astype(np.float32) if self.swap_bm else None
         solver = solvers.CGWiener.from_arrays(alm, ainfo, self.icov_ell, 
                                               self.icov_pix, self.minfo, b_ell=self.b_ell,
@@ -890,7 +890,7 @@ def cg_pix_filter_old(alm, theory_cls, b_ell, lmax,
         The type of pre-conditioner to use. 
         Choose from 'cg', 'cg_scaled', 'pcg_harm' and 'pcg_pinv'.
         The default is 'pcg_pinv'.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for internally used alms. Will be determined from the alm
         size if not specified.
     niter_masked_cg : int

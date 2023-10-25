@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pixell import sharp
+from pixell import curvedsky
 
 from optweight import alm_c_utils
 
@@ -13,7 +13,7 @@ class TestAlmCUtils(unittest.TestCase):
         alm[0] = np.asarray([1, 2, 3, 4, 5, 6])
         alm[1] = np.asarray([1, 2, 3, 4, 5, 6]) * 2
 
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         lmax_new = 1
         alm_new_exp = np.zeros((2, 3), dtype=np.complex128)
         alm_new_exp[0] = np.asarray([1, 2, 4])
@@ -30,7 +30,7 @@ class TestAlmCUtils(unittest.TestCase):
         alm[0] = np.asarray([1, 2, 3, 4, 5, 6])
         alm[1] = np.asarray([1, 2, 3, 4, 5, 6]) * 2
 
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         lmax_new = 1
         alm_new_exp = np.zeros((2, 3), dtype=np.complex64)
         alm_new_exp[0] = np.asarray([1, 2, 4])
@@ -47,7 +47,7 @@ class TestAlmCUtils(unittest.TestCase):
         alm[:,0] = np.asarray([1, 2, 3, 4, 5, 6])
         alm[:,1] = np.asarray([1, 2, 3, 4, 5, 6]) * 2
 
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         lmax_new = 1
         alm_new_exp = np.zeros((2, 2, 3), dtype=np.complex128)
         alm_new_exp[:,0] = np.asarray([1, 2, 4])
@@ -64,7 +64,7 @@ class TestAlmCUtils(unittest.TestCase):
         alm[0] = np.asarray([1, 2, 3, 4, 5, 6])
         alm[1] = np.asarray([1, 2, 3, 4, 5, 6]) * 2
 
-        ainfo = sharp.alm_info(lmax=2)
+        ainfo = curvedsky.alm_info(lmax=2)
         lmax_new = 1
         alm_new_exp = np.zeros((2, 3), dtype=np.complex128)
         alm_new_exp[0] = np.asarray([1, 2, 4])
@@ -114,7 +114,7 @@ class TestAlmCUtils(unittest.TestCase):
         lmax = 4
         ncomp = 3
 
-        ainfo = sharp.alm_info(4)
+        ainfo = curvedsky.alm_info(4)
         alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
         alm = alm.reshape(ncomp, ainfo.nelem)
         alm *= 1 + 1j
@@ -156,7 +156,7 @@ class TestAlmCUtils(unittest.TestCase):
         lmax = 4
         ncomp = 3
 
-        ainfo = sharp.alm_info(4)
+        ainfo = curvedsky.alm_info(4)
         alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
         alm = alm.reshape(ncomp, ainfo.nelem)
         alm *= 1 + 1j
@@ -190,7 +190,7 @@ class TestAlmCUtils(unittest.TestCase):
         npol = 3
         ntrans = 2
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex128)
         alm = alm.reshape(ntrans, npol, ainfo.nelem)
         alm *= 1 + 1j
@@ -211,7 +211,7 @@ class TestAlmCUtils(unittest.TestCase):
         npol = 3
         ntrans = 2
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex128)
         alm = alm.reshape(ntrans, npol, ainfo.nelem)
         alm *= 1 + 1j
@@ -232,7 +232,7 @@ class TestAlmCUtils(unittest.TestCase):
         lmax = 4
         ncomp = 3
 
-        ainfo = sharp.alm_info(4)
+        ainfo = curvedsky.alm_info(4)
         alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex64)
         alm = alm.reshape(ncomp, ainfo.nelem)
         alm *= 1 + 1j
@@ -274,7 +274,7 @@ class TestAlmCUtils(unittest.TestCase):
         lmax = 4
         ncomp = 3
 
-        ainfo = sharp.alm_info(4)
+        ainfo = curvedsky.alm_info(4)
         alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex64)
         alm = alm.reshape(ncomp, ainfo.nelem)
         alm *= 1 + 1j
@@ -308,7 +308,7 @@ class TestAlmCUtils(unittest.TestCase):
         npol = 3
         ntrans = 2
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex64)
         alm = alm.reshape(ntrans, npol, ainfo.nelem)
         alm *= 1 + 1j
@@ -329,7 +329,7 @@ class TestAlmCUtils(unittest.TestCase):
         npol = 3
         ntrans = 2
 
-        ainfo = sharp.alm_info(lmax)
+        ainfo = curvedsky.alm_info(lmax)
         alm = np.arange(ntrans * npol * ainfo.nelem, dtype=np.complex64)
         alm = alm.reshape(ntrans, npol, ainfo.nelem)
         alm *= 1 + 1j
@@ -350,7 +350,7 @@ class TestAlmCUtils(unittest.TestCase):
         lmax = 4
         ncomp = 3
 
-        ainfo = sharp.alm_info(4)
+        ainfo = curvedsky.alm_info(4)
         alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
         alm = alm.reshape(ncomp, ainfo.nelem)
         alm *= 1 + 1j
@@ -373,7 +373,7 @@ class TestAlmCUtils(unittest.TestCase):
                           alm_out=alm_out_wrong)
 
         # Wrong alm layout.
-        ainfo = sharp.alm_info(4, layout='rect')
+        ainfo = curvedsky.alm_info(4, layout='rect')
         alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
         alm = alm.reshape(ncomp, ainfo.nelem)
         alm *= 1 + 1j

@@ -1,6 +1,6 @@
 import numpy as np
 
-from pixell import utils, sharp
+from pixell import utils, curvedsky
 
 from optweight import (operators, mat_utils, multigrid, type_utils, sht,
                        alm_utils, map_utils, alm_c_utils, dft)
@@ -11,7 +11,7 @@ class HarmonicPreconditioner(operators.MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse covariance matrix, either symmetric but dense in first two axes
@@ -130,7 +130,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse signal covariance, If diagonal, only the diagonal suffices.
@@ -255,7 +255,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse signal covariance, If diagonal, only the diagonal suffices.
@@ -401,7 +401,7 @@ class PseudoInvPreconditionerFWav(operators.MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse signal covariance, If diagonal, only the diagonal suffices.
@@ -562,7 +562,7 @@ class MaskedPreconditioner(operators.MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse signal covariance, If diagonal, only the diagonal suffices.
@@ -655,7 +655,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
     Parameters
     ----------
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo for input alms.
     icov_ell : (npol, npol, nell) array or (npol, nell) array
         Inverse signal covariance, If diagonal, only the diagonal suffices.
@@ -710,7 +710,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
             lmax = self.ainfo.lmax
 
         self.lmax = lmax
-        self.ainfo_lowres = sharp.alm_info(self.lmax)
+        self.ainfo_lowres = curvedsky.alm_info(self.lmax)
 
         if lmax_r_ell is not None:
             self.r_ell = multigrid.lowpass_filter(lmax_r_ell, lmax=ainfo.lmax)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from pixell import curvedsky, sharp, utils
+from pixell import curvedsky, utils
 
 from optweight import (operators, alm_utils, map_utils, preconditioners, sht, mat_utils,
                        noise_utils, dft)
@@ -316,7 +316,7 @@ class CGWienerMap(utils.CG):
             Input map
         minfo : map_utils.MapInfo object
             Metainfo for input map.
-        ainfo : sharp.alm_info object
+        ainfo : pixell.curvedsky.alm_info object
             Metainfo for output alms.
         icov_ell : (npol, npol, nell) or (npol, nell) array
             Inverse signal covariance. If diagonal, only the diagonal suffices.
@@ -400,7 +400,7 @@ class CGWienerMap(utils.CG):
             Input map
         minfo : map_utils.MapInfo object
             Metainfo for input map.
-        ainfo : sharp.alm_info object
+        ainfo : pixell.curvedsky.alm_info object
             Metainfo for output alms.
         icov_ell : (npol, npol, nell) or (npol, nell) array
             Inverse signal covariance. If diagonal, only the diagonal suffices.
@@ -763,7 +763,7 @@ class CGWiener(utils.CG):
         ----------
         alm_data : (npol, nelem) complex array
             SH coefficients of data.
-        ainfo : sharp.alm_info object
+        ainfo : pixell.curvedsky.alm_info object
             Metainfo of data alms.
         icov_ell : (npol, npol, nell) or (npol, nell) array
             Inverse signal covariance. If diagonal, only the diagonal suffices.
@@ -854,7 +854,7 @@ class CGWiener(utils.CG):
         ----------
         alm_data : (npol, nelem) complex array
             SH coefficients of data.
-        ainfo : sharp.alm_info object
+        ainfo : pixell.curvedsky.alm_info object
             Metainfo of data alms.
         icov_ell : (npol, npol, nell) or (npol, nell) array
             Inverse signal covariance. If diagonal, only the diagonal suffices.

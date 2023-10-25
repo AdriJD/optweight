@@ -164,7 +164,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
         Input alms.
     lmat : (npol, npol, nell) or (npol, nell) array
         Matrix, if diagonal only the diaganal suffices.
-    ainfo : sharp.alm_info object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo alms.
     alm_out : (ncomp, nelem) complex array, optional
         Output alms. Will be overwritten!
