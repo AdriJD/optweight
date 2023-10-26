@@ -217,6 +217,8 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
         downgrade = 2 ** idx
         lmax_level = lmax // downgrade
 
+        # NOTE, IF DOWNGRADE=1, not safer to just keep minfo and mask?
+        # NO because it has to be full sky!
         mask_level, minfo_level = get_equal_area_mask_bool(
             mask, minfo, lmax=lmax_level)
 
@@ -273,6 +275,7 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
 
     # We want fullsky minfos (for now), we want to solve masked pixels.
     # Determine if input minfo is CC or GL.
+
     diff = minfo.theta
     if np.allclose(diff, diff[0]):
         minfo_full = map_utils.get_minfo('CC', lmax + 1, 2 * lmax + 1)

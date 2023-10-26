@@ -124,6 +124,53 @@ class TestMapUtils(unittest.TestCase):
         
         self.assertAlmostEqual(np.sum(minfo.weight * minfo.nphi), 4 * np.pi)
         np.testing.assert_allclose(minfo.theta, theta_exp)
+
+    def test_get_fullsky_geometry(self):
+
+        ntheta = 5
+        nphi = 2
+        
+        # Test if input fullsky geometry gets mapped to same fullsky geometry.
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(ntheta, nphi=nphi)
+        minfo_fullsky = map_utils.get_fullsky_geometry(minfo)
+        np.testing.assert_allclose(minfo.theta, minfo_fullsky.theta)
+        np.testing.assert_allclose(minfo.weight, minfo_fullsky.weight)
+
+        minfo = map_utils.MapInfo.map_info_clenshaw_curtis(ntheta, nphi=nphi)
+        minfo_fullsky = map_utils.get_fullsky_geometry(minfo)
+        np.testing.assert_allclose(minfo.theta, minfo_fullsky.theta)
+        np.testing.assert_allclose(minfo.weight, minfo_fullsky.weight)
+        
+        minfo = map_utils.MapInfo.map_info_fejer1(ntheta, nphi=nphi)
+        minfo_fullsky = map_utils.get_fullsky_geometry(minfo)
+        np.testing.assert_allclose(minfo.theta, minfo_fullsky.theta)
+        np.testing.assert_allclose(minfo.weight, minfo_fullsky.weight)
+        
+        # For fejer2 we get back CC with zeros at both ends.
+        minfo = map_utils.MapInfo.map_info_fejer2(ntheta, nphi=nphi)
+        minfo_fullsky = map_utils.get_fullsky_geometry(minfo)
+        minfo_exp = map_utils.MapInfo.map_info_clenshaw_curtis(ntheta + 2, nphi=nphi)
+        np.testing.assert_allclose(minfo_fullsky.theta, minfo_exp.theta)
+        np.testing.assert_allclose(minfo_fullsky.weight, minfo_exp.weight)        
+        
+        # Now cut input.
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(ntheta, nphi=nphi)
+        tslice = slice(2, 5)
+        minfo_cut = map_utils.MapInfo(minfo.theta[tslice], minfo.weight[tslice], nphi=nphi)
+        minfo_fullsky = map_utils.get_fullsky_geometry(minfo_cut)
+        np.testing.assert_allclose(minfo.theta, minfo_fullsky.theta)
+
+        minfo = map_utils.MapInfo.map_info_clenshaw_curtis(ntheta, nphi=nphi)
+        tslice = slice(2, 5)
+        minfo_cut = map_utils.MapInfo(minfo.theta[tslice], minfo.weight[tslice], nphi=nphi)
+        minfo_fullsky = map_utils.get_fullsky_geometry(minfo_cut)
+        np.testing.assert_allclose(minfo.theta, minfo_fullsky.theta)
+
+        minfo = map_utils.MapInfo.map_info_fejer1(ntheta, nphi=nphi)
+        tslice = slice(2, 5)
+        minfo_cut = map_utils.MapInfo(minfo.theta[tslice], minfo.weight[tslice], nphi=nphi)
+        minfo_fullsky = map_utils.get_fullsky_geometry(minfo_cut)
+        np.testing.assert_allclose(minfo.theta, minfo_fullsky.theta)
         
     def test_get_gauss_minfo(self):
 

@@ -104,7 +104,7 @@ class MapInfo():
                 self.nrow, self.stride, dtype=self.stride.dtype)
             
         self.npix = int(np.sum(self.nphi))
-
+            
     @property
     def nphi(self):
         '''Return signed int version.'''
@@ -295,7 +295,77 @@ class MapInfo():
             offsets = None
         return cls(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
                     stride=stride_lon)
+
+def get_fullsky_geometry(minfo):
+    '''
+    Take a cut-sky map_info object and return a map_info object that
+    spans the full sky and shares overlapping theta ring coordinates.
     
+    Parameters
+    ----------
+    minfo : map_utils.MapInfo object
+        Metainfo describing input geometry.
+
+    Raises
+    ------
+    ValueError
+        If input is not GL, CC, F1 or F2.
+        Input input maps has < 3 rings.
+    
+    Notes
+    -----
+    No guarantee that order of rings, nphi, phi0 offsets and strides are
+    shared between input and output geometries.    
+    '''
+
+    if minfo.theta.size < 3:
+        raise ValueError(f'Need atleast 3 rings, got {minfo.theta.size=}')
+    
+    diff = np.diff(minfo.theta)
+    nphi = minfo.nphi[0]
+
+    if not all(minfo.nphi == nphi):
+        raise ValueError('Geometries with varying nphi not supported')
+    print(diff, minfo.theta.size)
+    if not np.allclose(diff, diff[0]):
+        # Assume GL. Use emperical relation to get nrings.        
+        nrings = int(np.round(np.min(np.pi / np.abs(diff) - 0.5)))
+        minfo_fullsky = MapInfo.map_info_gauss_legendre(nrings, nphi)
+        
+    else:
+        # Assume either CC, F1 or F2.
+        dtheta = diff[0]
+        diff_norm = (np.pi - minfo.theta.max()) / dtheta
+        remain = np.round(np.remainder(diff_norm, 1), 1)
+        
+        if remain == 0.0:
+            # CC, could also be F2, but we cannot distinguish between those.
+            nrings = int(np.round(np.pi / dtheta + 1))
+            minfo_fullsky = MapInfo.map_info_clenshaw_curtis(nrings, nphi)
+            
+        elif remain == 0.5:
+            # Fejer 1.
+            nrings = int(np.round(np.pi / dtheta ))
+            minfo_fullsky = MapInfo.map_info_fejer1(nrings, nphi)
+            
+        else:
+            raise ValueError(f'Cannot determine mtype, {remain=}')
+                
+    # Perform checks to make sure the input thetas are a subset of output.
+    theta_sorted = np.sort(minfo.theta)
+    theta_fullsky_sorted = np.sort(minfo_fullsky.theta)
+
+    # Find index of first theta ring in fullsky thetas.
+    idx_start = np.argwhere(np.isclose(theta_fullsky_sorted, theta_sorted[0]))
+    if idx_start.size != 1:
+        raise ValueError('theta_sort[0] of input not in fullsky output')
+    idx_start = idx_start[0][0]
+    if not np.allclose(theta_fullsky_sorted[idx_start:idx_start+minfo.nrow],
+                       theta_sorted):
+        raise ValueError('theta input does not overlap with fullsky output')
+    
+    return minfo_fullsky        
+        
 def view_2d(imap, minfo):
     '''
     Expand last dimension to 2D, return view.
@@ -661,6 +731,8 @@ def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
            
             nphi = minfo_out.nphi[tidx]
             phi0 = minfo_out.phi0[tidx]
+
+            # ADD STRIDE ....
             phis = np.linspace(phi0, 2 * np.pi + phi0, nphi, endpoint=False)
 
             ring_slice = get_ring_slice(tidx, minfo_out)
@@ -710,7 +782,8 @@ def get_minfo(mtype, nrings, nphi, theta_min=None, theta_max=None, return_arc_le
     Parameters
     ----------
     mtype : str
-        Pick between "GL" (Gauss Legendre) or "CC" (Clenshaw Curtis).
+        Pick between "GL" (Gauss Legendre), "CC" (Clenshaw Curtis), F1
+        or F2 (Fejer 1 and 2).
     nrings : int
         Number of theta rings on full sky.
     nphi : int
@@ -725,7 +798,7 @@ def get_minfo(mtype, nrings, nphi, theta_min=None, theta_max=None, return_arc_le
     Returns
     -------
     map_info : map_utils.MapInfo object
-        metadata of Gausss-Legendre grid.
+        metadata of grid.
     arc_lengths : (ntheta) array
         If return_arc_len is set: arc length of rings along the theta direction.
     '''
@@ -734,6 +807,10 @@ def get_minfo(mtype, nrings, nphi, theta_min=None, theta_max=None, return_arc_le
         map_info = MapInfo.map_info_gauss_legendre(nrings, nphi)
     elif mtype == 'CC':
         map_info = MapInfo.map_info_clenshaw_curtis(nrings, nphi)
+    elif mtype == 'F1':
+        map_info = MapInfo.map_info_fejer1(nrings, nphi)
+    elif mtype == 'F2':
+        map_info = MapInfo.map_info_fejer2(nrings, nphi)        
     else:
         raise ValueError(f'mtype : {mtype} not supported')
 
@@ -771,7 +848,7 @@ def get_cc_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
     Parameters
     ----------
     lmax : int
-        Band limit supported by Gauss-Legendre grid.
+        Band limit supported by grid.
     theta_min : float, optional
         Minimum colattitute of grid in radians.
     theta_max : float, optional
@@ -1231,8 +1308,8 @@ def round_icov_matrix(icov_pix, rtol=1e-2, threshold=False):
 
 def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
     '''
-    Compute map_info metadata for a Ducc grid
-    given a cylindrical enmap shape and wcs.
+    Compute map_info metadata for a ducc grid given a CAR enmap
+    shape and wcs.
 
     Parameters
     ----------
@@ -1246,7 +1323,7 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
         Amount of extra space [radians] in the theta (collatitude) 
         direction above and below region.
     mtype : str
-        Pick between "GL" (Gauss Legendre) or "CC" (Clenshaw Curtis).
+        Pick between "GL" (Gauss Legendre), "CC" (Clenshaw Curtis).
 
     Returns
     -------
@@ -1375,9 +1452,9 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     slice2keep = np.s_[min(idx_start, idx_end):max(idx_start, idx_end)+1]
     
     if wcs.wcs.cdelt[0] > 0:
-        offsets2keep = minfo.offsets[slice2keep]-minfo.offsets[slice2keep][0] 
+        offsets2keep = minfo.offsets[slice2keep] - minfo.offsets[slice2keep][0] 
     else:
-        offsets2keep = minfo.offsets[slice2keep]-minfo.offsets[slice2keep][0] + nx - 1
+        offsets2keep = minfo.offsets[slice2keep] - minfo.offsets[slice2keep][0] + nx - 1
         phi0 -= np.radians(wcs.wcs.cdelt[0])
 
     theta2keep = minfo.theta[slice2keep]

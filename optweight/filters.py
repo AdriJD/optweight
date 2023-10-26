@@ -283,6 +283,9 @@ class CGPixFilter(object):
                 ainfo, self.icov_ell, self.icov_pix, self.minfo, [0, 2], b_ell=self.b_ell,
                 sfilt=self.sfilt)
 
+
+        # THIS SHOULD BE DONE IN PRECOMPUTING STEP!!!!
+        # CAN I NOT SPEEDUP THE MG DENSE COMPUTATION?
         prec_masked_cg = preconditioners.MaskedPreconditionerCG(
             ainfo, self.icov_ell, [0, 2], self.mask_bool, self.minfo,
             #lmax=lmax_masked_cg, nsteps=15)
