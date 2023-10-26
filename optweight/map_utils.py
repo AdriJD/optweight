@@ -296,6 +296,56 @@ class MapInfo():
         return cls(theta, weight, nphi=nphi, phi0=phi0, offsets=offsets,
                     stride=stride_lon)
 
+def get_mtype(minfo):
+    '''
+    Return type of geometry.
+    
+    Parameters
+    ----------
+    minfo : map_utils.MapInfo object
+        Metainfo describing input geometry.
+
+    Returns
+    -------
+    mtype : str
+        Either GL, CC or F1.
+    
+    Raises
+    ------
+    ValueError
+        If input is not GL, CC, F1 or F2.
+        Input input maps has < 3 rings.
+    
+    Notes
+    -----
+    Input F2 map will be intepreted as CC map.
+    '''
+    
+    if minfo.theta.size < 3:
+        raise ValueError(f'Need atleast 3 rings, got {minfo.theta.size=}')
+    
+    diff = np.diff(minfo.theta)
+
+    if not np.allclose(diff, diff[0]):
+        mtype = 'GL'        
+    else:
+        # Assume either CC, F1 or F2.
+        dtheta = diff[0]
+        diff_norm = (np.pi - minfo.theta.max()) / dtheta
+        remain = np.round(np.remainder(diff_norm, 1), 1)
+        
+        if remain == 0.0:
+            # CC, could also be F2, but we cannot distinguish between those.
+            mtype = 'CC'
+            
+        elif remain == 0.5:
+            mtype = 'F1'
+            
+        else:
+            raise ValueError(f'Cannot determine mtype, {remain=}')
+        
+    return mtype
+    
 def get_fullsky_geometry(minfo):
     '''
     Take a cut-sky map_info object and return a map_info object that
@@ -311,6 +361,11 @@ def get_fullsky_geometry(minfo):
     ValueError
         If input is not GL, CC, F1 or F2.
         Input input maps has < 3 rings.
+
+    Returns
+    -------
+    minfo_fullsky : map_utils.MapInfo object
+        Metainfo describing output fullsky geometry.
     
     Notes
     -----
@@ -318,38 +373,29 @@ def get_fullsky_geometry(minfo):
     shared between input and output geometries.    
     '''
 
-    if minfo.theta.size < 3:
-        raise ValueError(f'Need atleast 3 rings, got {minfo.theta.size=}')
-    
-    diff = np.diff(minfo.theta)
     nphi = minfo.nphi[0]
+    diff = np.diff(minfo.theta)        
 
     if not all(minfo.nphi == nphi):
         raise ValueError('Geometries with varying nphi not supported')
-    print(diff, minfo.theta.size)
-    if not np.allclose(diff, diff[0]):
-        # Assume GL. Use emperical relation to get nrings.        
+
+    mtype = get_mtype(minfo)
+
+    if mtype == 'GL':
+        # Use emperical relation to get nrings.
         nrings = int(np.round(np.min(np.pi / np.abs(diff) - 0.5)))
         minfo_fullsky = MapInfo.map_info_gauss_legendre(nrings, nphi)
         
+    elif mtype == 'CC':        
+        nrings = int(np.round(np.pi / np.abs(diff[0]) + 1))
+        minfo_fullsky = MapInfo.map_info_clenshaw_curtis(nrings, nphi)
+
+    elif mtype == 'F1':
+        nrings = int(np.round(np.pi / np.abs(diff[0])))
+        minfo_fullsky = MapInfo.map_info_fejer1(nrings, nphi)
+            
     else:
-        # Assume either CC, F1 or F2.
-        dtheta = diff[0]
-        diff_norm = (np.pi - minfo.theta.max()) / dtheta
-        remain = np.round(np.remainder(diff_norm, 1), 1)
-        
-        if remain == 0.0:
-            # CC, could also be F2, but we cannot distinguish between those.
-            nrings = int(np.round(np.pi / dtheta + 1))
-            minfo_fullsky = MapInfo.map_info_clenshaw_curtis(nrings, nphi)
-            
-        elif remain == 0.5:
-            # Fejer 1.
-            nrings = int(np.round(np.pi / dtheta ))
-            minfo_fullsky = MapInfo.map_info_fejer1(nrings, nphi)
-            
-        else:
-            raise ValueError(f'Cannot determine mtype, {remain=}')
+        raise ValueError(f'{mtype=} not supported')
                 
     # Perform checks to make sure the input thetas are a subset of output.
     theta_sorted = np.sort(minfo.theta)

@@ -217,10 +217,9 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
         downgrade = 2 ** idx
         lmax_level = lmax // downgrade
 
-        # NOTE, IF DOWNGRADE=1, not safer to just keep minfo and mask?
-        # NO because it has to be full sky!
         mask_level, minfo_level = get_equal_area_mask_bool(
-            mask, minfo, lmax=lmax_level)
+            mask, minfo, lmax=lmax_level,
+            minfo_fullsky=map_utils.get_fullsky_geometry(minfo) if idx == 0 else None)
 
         assert lmax_level <= nell - 1, (
             f'lmax_level {lmax_level} exceeds lmax of icov_ell {nell - 1}')
@@ -248,7 +247,7 @@ def get_levels(mask, minfo, icov_ell, spin, min_pix=1000, lmax_r_ell=6000):
 
     return levels
 
-def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
+def get_equal_area_mask_bool(mask_bool, minfo, lmax=None, minfo_fullsky=None):
     '''
     Interpolate boolean mask defined on Gauss legendre grid to
     equal area Gauss Legendre grid (possibly with different lmax).
@@ -261,6 +260,8 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
         Meta info mask.
     lmax : int, optional
         Band-limit of output map.
+    minfo_fullsky : map_utils.MapInfo object, optional
+        If provided, base the equal area map_info to this map_info.
 
     Returns
     -------
@@ -273,18 +274,14 @@ def get_equal_area_mask_bool(mask_bool, minfo, lmax=None):
     if lmax is None:
         lmax = map_utils.minfo2lmax(minfo)
 
-    # We want fullsky minfos (for now), we want to solve masked pixels.
-    # Determine if input minfo is CC or GL.
-
-    diff = minfo.theta
-    if np.allclose(diff, diff[0]):
-        minfo_full = map_utils.get_minfo('CC', lmax + 1, 2 * lmax + 1)
-    else:
-        minfo_full = map_utils.get_minfo('GL', lmax + 1, 2 * lmax + 1)
+    # We want fullsky minfos, we want to solve masked pixels.
+    if minfo_fullsky is None:
+        minfo_fullsky = map_utils.get_minfo(
+            map_utils.get_mtype(minfo), lmax + 1, 2 * lmax + 1)    
 
     # This is hardcoded for DR6 now.
     minfo_out = map_utils.get_equal_area_minfo(
-        minfo_full, orig_band=0.4, ratio_pow=1)
+        minfo_fullsky, orig_band=0.4, ratio_pow=1)
 
     mask_out = map_utils.gauss2map(
         mask_bool.astype(np.float32), minfo, minfo_out, order=1)

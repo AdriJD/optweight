@@ -125,6 +125,46 @@ class TestMapUtils(unittest.TestCase):
         self.assertAlmostEqual(np.sum(minfo.weight * minfo.nphi), 4 * np.pi)
         np.testing.assert_allclose(minfo.theta, theta_exp)
 
+    def test_get_mtype(self):
+
+        ntheta = 6
+        nphi = 2
+        
+        # Test if input fullsky geometry gets mapped to same fullsky geometry.
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(ntheta, nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo), 'GL')
+
+        minfo = map_utils.MapInfo.map_info_clenshaw_curtis(ntheta, nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo), 'CC')
+        
+        minfo = map_utils.MapInfo.map_info_fejer1(ntheta, nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo), 'F1')
+                
+        # For fejer2 we get back CC with zeros at both ends.
+        minfo = map_utils.MapInfo.map_info_fejer2(ntheta, nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo), 'CC')
+        
+        # Now cut input.
+        minfo = map_utils.MapInfo.map_info_gauss_legendre(ntheta, nphi=nphi)
+        tslice = slice(2, 5)
+        minfo_cut = map_utils.MapInfo(minfo.theta[tslice], minfo.weight[tslice], nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo_cut), 'GL')
+        
+        minfo = map_utils.MapInfo.map_info_clenshaw_curtis(ntheta, nphi=nphi)
+        tslice = slice(2, 5)
+        minfo_cut = map_utils.MapInfo(minfo.theta[tslice], minfo.weight[tslice], nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo_cut), 'CC')
+
+        minfo = map_utils.MapInfo.map_info_fejer1(ntheta, nphi=nphi)
+        tslice = slice(2, 5)
+        minfo_cut = map_utils.MapInfo(minfo.theta[tslice], minfo.weight[tslice], nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo_cut), 'F1')
+
+        minfo = map_utils.MapInfo.map_info_fejer2(ntheta, nphi=nphi)
+        tslice = slice(2, 5)
+        minfo_cut = map_utils.MapInfo(minfo.theta[tslice], minfo.weight[tslice], nphi=nphi)
+        self.assertEqual(map_utils.get_mtype(minfo_cut), 'CC')
+        
     def test_get_fullsky_geometry(self):
 
         ntheta = 5
