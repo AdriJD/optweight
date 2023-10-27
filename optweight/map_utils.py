@@ -778,7 +778,8 @@ def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
             nphi = minfo_out.nphi[tidx]
             phi0 = minfo_out.phi0[tidx]
 
-            # ADD STRIDE ....
+            # Correct that stride is not included here. Output stride is
+            # handled by get_ring_slice.
             phis = np.linspace(phi0, 2 * np.pi + phi0, nphi, endpoint=False)
 
             ring_slice = get_ring_slice(tidx, minfo_out)
@@ -1289,6 +1290,74 @@ def rand_wav(cov_wav):
                                  
     return rand_wav
 
+def threshold_icov(icov_pix, q_low=0, q_high=1):
+    '''
+    Threshold a covariance matrix.
+
+    Parameters
+    ----------
+    icov_pix : (npol, npol, npix) or (npol, npix) array
+        Inverse covariance matrix.
+    q_low : float or (npol) array, optional
+        Pixels with values below this quantile are thresholded.
+        May be set per polarization.
+    q_high : float or (npol) array, optional
+        Pixels with values above this quantile are thresholded.
+        May be set  per polarization.
+    sel_diag : slice, optional
+        Slice into the diagonal of the matrix to denote which
+        components are used to determine thresholded pixels.
+
+    Returns
+    -------
+    icov_pix_out : (npol, npol, npix) or (npol, npix) array
+        Copy of input with thresholded pixels.
+
+    Notes
+    -----
+    Only nonzero pixels taken into account.
+    '''
+    
+    ndim = icov_pix.ndim
+    if not (ndim == 2 or ndim == 3):
+        raise ValueError(f'{icov_pix.ndim=}, expected 2 or 3')
+
+    npol = icov_pix.shape[0]
+
+    q_low = q_low * np.ones(npol)
+    q_high = q_high * np.ones(npol)    
+
+    scaling = np.ones((npol, icov_pix.shape[-1]))
+    
+    for pidx in range(npol):        
+        
+        index = (pidx, pidx) if ndim == 3 else pidx
+
+        mask_nonzero = icov_pix[index] > 0
+        if np.sum(mask_nonzero) == 0:
+            continue
+        
+        val_low = np.quantile(
+            icov_pix[index][mask_nonzero], q_low[pidx])
+        val_high = np.quantile(
+            icov_pix[index][mask_nonzero], q_high[pidx])
+
+        mask_low = (icov_pix[index] < val_low) & mask_nonzero
+        mask_high = (icov_pix[index] > val_high) & mask_nonzero
+
+        scaling[pidx][mask_low] = val_low / icov_pix[index][mask_low]
+        scaling[pidx][mask_high] = val_high / icov_pix[index][mask_high]
+
+    if icov_pix.ndim == 2:
+        icov_pix_out = icov_pix * scaling
+    else:
+        np.sqrt(scaling, out=scaling)
+        icov_pix_out = np.einsum(
+            'ip, ijp, jp -> ijp', scaling, icov_pix, scaling,
+            optimize=True)
+        
+    return icov_pix_out.astype(icov_pix.dtype, copy=False)
+            
 def round_icov_matrix(icov_pix, rtol=1e-2, threshold=False):
     '''
     Set too small values in inverse covariance matrix to zero.

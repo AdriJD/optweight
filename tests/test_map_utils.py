@@ -626,6 +626,51 @@ class TestMapUtils(unittest.TestCase):
         self.assertEqual(rand_wav.maps[0].shape, (npol, minfo1.npix))
         self.assertEqual(rand_wav.maps[1].shape, (npol, minfo2.npix))
 
+    def test_threshold_matrix(self):
+        
+        npol = 3
+        npix = 4
+
+        icov_pix = np.ones((npol, npol, npix)) * np.eye(3)[:,:,np.newaxis]
+        icov_pix_out = map_utils.threshold_icov(icov_pix)
+
+        self.assertFalse(np.shares_memory(icov_pix_out, icov_pix))
+        np.testing.assert_allclose(icov_pix_out, icov_pix)
+
+        icov_pix[0,0,0] = 0.1
+        icov_pix[0,1,0] = 0.01
+        icov_pix[1,0,0] = 0.01
+
+        val_exp = np.quantile([0.1, 1, 1, 1], 0.2)
+        icov_pix_out = map_utils.threshold_icov(icov_pix, q_low=[0.2])
+
+        # Since q_low should threshold the 0,0 component of 1st pixel,
+        # it's value should be val_exp, the 0,1 and 1,0 should be
+        # 0.01 * sqrt(val_exp / 0.1).
+
+        icov_pix_exp = icov_pix.copy()
+        icov_pix_exp[0,0,0] = val_exp
+        icov_pix_exp[0,1,0] = icov_pix[0,1,0] * np.sqrt(val_exp / icov_pix[0,0,0])
+        icov_pix_exp[1,0,0] = icov_pix_exp[0,1,0]
+
+        np.testing.assert_allclose(icov_pix_exp, icov_pix_out)                
+
+        # Test q_high.
+        icov_pix = np.ones((npol, npol, npix)) * np.eye(3)[:,:,np.newaxis]
+        icov_pix[0,0,0] = 100
+        icov_pix[0,1,0] = 10
+        icov_pix[1,0,0] = 10
+        
+        val_exp = np.quantile([100, 1, 1, 1], 0.8)
+        icov_pix_out = map_utils.threshold_icov(icov_pix, q_high=[0.8])
+
+        icov_pix_exp = icov_pix.copy()
+        icov_pix_exp[0,0,0] = val_exp
+        icov_pix_exp[0,1,0] = icov_pix[0,1,0] * np.sqrt(val_exp / icov_pix[0,0,0])
+        icov_pix_exp[1,0,0] = icov_pix_exp[0,1,0]
+
+        np.testing.assert_allclose(icov_pix_exp, icov_pix_out)                
+
     def test_round_icov_matrix(self):
 
         npol = 3

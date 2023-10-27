@@ -7,7 +7,7 @@ from pixell import curvedsky, utils, enmap, curvedsky
 from optweight import map_utils, mat_utils, solvers, preconditioners
 
 class CGPixFilter(object):
-    def __init__(self, ncomp, theory_cls, b_ell, lmax,
+    def __init__(self, ncomp, theory_cls, b_ell, lmax=None,
                  icov_pix=None, mask_bool=None, cov_noise_ell=None, minfo=None,
                  include_te=False, rtol_icov=1e-2, order=1, swap_bm=True,
                  scale_a=False):
@@ -31,27 +31,14 @@ class CGPixFilter(object):
             (starting at ell=0) to assume in the noise model. Separate
             beams can be specified for T,E,B if the array is 2d.
         lmax : int
-            The maximum multipole for the filtering, used to determine the
-            resolution of the Gauss-Legendre pixelization geometry.
+            The maximum multipole for the output.
         icov_pix : (ncomp,ncomp,Ny,Nx), (ncomp,Ny,Nx) or (Ny,Nx) ndmap
-            An enmap containing the inverse (co-)variance per pixel (zeros in
-            unobserved region), in units (e.g. 1/uK^2) consistent with
-            the alms and theory_cls. IQ, IU, QU elements can also be specified
-            if icov_pix is 4-dimensional. Within ACT and SO, these are sometimes 
-            referred to as 'ivar' or 'div'. Can also be a map in Gauss-Legendre
-            or HEALPix pixelization. In those cases last dimensions should be 
-            'npix' instead of 'Ny,Nx'.
+            An enmap containing the inverse (co-)variance per pixel in units
+            (e.g. 1/uK^2) consistent with the alms and theory_cls. IQ, IU, QU
+            elements can also be specified if icov_pix is 4-dimensional.
         mask_bool : (ncomp,Ny,Nx) or (Ny,Nx) ndmap
             Boolean mask (True for observed pixels. Geometry must match that of
-            'icov_pix'. If not provided, will be determined from 'ivar'.
-        cov_noise_ell : (ncomp,ncomp,nells) or (ncomp,nells) array
-            Power spectrum of flattened (ivar_pix-weighted) noise in units
-            (e.g. 1/uK^2) consistent with the alms and theory_cls. Used to model
-            noise that deviates from the white noise described by the icov maps
-            as function of multipole.
-        minfo : map_utils.MapInfo object
-            Metainfo for inverse noise covariance icov_pix in case a Gauss-Legendre
-            map is provided.
+            'icov_pix'.
         include_te : bool
             Whether or not to jointly filter T,E,B maps by accounting for the
             signal TE correlation. If True, the returned alms will be optimally
@@ -76,6 +63,9 @@ class CGPixFilter(object):
 
         if np.any(np.logical_not(np.isfinite(icov_pix))): raise Exception
 
+        # DROP HEALPIX
+        # Only do enmap.
+        
 
         # REPLACE WITH CALLS TO MATCH_ENMAP_MINFO.
 
@@ -150,7 +140,7 @@ class CGPixFilter(object):
         else:
             icov_noise_ell = None
                 
-        if b_ell.ndim==1:
+        if b_ell.ndim == 1:
             b_ell = b_ell[None] * np.asarray((1, 1, 1)[:ncomp])[:,None]
         elif b_ell.ndim == 2:
             if b_ell.shape[0] != ncomp: raise Exception
