@@ -64,7 +64,7 @@ ext_modules = [Extension('optweight.alm_c_utils',
 
 setup(name='optweight',
       packages=['optweight'],
-      version='0.0.1',
+      version='0.0.2',
       cmdclass=cmdclass,
       ext_modules=cythonize(ext_modules, annotate=True,
                             compiler_directives=compiler_directives))
