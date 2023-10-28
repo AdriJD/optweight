@@ -400,7 +400,7 @@ class InvFWavMatVecF(MatVecF):
         b_vec = fmap.copy()
         solver = utils.CG(self._a_mat, b_vec, M=self._prec, dot=dft.contract_fxg)
         
-        for idx in range(self.nsteps):
+        for _ in range(self.nsteps):
             solver.step()
             if verbose:
                 print(solver.i, solver.err)
@@ -451,6 +451,8 @@ class FInvFWavFMatVecMap(MatVecMap):
         ----------
         imap : (npol, npix) array
             Input map.
+        verbose : bool, optional
+            If set, print information about CG convergence.
 
         Returns
         -------
@@ -464,7 +466,7 @@ class FInvFWavFMatVecMap(MatVecMap):
 
         dft.rfft(imap, fmap)
         self.x_op(fmap)
-        fmap[:] = self.inv_op(fmap)
+        fmap[:] = self.inv_op(fmap, verbose=verbose)
         self.x_op(fmap)
         dft.irfft(fmap, omap)
 
@@ -964,13 +966,13 @@ class WavMatVecWav(MatVecWav):
                 if self.op is None:
                     # Default behaviour.
                     if map_mat.ndim == 3:
-                        map_prod = np.einsum('ijk, jk -> ik', map_mat, 
+                        np.einsum('ijk, jk -> ik', map_mat, 
                             map_vec, out=map_vec, optimize=True)
                     elif map_mat.ndim == 2:
                         map_vec *= map_mat
                 else:
-                    map_prod = np.einsum(self.op, map_mat, map_vec, out=map_vec, 
-                                         optimize=True)
+                    np.einsum(self.op, map_mat, map_vec, out=map_vec, 
+                              optimize=True)
         return wav
 
 class PixEllPixMatVecMap(MatVecMap):

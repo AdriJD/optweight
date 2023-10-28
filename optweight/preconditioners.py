@@ -183,7 +183,7 @@ class PseudoInvPreconditioner(operators.MatVecAlm):
             cov_pix = mat_utils.matpow(icov_pix, -1)
 
         if sfilt is not None:
-            sftil = mat_utils.full_matrix(sfilt)
+            sfilt = mat_utils.full_matrix(sfilt)
 
         self.harmonic_prec = HarmonicPreconditioner(ainfo, icov_ell,
                                     itau=itau, b_ell=b_ell, sfilt=sfilt)
@@ -320,7 +320,7 @@ class PseudoInvPreconditionerWav(operators.MatVecAlm):
                 use_weights=True)
 
         if sfilt is not None:
-            sftil = mat_utils.full_matrix(sfilt)
+            sfilt = mat_utils.full_matrix(sfilt)
 
         self.harmonic_prec = HarmonicPreconditioner(ainfo, icov_ell,
                                     itau=itau_ell, b_ell=b_ell, sfilt=sfilt)
@@ -452,7 +452,7 @@ class PseudoInvPreconditionerFWav(operators.MatVecAlm):
         self.spin = spin
         
         if sfilt is not None:
-            sftil = mat_utils.full_matrix(sfilt)
+            sfilt = mat_utils.full_matrix(sfilt)
 
         self.harmonic_prec = HarmonicPreconditioner(ainfo, icov_ell,
                                     itau=itau_ell, b_ell=b_ell, sfilt=sfilt)

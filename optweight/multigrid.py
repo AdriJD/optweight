@@ -6,7 +6,7 @@ import numpy as np
 
 from pixell import curvedsky
 
-from optweight import (map_utils, operators, noise_utils, alm_utils, alm_c_utils,
+from optweight import (map_utils, operators, noise_utils, alm_c_utils,
                        type_utils, sht)
 
 class Level():
@@ -338,11 +338,11 @@ def restrict(imap, level_in, level_out, spin, adjoint=False):
         ainfo_out = ainfo_in
 
     if not adjoint:
-       r_ell = noise_utils._band_limit_gauss_beam(
-           lmax_out, fwhm=2 * np.pi / lmax_out)
+        r_ell = noise_utils._band_limit_gauss_beam(
+            lmax_out, fwhm=2 * np.pi / lmax_out)
     else:
-       r_ell = noise_utils._band_limit_gauss_beam(
-           lmax_in, fwhm=2 * np.pi / lmax_in)
+        r_ell = noise_utils._band_limit_gauss_beam(
+            lmax_in, fwhm=2 * np.pi / lmax_in)
 
     alm_c_utils.lmul(alm, r_ell, ainfo_out, inplace=True)
     sht.alm2map(alm, omap, ainfo_out, minfo_out, spin, adjoint=adjoint)

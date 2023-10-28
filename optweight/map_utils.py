@@ -2,12 +2,12 @@
 A collection of functions to deal with maps defined as sets of iso-latitude
 rings.
 '''
+import os
+
 import numpy as np
 from scipy.interpolate import (NearestNDInterpolator, RectBivariateSpline,
                                interp1d)
 from scipy.special import roots_legendre
-import os
-
 from pixell import enmap, utils, wcsutils, curvedsky
 import healpy as hp
 import h5py
@@ -90,7 +90,7 @@ class MapInfo():
             self._offsets = np.array(offsets, dtype=np.uint64)
         if self._offsets.shape != (self.nrow,):
             raise ValueError(
-                f'offsets must be ({self.nrow},) got {self.offseets.shape}')
+                f'offsets must be ({self.nrow},) got {self.offsets.shape}')
 
         if stride is None:
             self.stride = np.ones(self.nrow, np.int64)
@@ -1276,19 +1276,19 @@ def rand_wav(cov_wav):
 
     returns
     -------
-    rand_wav : (nwav) wavtrans.Wav object
+    wav_rand : (nwav) wavtrans.Wav object
         Wavelet vector containing the random draw.
     '''
     
-    rand_wav = wavtrans.Wav(1, dtype=cov_wav.dtype)
+    wav_rand = wavtrans.Wav(1, dtype=cov_wav.dtype)
 
     for jidx in range(cov_wav.shape[0]):
         
         cov_pix = cov_wav.maps[jidx,jidx]
-        rand_wav.add(np.asarray([jidx]), rand_map_pix(cov_pix),
+        wav_rand.add(np.asarray([jidx]), rand_map_pix(cov_pix),
                      cov_wav.minfos[jidx,jidx])
                                  
-    return rand_wav
+    return wav_rand
 
 def threshold_icov(icov_pix, q_low=0, q_high=1):
     '''
@@ -1319,7 +1319,7 @@ def threshold_icov(icov_pix, q_low=0, q_high=1):
     '''
     
     ndim = icov_pix.ndim
-    if not (ndim == 2 or ndim == 3):
+    if not ndim in (2, 3):
         raise ValueError(f'{icov_pix.ndim=}, expected 2 or 3')
 
     npol = icov_pix.shape[0]
@@ -1384,7 +1384,7 @@ def round_icov_matrix(icov_pix, rtol=1e-2, threshold=False):
     '''
 
     ndim = icov_pix.ndim
-    if not (ndim == 2 or ndim == 3):
+    if not ndim in (2, 3):
         raise ValueError(
             'Wrong dimensionality of icov_pix : {}, expected 2 or 3'.
             format(ndim))
@@ -1456,11 +1456,9 @@ def get_enmap_minfo(shape, wcs, lmax, pad=None, mtype='GL'):
     if not wcsutils.is_cyl(wcs):
         raise NotImplementedError('Non-cylindrical enmaps not supported')
 
-    ny, nx = shape[-2:]
+    ny = shape[-2]
     dec_range = enmap.pix2sky(
         shape, wcs, [[0, ny-1], [0, 0]], safe=False)[0]
-    ra_range = enmap.pix2sky(
-        shape, wcs, [[0, 0], [0, nx-1]], safe=False)[1]
 
     theta_range = np.pi / 2 - dec_range
     
@@ -1701,7 +1699,7 @@ def inpaint_nearest(imap, mask, minfo):
 
     return omap.reshape(shape_in)
 
-def lmul_pix(imap, lmat, minfo, spin, inplace=False, adjoint=False):
+def lmul_pix(imap, lmat, minfo, spin, inplace=False):
     '''
     Convert map to spherical harmonic domain, apply matrix and convert back.
 
@@ -1771,7 +1769,6 @@ def fmul_pix(imap, minfo, fmat2d=None, fmat1d=None, ells=None, modlmap=None,
     '''
 
     imap = mat_utils.atleast_nd(imap, 2)
-    npol = imap.shape[0]
 
     imap2d = view_2d(imap, minfo)
     fmap = dft.allocate_fmap(imap2d.shape, imap2d.dtype)

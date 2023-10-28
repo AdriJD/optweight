@@ -2,9 +2,8 @@ import numpy as np
 
 from pixell import curvedsky, utils
 
-from optweight import (operators, alm_utils, map_utils, preconditioners, sht, mat_utils,
-                       noise_utils, dft)
-from optweight import sht as sht_tools
+from optweight import (operators, alm_utils, map_utils,
+                       noise_utils, dft, sht as sht_tools)
 
 class CGWienerMap(utils.CG):
     '''
@@ -797,7 +796,7 @@ class CGWiener(utils.CG):
         '''
 
         if spin is None:
-            spin = sht.default_spin(alm_data.shape)
+            spin = sht_tools.default_spin(alm_data.shape)
 
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
 
@@ -891,7 +890,7 @@ class CGWiener(utils.CG):
         '''
 
         if spin is None:
-            spin = sht.default_spin(alm_data.shape)
+            spin = sht_tools.default_spin(alm_data.shape)
 
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
 

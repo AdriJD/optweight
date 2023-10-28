@@ -52,7 +52,7 @@ class FKernelSet():
                 f'Only FKernel instances allowed, got {type(fkernel)}')
 
         if int(key) != key:
-            TypeError(f'Only integer keys allowed, got {type(key)}')
+            raise TypeError(f'Only integer keys allowed, got {type(key)}')
 
         if not self.fkernel_dict:
             # If set is still empty, take properties from this new kernel.
@@ -539,7 +539,7 @@ def find_kernel_slice(fkernel_arr, minval=1e-7, optimize_len=False):
         raise ValueError('Input array is completely zero.')
 
     nx = nonzero.size
-    if nonzero[-1] == True:
+    if nonzero[-1] is True:
         # Last element is still nonzero, so we must include full x slice.
         idx_x_end = nx - 1
     else:

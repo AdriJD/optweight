@@ -350,8 +350,6 @@ def fmul_2d(fmap, fmat2d, out=None):
     '''
     
     fmap = mat_utils.atleast_nd(fmap, 3)
-    npol = fmap.shape[0]
-    nly, nlx = fmap.shape[-2:]
 
     if out is None:
         out = fmap.copy()
@@ -410,8 +408,6 @@ def cl2flat(c_ell, ells, modlmap):
         c_ell = np.concatenate((c_ell, c_ell_end[...,np.newaxis]), axis=-1)
     ells = np.concatenate((ell_start, ells, ell_end))        
 
-    out = np.zeros(c_ell.shape[:-1] + modlmap.shape,
-                   dtype=type_utils.to_complex(c_ell.dtype))
     cs = interp1d(ells, c_ell, kind='linear', assume_sorted=True,
                   bounds_error=True)
 

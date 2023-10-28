@@ -204,7 +204,7 @@ def estimate_cov_pix(imap, minfo, diag=False, fwhm=None, lmax=None,
         fb = dft.cl2flat(b_ell, np.arange(b_ell.shape[-1]), modlmap)
 
     if not diag:
-        cov_pix = cov_pix.reshape(ncomp * npol, ncomp * npol, npix)
+        cov_pix = cov_pix.reshape((ncomp * npol, ncomp * npol, npix))
 
     for idxs in np.ndindex(cov_pix.shape[:-1]):
 

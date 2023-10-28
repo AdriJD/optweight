@@ -4,7 +4,7 @@ import os
 from pixell import curvedsky
 import h5py
 
-from optweight import (alm_utils, sht, type_utils, type_utils, map_utils, 
+from optweight import (alm_utils, sht, type_utils, map_utils, 
                        wlm_utils, dft)
 
 class Wav():
@@ -327,8 +327,8 @@ class Wav():
                 (np.ones((nwav, ndim)) * np.arange(nwav)[:,np.newaxis]).astype(int))
 
         if kwargs['indices'].shape[0] != nwav:
-            raise ValueError(f'Mismatch shape indices : {indices.shape} and '
-                             f'w_ell : {w_ell.shape}')
+            raise ValueError(f'Mismatch shapes : {kwargs["indices"].shape=} and '
+                             f'{w_ell.shape=}')
 
         return cls(*args, **kwargs)
 
@@ -362,8 +362,8 @@ class Wav():
                 (np.ones((nwav, ndim)) * np.arange(nwav)[:,np.newaxis]).astype(int))
 
         if kwargs['indices'].shape[0] != nwav:
-            raise ValueError(f'Mismatch shape indices : {indices.shape} and '
-                             f'w_ell : {w_ell.shape}')
+            raise ValueError(f'Mismatch shapes : {kwargs["indices"].shape=} and '
+                             f'{nwav=}')
 
         return cls(*args, **kwargs)
 
@@ -491,7 +491,6 @@ def alm2wav(alm, ainfo, spin, w_ell, wav=None, adjoint=False, lmaxs=None):
         Vector of wavelet maps.
     '''
 
-    lmax = ainfo.lmax
     wlms, winfos = alm_utils.alm2wlm_axisym(alm, ainfo, w_ell, lmaxs=lmaxs)
     indices = np.arange(len(wlms))
 

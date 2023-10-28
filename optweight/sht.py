@@ -5,7 +5,7 @@ import numpy as np
 from pixell import enmap
 import ducc0
 
-from optweight import mat_utils, map_utils, map_c_utils
+from optweight import mat_utils, map_c_utils
 
 def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     '''

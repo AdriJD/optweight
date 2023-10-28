@@ -1,9 +1,9 @@
-import numpy as np
-import warnings
 from timeit import default_timer as timer
+import warnings
 
-from pixell import curvedsky, utils, enmap, curvedsky
+import numpy as np
 
+from pixell import curvedsky
 from optweight import map_utils, mat_utils, solvers, preconditioners
 
 class CGPixFilter(object):
@@ -222,7 +222,7 @@ class CGPixFilter(object):
         if niter is None:
             niter = 15
             warnings.warn(f"optweight: Using the default number of iterations :"\
-                          f"{niter_cg=} + {niter=}.")
+                          f"{niter_masked_cg=} + {niter=}.")
 
         for idx in range(niter_masked_cg + niter):
             if idx == niter_masked_cg:
@@ -249,13 +249,14 @@ class CGPixFilter(object):
                     chisqs.append(chisq)
                     residuals.append(residual)
                     qforms.append(qform)                    
-                    ps_c_ells.append(ainfo.alm2cl(
+                    ps_c_ells.append(self.ainfo.alm2cl(
                         solver.get_wiener()[:,None,:], solver.get_wiener()[None,:,:]))
                     itnums.append(idx)
                     print(f"optweight benchmark: \t chisq : {chisq:.2f} \t "
                           f"residual : {residual:.2f} \t qform : {qform:.2f}")
             if verbose:
-                print(f"optweight step {solver.i} / {niter_cg + niter}, error {errors[-1]:.2e}, time {t_eval:.3f} s")
+                print(f"optweight step {solver.i} / {niter_masked_cg + niter},"\
+                      f", error {errors[-1]:.2e}, time {t_eval:.3f} s")
             if solver.err < err_tol: 
                 warnings.warn(f"Stopping early because the error {solver.err} is below err_tol {err_tol}")
                 break
