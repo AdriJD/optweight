@@ -3,6 +3,7 @@ Multigrid solver meant as preconditioner for the masked pixels, heavily inspired
 https://arxiv.org/pdf/1710.00621.pdf and https://github.com/dagss/cmbcr.
 '''
 import numpy as np
+from scipy import linalg
 
 from pixell import curvedsky
 
@@ -124,7 +125,7 @@ class Level():
 
         mat = operators.op2mat(
             self._g_op_unobs, np.sum(self.mask_unobs), np.float64)
-        pinv_mat = np.linalg.pinv(mat)
+        pinv_mat = linalg.pinvh(mat)
 
         def smoother(imap):
             omap = np.zeros(imap.shape, imap.dtype)
