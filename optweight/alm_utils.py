@@ -3,7 +3,8 @@ import numpy as np
 import healpy as hp
 from pixell import curvedsky
 
-from optweight import map_utils, sht, type_utils, wavtrans, alm_c_utils
+from optweight import (map_utils, sht, type_utils, wavtrans, alm_c_utils,
+                       mat_utils)
 
 def contract_almxblm(alm, blm):
     '''
@@ -243,6 +244,68 @@ def trunc_alm(alm, ainfo, lmax):
 
     return alm_trunc, ainfo_trunc
 
+def unit_var_alm(ainfo, preshape, seed, out=None, dtype=np.complex128):
+    '''
+    Draw unit-variance Gaussian random alm.
+
+    Parameters
+    ----------
+    ainfo : pixell.curvedsky.alm_info object
+        Metainfo for output alms.
+    preshape : tuple
+        Leading dimensions of output array.
+    seed : int or np.random._generator.Generator object
+        Seed for np.random.seed.
+    out : (pre,) + (nelem,) complex array, optional
+        If provided, use this array for output.
+    dtype : type
+        Output dtype. Pick between complex64 and 128.
+
+    Returns
+    -------
+    out : (pre,) + (nelem,) array
+        Output alms.
+
+    Raises
+    ------
+    ValueError
+        If dtype is not supported
+        If out array does not match expected shape or dtype.
+    '''
+
+    if not dtype in (np.complex64, np.complex128):
+        raise ValueError(f'{dtype=} not supported')
+    
+    oshape = preshape + (ainfo.nelem,)
+    if out is not None:
+        if out.shape != oshape or out.dtype != dtype:
+            raise ValueError(
+                f'{oshape=}, {dtype=} != {out.shape=}, {out.dtype=}')
+    else:
+        out = np.zeros(oshape, dtype=dtype)
+    out = mat_utils.atleast_nd(out, 2)
+    shape_nd = out.shape    
+    # Unlike pixell we do not draw in ell-major order. We don't really
+    # need low-lmax draws and high-lmax draws to agree and we will
+    # often draw 3-d alms for which that argument does not hold anyway.
+    rng = np.random.default_rng(seed)
+    rtype = type_utils.to_real(out.dtype)
+    out = out.reshape(-1)
+    out = out.view(rtype)
+    
+    out[:] = np.reshape(
+        rng.normal(
+            scale=1 / np.sqrt(2), size=out.size).astype(rtype, copy=False),
+        out.shape)
+    out = out.view(dtype)
+    out = out.reshape(shape_nd)
+    out[...,:ainfo.lmax+1].imag = 0
+    out[...,:ainfo.lmax+1].real *= np.sqrt(2)
+
+    out = out.reshape(oshape)
+    
+    return out
+    
 def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
     '''
     Draw random alm from covariance diagonal in pixel domain.

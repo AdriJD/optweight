@@ -244,6 +244,78 @@ class TestAlmUtils(unittest.TestCase):
 
         self.assertRaises(ValueError, alm_utils.add_to_alm, alm, blm, ainfo, binfo)
 
+    def test_unit_var_alm(self):
+
+        ainfo = curvedsky.alm_info(lmax=2)
+        
+        rng = np.random.default_rng(1)
+        alm1 = alm_utils.unit_var_alm(ainfo, (), rng)
+        alm2 = alm_utils.unit_var_alm(ainfo, (), rng)
+        
+        rng = np.random.default_rng(1)
+        alm3 = alm_utils.unit_var_alm(ainfo, (), rng)
+
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          alm1, alm2)
+        np.testing.assert_allclose(alm1, alm3)
+
+    def test_unit_var_alm_2d(self):
+
+        ainfo = curvedsky.alm_info(lmax=2)
+        
+        rng = np.random.default_rng(1)
+        alm = alm_utils.unit_var_alm(ainfo, (1000,), rng)
+
+        var = np.var(alm, axis=0)
+        var_exp = np.ones(ainfo.nelem)
+        np.testing.assert_allclose(var, var_exp, rtol=1e-1)
+
+        np.testing.assert_array_equal(
+            alm[0,:ainfo.lmax+1].imag, np.zeros(ainfo.lmax+1))
+        np.testing.assert_array_equal(
+            alm[1,:ainfo.lmax+1].imag, np.zeros(ainfo.lmax+1))
+
+    def test_unit_var_alm_out(self):
+
+        ainfo = curvedsky.alm_info(lmax=2)
+        
+        rng = np.random.default_rng(1)
+        out = np.ones((1, ainfo.nelem), dtype=np.complex128)
+        alm = alm_utils.unit_var_alm(ainfo, (1,), rng, out)
+        
+        np.testing.assert_array_equal(alm, out)
+        self.assertTrue(np.shares_memory(alm, out))
+        self.assertEqual(alm.dtype, np.complex128)        
+
+        # Again with 64.
+        out = np.ones((1, ainfo.nelem), dtype=np.complex64)
+        alm = alm_utils.unit_var_alm(ainfo, (1,), rng, out,
+                                     dtype=np.complex64)
+        
+        np.testing.assert_array_equal(alm, out)
+        self.assertTrue(np.shares_memory(alm, out))
+        self.assertEqual(alm.dtype, np.complex64)
+        
+    def test_unit_var_alm_err(self):
+
+        ainfo = curvedsky.alm_info(lmax=2)
+        
+        rng = np.random.default_rng(1)
+        self.assertRaises(
+            ValueError,
+            alm_utils.unit_var_alm, ainfo, (1,), rng,
+            dtype=np.float32)
+
+        out = out = np.ones((1, ainfo.nelem), dtype=np.complex64)
+        self.assertRaises(
+            ValueError, alm_utils.unit_var_alm, ainfo, (1,), rng,
+            out=out)
+
+        out = out = np.ones((2, ainfo.nelem), dtype=np.complex128)
+        self.assertRaises(
+            ValueError, alm_utils.unit_var_alm, ainfo, (1,), rng,
+            out=out)
+                
     def test_rand_alm_pix(self):
 
         lmax = 3
