@@ -462,12 +462,14 @@ class TestMapUtils(unittest.TestCase):
         
     def test_rand_map(self):
 
-        cov_pix = np.ones((2, 2, 3))
-        draw1 = map_utils.rand_map_pix(cov_pix)
+        rng = np.random.default_rng(1)
+
+        cov_pix = np.ones((2, 2, 3))        
+        draw1 = map_utils.rand_map_pix(cov_pix, rng)
 
         self.assertEqual(draw1.shape, (2, 3))
 
-        draw2 = map_utils.rand_map_pix(cov_pix)
+        draw2 = map_utils.rand_map_pix(cov_pix, rng)
 
         self.assertRaises(
             AssertionError, np.testing.assert_array_almost_equal, draw1, draw2)
@@ -482,21 +484,22 @@ class TestMapUtils(unittest.TestCase):
         cov_pix_diag[0] = cov_pix[0,0]
         cov_pix_diag[1] = cov_pix[1,1]
 
-        np.random.seed(1)
-        draw1 = map_utils.rand_map_pix(cov_pix)
-        np.random.seed(1)
-        draw2 = map_utils.rand_map_pix(cov_pix_diag)
+        rng = np.random.default_rng(1)
+        draw1 = map_utils.rand_map_pix(cov_pix, rng)
+        rng = np.random.default_rng(1)
+        draw2 = map_utils.rand_map_pix(cov_pix_diag, rng)
 
         np.testing.assert_array_almost_equal(draw1, draw2)
 
     def test_rand_map_dtype(self):
 
+        rng = np.random.default_rng(1)
         cov_pix = np.ones((2, 2, 3), dtype=np.float32)
-        draw = map_utils.rand_map_pix(cov_pix)
+        draw = map_utils.rand_map_pix(cov_pix, rng)
         self.assertEqual(draw.dtype, cov_pix.dtype)
 
         cov_pix = np.zeros((2, 2, 3), dtype=np.float32)
-        draw = map_utils.rand_map_pix(cov_pix)
+        draw = map_utils.rand_map_pix(cov_pix, rng)
         self.assertEqual(draw.dtype, cov_pix.dtype)
 
     def test_get_isotropic_ivar(self):
@@ -604,6 +607,8 @@ class TestMapUtils(unittest.TestCase):
 
     def test_rand_wav(self):
 
+        rng = np.random.default_rng(1)
+        
         npol = 3
 
         cov_wav = wavtrans.Wav(2)
@@ -620,7 +625,7 @@ class TestMapUtils(unittest.TestCase):
         cov_pix = np.ones((npol, npol, minfo2.npix))
         cov_wav.add((1,1), cov_pix, minfo2)
 
-        rand_wav = map_utils.rand_wav(cov_wav)
+        rand_wav = map_utils.rand_wav(cov_wav, rng)
 
         self.assertEqual(rand_wav.shape, (2,))
         self.assertEqual(rand_wav.maps[0].shape, (npol, minfo1.npix))

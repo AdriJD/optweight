@@ -318,6 +318,8 @@ class TestAlmUtils(unittest.TestCase):
                 
     def test_rand_alm_pix(self):
 
+        rng = np.random.default_rng(1)
+        
         lmax = 3
         ainfo = curvedsky.alm_info(lmax=lmax)
 
@@ -329,7 +331,7 @@ class TestAlmUtils(unittest.TestCase):
         spin = [0, 2]
         cov_pix = np.ones((npol, npol, minfo.npix)) * np.eye(npol)[:,:,np.newaxis]
 
-        rand_alm = alm_utils.rand_alm_pix(cov_pix, ainfo, minfo, spin)
+        rand_alm = alm_utils.rand_alm_pix(cov_pix, ainfo, minfo, spin, rng)
 
         self.assertEqual(rand_alm.shape, (npol, ainfo.nelem))
         self.assertEqual(rand_alm.dtype, np.complex128)
@@ -337,6 +339,8 @@ class TestAlmUtils(unittest.TestCase):
 
     def test_rand_alm_wav(self):
 
+        rng = np.random.default_rng(1)
+        
         lmax = 3
         ainfo = curvedsky.alm_info(lmax=lmax)
 
@@ -363,7 +367,8 @@ class TestAlmUtils(unittest.TestCase):
         index = (1, 1)
         cov_wav.add(index, m_arr, minfo)
 
-        rand_alm = alm_utils.rand_alm_wav(cov_wav, ainfo, w_ell, spin)
+        rand_alm = alm_utils.rand_alm_wav(
+            cov_wav, ainfo, w_ell, spin, rng)
 
         self.assertEqual(rand_alm.shape, (npol, ainfo.nelem))
         self.assertEqual(rand_alm.dtype, np.complex128)

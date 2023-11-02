@@ -1087,7 +1087,7 @@ def get_arc_len(theta, theta_min, theta_max):
 
     return arc_lengths[idx_isort]
 
-def rand_map_pix(cov_pix):
+def rand_map_pix(cov_pix, seed):
     '''
     Draw random Gaussian realisation from covariance.
 
@@ -1095,7 +1095,9 @@ def rand_map_pix(cov_pix):
     ----------
     cov_pix : (npol, npol, npix) or (npol, npix) array
         Per-pixel covariance matrix.
-
+    seed : int or np.random._generator.Generator object
+        Seed for np.random.seed.
+    
     returns
     -------
     rand_map : (npol, npix) array
@@ -1105,7 +1107,12 @@ def rand_map_pix(cov_pix):
     npol, npix = cov_pix.shape[-2:]
 
     # Draw (npol, npix) unit variates for map.
-    uv = np.random.randn(npol, npix).astype(cov_pix.dtype)
+    rng = np.random.default_rng(seed)
+    uv = rng.standard_normal(
+        npol * npix).astype(cov_pix.dtype, copy=False)
+    uv = uv.reshape((npol, npix))
+    
+    #uv = np.random.randn(npol, npix).astype(cov_pix.dtype)
 
     if cov_pix.ndim == 2:
         cov_pix_sqrt = np.sqrt(cov_pix)
@@ -1264,7 +1271,7 @@ def get_ivar_ell(icov_wav, w_ell, mask=None, minfo_mask=None):
     
     return ivar_ell
 
-def rand_wav(cov_wav):
+def rand_wav(cov_wav, seed):
     '''
     Draw random Gaussian realisation from wavelet-based 
     block diagonal covariance matrix.
@@ -1273,7 +1280,9 @@ def rand_wav(cov_wav):
     ----------
     cov_wav : (nwav, nwav) wavtrans.Wav object
         Block-diagonal covariance matrix.
-
+    seed : int or np.random._generator.Generator object
+        Seed for np.random.seed.        
+    
     returns
     -------
     wav_rand : (nwav) wavtrans.Wav object
@@ -1285,8 +1294,9 @@ def rand_wav(cov_wav):
     for jidx in range(cov_wav.shape[0]):
         
         cov_pix = cov_wav.maps[jidx,jidx]
-        wav_rand.add(np.asarray([jidx]), rand_map_pix(cov_pix),
-                     cov_wav.minfos[jidx,jidx])
+        wav_rand.add(
+            np.asarray([jidx]), rand_map_pix(cov_pix, seed),
+            cov_wav.minfos[jidx,jidx])
                                  
     return wav_rand
 

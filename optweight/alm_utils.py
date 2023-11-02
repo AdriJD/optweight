@@ -305,8 +305,8 @@ def unit_var_alm(ainfo, preshape, seed, out=None, dtype=np.complex128):
     out = out.reshape(oshape)
     
     return out
-    
-def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
+
+def rand_alm_pix(cov_pix, ainfo, minfo, spin, seed, adjoint=False):
     '''
     Draw random alm from covariance diagonal in pixel domain.
 
@@ -320,6 +320,8 @@ def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
         Metainfo specifying pixelization of covariance.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
+    seed : int or np.random._generator.Generator object
+        Seed for np.random.seed.    
     adjoint : bool, optional
         If set, calculate Yt N^0.5 r, instead of Yt W N^0.5 r, where
         r ~ N(0,1), N^0.5 is square root of pixel-based noise model and
@@ -332,14 +334,14 @@ def rand_alm_pix(cov_pix, ainfo, minfo, spin, adjoint=False):
     '''
 
     dtype = type_utils.to_complex(cov_pix.dtype)
-    noise = map_utils.rand_map_pix(cov_pix)
+    noise = map_utils.rand_map_pix(cov_pix, seed)
     alm_noise = np.zeros((noise.shape[0], ainfo.nelem), dtype=dtype)
 
     sht.map2alm(noise, alm_noise, minfo, ainfo, spin, adjoint=adjoint)
 
     return alm_noise
 
-def rand_alm_wav(cov_wav, ainfo, w_ell, spin, adjoint=False):
+def rand_alm_wav(cov_wav, ainfo, w_ell, spin, seed, adjoint=False):
     '''
     Draw random alm from covariance diagonal in wavelet domain.
 
@@ -353,6 +355,8 @@ def rand_alm_wav(cov_wav, ainfo, w_ell, spin, adjoint=False):
         Wavelet kernels.
     spin : int, array-like
         Spin values for transform, should be compatible with npol.
+    seed : int or np.random._generator.Generator object
+        Seed for np.random.seed.        
     adjoint : bool, optional
         Compute Kt Yt N^0.5 rand_pix instead of Kt Yt W N^0.5 rand_pix.
 
@@ -373,7 +377,7 @@ def rand_alm_wav(cov_wav, ainfo, w_ell, spin, adjoint=False):
         cov_pix = cov_wav.maps[jidx,jidx]
         minfo = cov_wav.minfos[jidx, jidx]
 
-        rand_map = map_utils.rand_map_pix(cov_pix)
+        rand_map = map_utils.rand_map_pix(cov_pix, seed)
 
         # Note, only valid for Gauss Legendre pixels.
         # We use nphi to support maps with cuts in theta.

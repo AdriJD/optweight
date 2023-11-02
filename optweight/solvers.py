@@ -326,7 +326,7 @@ class CGWienerMap(utils.CG):
     @classmethod
     def from_arrays(cls, imap, minfo, ainfo, icov_ell, icov_pix, *extra_args,
                     b_ell=None, mask_pix=None, minfo_mask=None, draw_constr=False,
-                    spin=None, swap_bm=False, sfilt=None):
+                    spin=None, swap_bm=False, sfilt=None, seed=None):
         '''
         Initialize solver with arrays instead of callables.
 
@@ -361,11 +361,13 @@ class CGWienerMap(utils.CG):
         sfilt : (npol, nell) or (npol, npol, nell) array, optional
             Symmetric positive definite scaling matrix, if diagonal only the diagonal
             suffices.
+        seed : int or np.random._generator.Generator object, optional
+            Seed for np.random.seed.
         '''
 
         if spin is None:
             spin = sht_tools.default_spin(imap.shape)
-
+            
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
         icov_noise = operators.PixMatVecMap(icov_pix, 1, inplace=False)
 
@@ -392,8 +394,11 @@ class CGWienerMap(utils.CG):
             mask = None
 
         if draw_constr:
-            rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
-            rand_inoise = map_utils.rand_map_pix(icov_pix)
+            unit_var_alm = alm_utils.unit_var_alm(
+                ainfo, (icov_ell.shape[0],), seed)
+            rand_isignal = operators.EllMatVecAlm(
+                ainfo, icov_ell, power=0.5, inplace=True)(unit_var_alm)
+            rand_inoise = map_utils.rand_map_pix(icov_pix, seed)
         else:
             rand_isignal = None
             rand_inoise = None
@@ -409,7 +414,7 @@ class CGWienerMap(utils.CG):
     def from_arrays_fwav(cls, imap, minfo, ainfo, icov_ell, cov_wav, fkernelset,
                          *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
                          draw_constr=False, spin=None, swap_bm=False, sfilt=None,
-                         cov_noise_2d=None):
+                         cov_noise_2d=None, seed=None):
         '''
         Initialize solver with Fourier-wavelet-based noise model from arrays
         instead of callables.
@@ -454,6 +459,8 @@ class CGWienerMap(utils.CG):
             diagonal suffices. Will update noise model to iN^0.5 iN_wav iN^0.5,
             so make sure iN_wav corresponds to the inverse noise covariance after
             flattening by iN^0.5.
+        seed : int or np.random._generator.Generator object, optional
+            Seed for np.random.seed.        
         '''
 
         if spin is None:
@@ -490,7 +497,10 @@ class CGWienerMap(utils.CG):
             mask = None
 
         if draw_constr:
-            rand_isignal = curvedsky.rand_alm(icov_ell, return_ainfo=False)
+            unit_var_alm = alm_utils.unit_var_alm(
+                ainfo, (icov_ell.shape[0],), seed)
+            rand_isignal = operators.EllMatVecAlm(
+                ainfo, icov_ell, power=0.5, inplace=True)(unit_var_alm)            
             wav_draw = noise_utils.unit_var_wav(cov_wav.get_minfos_diag(),
                          imap.shape[:-1], cov_wav.dtype, seed=None)
             sqrt_icov_cov_wav_op = operators.InvSqrtFWavMatVecWav(
