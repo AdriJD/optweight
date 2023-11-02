@@ -124,16 +124,12 @@ def estimate_cov_fwav(fmap, fkernelset, wav_template, diag=False,
         else:
             return fwhm_fact
 
-    #for jidx, fkern in range(fkernelset.shape[0]):
     for jidx, fkern in fkernelset:
         index = (jidx, jidx)
         minfo = noise_wav.minfos[jidx]
         
-        #_lmax = int(np.max(modlmap[fkernelset[jidx] > 1e-6]))
         modlmap = fkern.modlmap()
-        #_lmax = int(np.max(modlmap[fkern.fkernel > 1e-6]))
         _lmax = fkern.lmax
-        #_lmax = int(np.max(fkernel.modlmap() > 1e-6]))
 
         fwhm = _fwhm_fact(_lmax) * np.pi / _lmax
         cov_pix = estimate_cov_pix(noise_wav.maps[jidx], minfo, diag=diag,

@@ -30,10 +30,11 @@ class CGWienerMap(utils.CG):
                but has no physical meaning.
 
     When the class instance is provided with random draws, the solver will 
-    instead solve A x = b where:
+    instead solve A x = b + b_rand where:
 
-        x : H^{-1} x^cr, where x^cr is a constrained signal realisation.
-        b : H B Yt Ht M N^-1 d + H B Yt Mft M N^-0.5 w_s + H S^-0.5 w_n,
+        x      : H^{-1} x^cr, where x^cr is a constrained signal realisation.
+        b      : H B Yt Ht M N^-1 d
+        b_rand : H B Yt Mft M N^-0.5 w_s + H S^-0.5 w_n,
 
     where:
 
@@ -101,18 +102,13 @@ class CGWienerMap(utils.CG):
             mask = lambda imap: imap
         self.mask = mask
 
-        self.rand_isignal = rand_isignal
-        self.rand_inoise = rand_inoise
         self.swap_bm = swap_bm
         if scale_filter is None:
             scale_filter = lambda alm : alm
         self.scale_filter = scale_filter
 
-        if self.rand_isignal is not None and self.rand_inoise is not None:
-            self.b_vec = self.get_b_vec_constr(self.imap)
-        else:
-            self.b_vec = self.get_b_vec(self.imap)
-        self.b0 = self.b_vec.copy()
+        self.set_b_vec(
+            self.imap, rand_isignal=rand_isignal, rand_inoise=rand_inoise)
         
         self.preconditioner = None
 
@@ -204,7 +200,7 @@ class CGWienerMap(utils.CG):
 
     def a_matrix(self, alm):
         '''
-        Apply the A (= S^-1 + Pt N^-1 P) matrix to input alm.
+        Apply the A matrix to input alm.
 
         Parameters
         ----------
@@ -231,13 +227,13 @@ class CGWienerMap(utils.CG):
 
     def get_b_vec(self, imap):
         '''
-        Convert input alm to the b (= B N^-1 a) vector (not in place).
+        Convert input map to the b vector (not in place).
 
         Parameters
         ----------
-        alm : array
-            Input alm array.
-
+        imap : array
+            Input data map(s) (masked and beam convolved).
+        
         Returns
         -------
         out : array
@@ -250,28 +246,53 @@ class CGWienerMap(utils.CG):
         
         return oalm
         
-    def get_b_vec_constr(self, alm):
+    def get_b_vec_constr(self, rand_isignal, rand_inoise):
         '''
-        Convert input alm to the b vector used for drawing constrained
-        realizations (not in place).
+        Compute the random component of the b_rand vector used for
+        drawing constrained realizations.
 
         Parameters
         ----------
-        alm : array
-            Input alm array.
-
+        rand_isignal : array, optional
+            Draw from inverse signal covariance.
+        rand_inoise : array, optional
+            Draw from inverse noise covariance matrix.
+        
         Returns
         -------
         out : array
-            Output alm array, corresponding to b.
+            Output alm array, corresponding to b_rand.
         '''
 
-        oalm = self.get_b_vec(alm)
-        oalm += self.scale_filter(self.proj_adjoint(self.rand_inoise))
-        oalm += self.scale_filter(self.rand_isignal)
+        oalm = self.scale_filter(self.proj_adjoint(rand_inoise))
+        oalm += self.scale_filter(rand_isignal)
 
         return oalm        
 
+    def set_b_vec(self, imap, rand_isignal=None, rand_inoise=None):
+        '''
+        Set (or reset) the RHS of the equatio system. This corresponds
+        to setting RHS = b + b_rand.
+        
+        Parameters
+        ----------
+        imap : array
+            Input data map(s) (masked and beam convolved).        
+        rand_isignal : array, optional
+            Draw from inverse signal covariance.
+        rand_inoise : array, optional
+            Draw from inverse noise covariance matrix.
+        
+        '''
+
+        self.b_vec = self.get_b_vec(imap)
+        
+        if rand_isignal is not None and rand_inoise is not None:
+            self.b_vec += self.get_b_vec_constr(rand_inoise, rand_isignal)
+
+        # Copy of input RHS because the solver overwrites this vector.
+        self.b0 = self.b_vec.copy()       
+    
     def get_wiener(self):
         '''Return copy of Wiener-filtered input at current state.'''
 
@@ -387,7 +408,7 @@ class CGWienerMap(utils.CG):
     @classmethod
     def from_arrays_fwav(cls, imap, minfo, ainfo, icov_ell, cov_wav, fkernelset,
                          *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
-                         draw_constr=False, spin=None, swap_bm=False,
+                         draw_constr=False, spin=None, swap_bm=False, sfilt=None,
                          cov_noise_2d=None):
         '''
         Initialize solver with Fourier-wavelet-based noise model from arrays
