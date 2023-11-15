@@ -26,7 +26,7 @@ jobs:
     - name: Install MKL
       run: |
         sudo apt update
-        sudo apt install intel-oneapi-mkl-devel
+        sudo apt install intel-oneapi-mkl
 
     - name: Install dependencies
       run: |
