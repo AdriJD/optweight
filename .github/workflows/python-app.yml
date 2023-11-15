@@ -28,7 +28,7 @@ jobs:
         sudo apt update
         sudo apt install intel-mkl
         dpkg -l
-        dpkg -L
+        dpkg -L libmkl-rt
 
     - name: Install dependencies
       run: |
