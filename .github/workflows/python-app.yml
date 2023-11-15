@@ -26,7 +26,7 @@ jobs:
     - name: Install MKL
       run: |
         sudo apt install intel-mkl
-        dpkg -L apache2
+        dpkg -L intel-mkl
         export MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl/
 
     - name: Install dependencies
@@ -49,6 +49,7 @@ jobs:
 
     - name: Build optweight
       run: |
+          export MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl/
           python -m pip install .
     - name: Test with pytest
       run: |
