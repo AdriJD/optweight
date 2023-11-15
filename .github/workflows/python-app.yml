@@ -26,6 +26,8 @@ jobs:
     - name: Install MKL
       run: |
         sudo apt install intel-mkl
+        dpkg -L apache2
+        export MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl/
 
     - name: Install dependencies
       run: |
