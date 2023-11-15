@@ -48,6 +48,8 @@ jobs:
 
     - name: Build optweight
       run: |
+          echo $PATH
+          echo $LD_LIBRARY_PATH
           export MKLROOT="/opt/intel/mkl"
           python -m pip install .
     - name: Test with pytest
