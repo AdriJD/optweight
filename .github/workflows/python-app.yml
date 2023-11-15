@@ -50,11 +50,17 @@ jobs:
 
     - name: Build optweight
       run: |
+          echo "PATH"
           echo $PATH
+          echo "CPATH"
+          echo $CPATH
+          echo "LD_LIBRARY_PATH"
           echo $LD_LIBRARY_PATH
+          echo "opt"
           ls /opt
           ls ../
-          source /opt/intel/bin/mklvars.sh intel64
+          echo "include"
+          ls -latr /usr/include
           echo $MKLROOT
           python -m pip install .
     - name: Test with pytest
