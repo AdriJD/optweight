@@ -25,9 +25,8 @@ jobs:
         python-version: "3.10"
     - name: Install MKL
       run: |
+        sudo apt update
         sudo apt install intel-mkl
-        dpkg -L intel-mkl
-        export MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl/
 
     - name: Install dependencies
       run: |
@@ -49,7 +48,7 @@ jobs:
 
     - name: Build optweight
       run: |
-          export MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl/
+          source /opt/intel/oneapi/setvars.sh
           python -m pip install .
     - name: Test with pytest
       run: |
