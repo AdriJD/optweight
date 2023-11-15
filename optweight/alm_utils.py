@@ -4,7 +4,7 @@ import healpy as hp
 from pixell import curvedsky
 
 from optweight import (map_utils, sht, type_utils, wavtrans, alm_c_utils,
-                       mat_utils)
+                       mat_utils, operators)
 
 def contract_almxblm(alm, blm):
     '''
@@ -306,6 +306,37 @@ def unit_var_alm(ainfo, preshape, seed, out=None, dtype=np.complex128):
     
     return out
 
+def rand_alm(cov_ell, ainfo, seed, out=None, dtype=np.complex128):
+    '''
+    Draw alm from covariance matrix.
+
+    Parameters
+    ----------
+    cov_ell : (npol, npol, nell) array or (npol, nell) array
+        Covariance matrix, either symmetric but dense in first two axes
+        or diagonal, in which case only the diagonal elements are needed.
+    ainfo : pixell.curvedsky.alm_info object
+        Metainfo for output alms.
+    seed : int or np.random._generator.Generator object
+        Seed for np.random.seed.
+    out : (pre,) + (nelem,) complex array, optional
+        If provided, use this array for output.    
+    dtype : type
+        Output dtype. Pick between complex64 and 128.
+
+    Returns
+    -------
+    draw : (npol, nelem) array
+        Random alms. 
+    '''
+
+    cov_ell = mat_utils.atleast_nd(cov_ell, 2)
+    
+    rand_alm = unit_var_alm(
+        ainfo, (cov_ell.shape[0],), seed, out=out, dtype=dtype)
+    return operators.EllMatVecAlm(
+        ainfo, cov_ell, power=0.5, inplace=True)(rand_alm)
+    
 def rand_alm_pix(cov_pix, ainfo, minfo, spin, seed, adjoint=False):
     '''
     Draw random alm from covariance diagonal in pixel domain.

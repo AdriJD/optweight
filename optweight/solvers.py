@@ -394,10 +394,7 @@ class CGWienerMap(utils.CG):
             mask = None
 
         if draw_constr:
-            unit_var_alm = alm_utils.unit_var_alm(
-                ainfo, (icov_ell.shape[0],), seed)
-            rand_isignal = operators.EllMatVecAlm(
-                ainfo, icov_ell, power=0.5, inplace=True)(unit_var_alm)
+            rand_isignal = alm_utils.rand_alm(icov_ell, ainfo, seed)
             rand_inoise = map_utils.rand_map_pix(icov_pix, seed)
         else:
             rand_isignal = None

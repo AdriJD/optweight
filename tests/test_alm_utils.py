@@ -315,7 +315,41 @@ class TestAlmUtils(unittest.TestCase):
         self.assertRaises(
             ValueError, alm_utils.unit_var_alm, ainfo, (1,), rng,
             out=out)
-                
+
+    def test_rand_alm(self):
+
+        ainfo = curvedsky.alm_info(lmax=2)
+        cov_ell = np.ones((2, 2, 2 + 1)) * 0.1
+        cov_ell += np.eye(2)[:,:,np.newaxis]
+        
+        rng = np.random.default_rng(1)
+        alm1 = alm_utils.rand_alm(cov_ell, ainfo, rng)
+        
+        self.assertEqual(alm1.shape, (2, 6))
+        self.assertEqual(alm1.dtype, np.complex128)
+
+        alm2 = alm_utils.rand_alm(cov_ell, ainfo, rng)
+        
+        rng = np.random.default_rng(1)
+        alm3 = alm_utils.rand_alm(cov_ell, ainfo, rng)
+
+        self.assertRaises(AssertionError, np.testing.assert_allclose,
+                          alm1, alm2)
+        np.testing.assert_allclose(alm1, alm3)
+
+    def test_rand_alm_inplace(self):
+
+        ainfo = curvedsky.alm_info(lmax=2)
+        cov_ell = np.ones((2, 2, 2 + 1)) * 0.1
+        cov_ell += np.eye(2)[:,:,np.newaxis]
+        
+        rng = np.random.default_rng(1)
+        out = np.ones((2, 6), dtype=np.complex128)
+        alm1 = alm_utils.rand_alm(cov_ell, ainfo, rng, out=out)
+
+        self.assertTrue(np.shares_memory(out, alm1))
+        np.testing.assert_equal(out, alm1)
+                                
     def test_rand_alm_pix(self):
 
         rng = np.random.default_rng(1)
