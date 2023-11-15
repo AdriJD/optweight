@@ -27,6 +27,7 @@ jobs:
       run: |
         sudo apt update
         sudo apt install intel-mkl
+        dpkg -l
 
     - name: Install dependencies
       run: |
