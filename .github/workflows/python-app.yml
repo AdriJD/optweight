@@ -50,7 +50,10 @@ jobs:
       run: |
           echo $PATH
           echo $LD_LIBRARY_PATH
-          export MKLROOT="/opt/intel/mkl"
+          ls /opt
+          ls ../
+          source /opt/intel/bin/mklvars.sh intel64
+          echo $MKLROOT
           python -m pip install .
     - name: Test with pytest
       run: |
