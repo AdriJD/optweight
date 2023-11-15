@@ -60,7 +60,7 @@ jobs:
           ls /opt
           ls ../
           echo "include"
-          ls -latr /usr/include
+          ls -latr /usr/include/mkl/
           echo $MKLROOT
           python -m pip install .
     - name: Test with pytest
