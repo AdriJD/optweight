@@ -26,7 +26,7 @@ jobs:
     - name: Install MKL
       run: |
         sudo apt update
-        sudo apt install intel-oneapi-mkl
+        sudo apt install intel-mkl
 
     - name: Install dependencies
       run: |
@@ -48,7 +48,7 @@ jobs:
 
     - name: Build optweight
       run: |
-          source /opt/intel/oneapi/setvars.sh
+          export MKLROOT="/opt/intel/mkl"
           python -m pip install .
     - name: Test with pytest
       run: |
