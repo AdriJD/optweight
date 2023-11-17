@@ -5,7 +5,7 @@ np.import_array()
 
 def apply_ringweight(imap, minfo, custom_weight=None):
     '''
-    Apply quadrature weight per ring.
+    Apply quadrature weight per ring (in-place).
 
     Parameters
     ----------

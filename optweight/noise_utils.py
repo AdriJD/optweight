@@ -4,7 +4,8 @@ from scipy.interpolate import CubicSpline
 from pixell import enmap, curvedsky
 import healpy as hp
 
-from optweight import wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht, dft
+from optweight import (wavtrans, map_utils, mat_utils, type_utils, wlm_utils, sht, dft,
+                       map_c_utils)
 
 def estimate_cov_wav(alm, ainfo, w_ell, spin, diag=False, wav_template=None,
                      fwhm_fact=2):
@@ -588,3 +589,54 @@ def muKarcmin_to_n_ell(noise_level):
     '''
 
     return (noise_level * (np.pi / 60 / 180)) ** 2
+
+def get_white_icov_pix(noise_level, minfo, out=None, dtype=np.float64):
+    '''
+    Convert a noise level in micro K arcmin to an inverse noise covariance
+    map.
+
+    Parameters
+    ----------
+    noise_level : (npol) array or float.
+        Noise level in uK arcmin.
+    minfo : map_utils.MapInfo object
+        Metainfo output map.
+    out : (npol, npix) array, optional
+        Output map array.
+    dtype : type
+        Output dtype.
+    
+    Returns
+    -------
+    icov_pix : (npol, npol, npix) or (npol, npix) array
+        Output map
+
+    Raises
+    ------
+    ValueError
+        If input ndim is not 0 or 1.
+        If shape of out does not match shape of noise_level
+        If dtype of out does not match dtype
+    '''
+    
+    noise_level = mat_utils.atleast_nd(np.asarray(noise_level), 1)
+    if noise_level.ndim != 1:
+        raise ValueError(f'{noise_level.shape=} not supported.')
+    
+    preshape = noise_level.shape
+    oshape = preshape + (minfo.npix,)
+    if out is None:
+        out = np.zeros(oshape, dtype=dtype)
+    
+    if out.shape != oshape:
+        raise ValueError(f'{out.shape=} != {oshape=}')
+    if out.dtype != dtype:
+        raise ValueError(f'{out.dtype=} != {dtype=}')
+    
+    for idxs in np.ndindex(preshape):
+
+        sigmasq = muKarcmin_to_n_ell(noise_level[idxs])
+        out[idxs] = 1 / sigmasq
+        map_c_utils.apply_ringweight(out[idxs], minfo)
+        
+    return out

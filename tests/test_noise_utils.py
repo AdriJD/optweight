@@ -267,3 +267,49 @@ class TestNoiseBoxUtils(unittest.TestCase):
         amp_exp = (noise_level * np.pi / 60 / 180) ** 2
         amp = noise_utils.muKarcmin_to_n_ell(noise_level)
         self.assertAlmostEqual(amp_exp / amp, 1)
+
+    def test_get_white_icov_pix(self):
+
+        lmax = 3
+        minfo = map_utils.get_gauss_minfo(2 * lmax)
+        noise_level = 20 # muK arcmin.
+        amp_exp = (noise_level * np.pi / 60 / 180) ** 2
+        
+        icov_pix = noise_utils.get_white_icov_pix(noise_level, minfo)
+
+        self.assertEqual(icov_pix.shape, (1, minfo.npix))
+        self.assertEqual(icov_pix.dtype, np.float64)
+
+        weight_map = np.ones((minfo.nrow, minfo.nphi[0]))
+        weight_map *= minfo.weight[:,np.newaxis]
+        weight_map = weight_map.reshape(1, minfo.npix)
+        
+        icov_pix_exp = np.ones((1, minfo.npix)) * weight_map / amp_exp
+
+        np.testing.assert_allclose(icov_pix, icov_pix_exp)
+
+        # Try 2d array.
+        noise_level = np.asarray([20, 40, 80])
+        icov_pix_exp = np.ones((3, minfo.npix)) * weight_map / amp_exp
+        icov_pix_exp /= np.asarray([1, 4, 16])[:,np.newaxis]
+        icov_pix = noise_utils.get_white_icov_pix(noise_level, minfo)
+        
+        np.testing.assert_allclose(icov_pix, icov_pix_exp)
+
+        # Try output array.
+        out = np.zeros((3, minfo.npix))
+        icov_pix = noise_utils.get_white_icov_pix(noise_level, minfo, out=out)
+        
+        np.testing.assert_allclose(icov_pix, icov_pix_exp)
+        self.assertTrue(np.shares_memory(icov_pix, out))        
+        
+        self.assertRaises(ValueError, noise_utils.get_white_icov_pix,
+                          noise_level, minfo, out=out, dtype=np.float32)
+        out = np.ones((3, 3, minfo.npix))
+        self.assertRaises(ValueError, noise_utils.get_white_icov_pix,
+                          noise_level, minfo, out=out)
+        noise_level = np.ones((2, 2))
+        self.assertRaises(ValueError, noise_utils.get_white_icov_pix,
+                          noise_level, minfo)
+        
+        
