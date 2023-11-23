@@ -62,6 +62,11 @@ jobs:
           echo "include"
           ls -latr /usr/include/mkl/
           echo $MKLROOT
+
+          export CPATH=/usr/include/mkl/:$PATH
+          echo $CPATH
+          export LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:$LIBRARY_PATH
+          echo $LIBRARY_PATH
           python -m pip install .
     - name: Test with pytest
       run: |
