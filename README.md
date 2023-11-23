@@ -1,6 +1,6 @@
 # optweight
 
-![Build](https://github.com/AdriJD/optweight/actions/workflows/python-app.yml/badge.svg)
+![Build](https://github.com/AdriJD/optweight/actions/workflows/python-app.yml/badge.svg?branch=actions)
 
 `optweight` is a library for filtering two-dimensional data on the sphere (e.g. CMB or weak lensing data) in a statically optimal way. The main use is the computation of [Wiener-filtered](https://en.wikipedia.org/wiki/Generalized_Wiener_filter) data. Additionally, the library can be used to compute inverse-covariance weighted data and draw constrained signal realizations. 
 
