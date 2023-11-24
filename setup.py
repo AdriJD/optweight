@@ -1,5 +1,7 @@
-from numpy.distutils.core import setup, Extension, build_src
-from distutils.errors import DistutilsError
+from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext
+from setuptools.errors import CompileError
+
 from Cython.Build import cythonize
 
 import Cython.Compiler.Options
@@ -31,14 +33,14 @@ compiler_directives = {'language_level' : 3}
 def presrc():
     '''Create .so library from C files.'''
     if sp.call('make', shell=True) != 0:
-        raise DistutilsError('Failure in the C compile source-prep.')
+        raise CompileError('Failure in the C compile source-prep.')
 
-class CustomSrc(build_src.build_src):
+class CustomSrc(build_ext):
     def run(self):
         presrc()
-        return build_src.build_src.run(self)
+        return build_ext.run(self)
 
-cmdclass = {'build_src': CustomSrc}
+cmdclass = {'build_ext': CustomSrc}
 
 ext_modules = [Extension('optweight.alm_c_utils',
                         [opj(path, 'cython', 'alm_c_utils.pyx')],
