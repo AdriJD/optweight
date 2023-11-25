@@ -11,6 +11,7 @@ Under the hood, the code solves a large linear system using the conjugate gradie
 #### Features
 * Noise models that can be either diagonal in the pixel domain, or diagonal in a wavelet domain to allow for sparially varying noise correlation over pixels. The signal covariance is assumed to be diagonal in the harmonic domain.
 * Multiple preconditioners including the pseudo-inverse and multigrid preconditioners by [Seljebotn et al., A&A 627 A98 (2019)](https://www.aanda.org/articles/aa/abs/2019/07/aa32037-17/aa32037-17.html).
+* Delensing using the fast lensing operations from [Reinecke, Belkner and Carron, 2023](https://arxiv.org/abs/2304.10431) implemented in the [lenspyx](https://github.com/carronj/lenspyx) library.
 
 ### Dependencies
 
