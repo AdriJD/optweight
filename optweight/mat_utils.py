@@ -218,7 +218,7 @@ def flattened_view(mat, axes, return_flat_axes=False):
         return mat_view
             
 def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
-           inplace=False, chunksize=100_000):
+           inplace=False, chunksize=100_000, lim=1e-9, lim0=None):
     '''
     Raise positive semidefinite matrix to a given power.
 
@@ -243,6 +243,10 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
         If set, do operation in-place.
     chunksize : int, optional
         Do operations over non-PSD axes of input in chunks of this size.
+    lim : float, optional
+        Set eigenvalues smaller than lim * max(eigenvalues) to zero.
+    lim0 : float, optional
+        If max(eigenvalues) < lim0, set whole matrix to zero.
 
     Returns
     -------
@@ -290,7 +294,7 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
 
             axes_mat = flat_ax if flat_ax else axes
             mat = _eigpow(mat, power, axes_mat, dtype, inplace=inplace,
-                          chunksize=chunksize)
+                          chunksize=chunksize, lim=lim, lim0=lim0)
 
     mat = mat.reshape(shape_in)
 
@@ -305,7 +309,8 @@ def matpow(mat, power, return_diag=False, skip_unit_pow=True, axes=None,
     
     return mat
 
-def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=100_000):
+def _eigpow(mat, power, axes, dtype_internal, inplace=False,
+            chunksize=100_000, lim=None, lim0=None):
     '''
     Wrapper around eigpow that allows to divide up the problem in chunks
     to reduce memory usage.
@@ -324,6 +329,10 @@ def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=100_000):
         If set, do operation in-place.
     chunksize : int, optional
         Do eigpow over non-PSD axes of input in chunks of this size.
+    lim : float, optional
+        Set eigenvalues smaller than lim * max(eigenvalues) to zero.
+    lim0 : float, optional
+        If max(eigenvalues) < lim0, set whole matrix to zero.
     
     Returns
     -------
@@ -348,7 +357,9 @@ def _eigpow(mat, power, axes, dtype_internal, inplace=False, chunksize=100_000):
             matf_tmp = matf[:,:,matslice].astype(dtype_internal, copy=False)
 
             # You know that axes are [0,1] in this case.
-            matf_tmp = mat_c_utils.eigpow(matf_tmp, power) # Always makes copy.
+            # Eigpow always makes copy.
+            matf_tmp = mat_c_utils.eigpow(
+                matf_tmp, power, lim=lim, lim0=lim0) 
             matf[:,:,matslice] = matf_tmp.astype(dtype_in, copy=False)
 
     return mat

@@ -496,8 +496,8 @@ class CGWienerMap(utils.CG):
             power_x = -0.5
         else:
             power_x = 0
-        icov_noise = operators.FInvFWavFMatVecMap(minfo, cov_wav, fkernelset, cov_noise_2d,
-                                                  power_x=power_x, nsteps=3)
+        icov_noise = operators.FInvFWavFMatVecMap(
+            minfo, cov_wav, fkernelset, cov_noise_2d, power_x=power_x, nsteps=3)
 
         if b_ell is not None:
             beam = operators.EllMatVecAlm(ainfo, b_ell)

@@ -378,7 +378,7 @@ class InvFWavMatVecF(MatVecF):
 
         self._a_mat = FWavMatVecF(m_wav, self.fkernelset, power=1)
         self._prec = FWavMatVecF(m_wav, self.fkernelset, power=-1,
-                                  wav_template=self._a_mat.wav_template)
+                                 wav_template=self._a_mat.wav_template)
 
     def call(self, fmap, verbose=False):
         '''

@@ -107,7 +107,7 @@ def estimate_cov_fwav(fmap, fkernelset, wav_template, diag=False,
         (nwav, nwav) diagonal block covariance matrix.
     '''
     
-    #Subtract monopole, i.e. the mean of the map, before estimating variance.
+    # Subtract monopole, i.e. the mean of the map, before estimating variance.
     fmap_mono = fmap[...,0,0].copy()
     fmap[...,0,0] = 0
 
@@ -118,10 +118,9 @@ def estimate_cov_fwav(fmap, fkernelset, wav_template, diag=False,
 
     cov_wav = wavtrans.Wav(2, dtype=type_utils.to_real(fmap.dtype))
 
-    # Get fwhm_fact(l) callable.
-    def _fwhm_fact(l):
+    def _fwhm_fact(ell):
         if callable(fwhm_fact):
-            return fwhm_fact(l)
+            return fwhm_fact(ell)
         else:
             return fwhm_fact
 

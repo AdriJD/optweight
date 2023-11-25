@@ -109,12 +109,13 @@ class TestMultiGrid(unittest.TestCase):
         spin = [0, 2]
         ells = np.arange(lmax + 1)
 
+        rng = np.random.default_rng(0)
         # Create 2 masks.
         minfo_in = map_utils.get_gauss_minfo(2 * lmax)
         mask_in = np.ones((3, minfo_in.npix), dtype=bool)
-        mask_in[0,np.random.randint(0, minfo_in.npix, size=50)] = False
-        mask_in[1,np.random.randint(0, minfo_in.npix, size=50)] = False
-        mask_in[2,np.random.randint(0, minfo_in.npix, size=50)] = False
+        mask_in[0,rng.integers(0, minfo_in.npix, size=50)] = False
+        mask_in[1,rng.integers(0, minfo_in.npix, size=50)] = False
+        mask_in[2,rng.integers(0, minfo_in.npix, size=50)] = False
 
         minfo_out = map_utils.get_gauss_minfo(2 * lmax // 2)
         mask_out = map_utils.gauss2gauss(
