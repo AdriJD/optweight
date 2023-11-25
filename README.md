@@ -20,6 +20,7 @@ Under the hood, the code solves a large linear system using the conjugate gradie
 - [ducc0](https://gitlab.mpcdf.mpg.de/mtr/ducc)
 - [pytest](https://pypi.org/project/pytest/)
 - [pixell](https://pypi.org/project/pixell/)
+- [lenspyx](https://github.com/carronj/lenspyx)
 
 ### Installation
 

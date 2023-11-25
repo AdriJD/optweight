@@ -64,12 +64,7 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
     pixstride = int(minfo.stride[0])
     lmax = int(ainfo.lmax)
     mmax = int(ainfo.mmax)
-
-    # Default to OMP_NUM_THREADS. If not availble, use cpu_count.
-    try:
-        nthreads = int(os.environ["OMP_NUM_THREADS"])
-    except KeyError:
-        nthreads = multiprocessing.cpu_count()
+    nthreads = get_nthreads()
 
     for idxs in np.ndindex(preshape):
         for s, i1, i2 in enmap.spin_helper(spin, npol):
@@ -156,13 +151,8 @@ def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     pixstride = int(minfo.stride[0])
     lmax = int(ainfo.lmax)
     mmax = int(ainfo.mmax)
-
-    # Default to OMP_NUM_THREADS. If not availble, use cpu_count.
-    try:
-        nthreads = int(os.environ["OMP_NUM_THREADS"])
-    except KeyError:
-        nthreads = multiprocessing.cpu_count()
-
+    nthreads = get_nthreads()
+    
     for idxs in np.ndindex(preshape):
         for s, i1, i2 in enmap.spin_helper(spin, npol):
             map_slice = np.asarray(omap[idxs][i1:i2,:])
@@ -224,3 +214,20 @@ def default_spin(shape):
         return [0, 2]
     else:
         raise ValueError(f'Cannot determine default spin value for shape : {shape}')
+
+def get_nthreads():
+    '''
+    Default to OMP_NUM_THREADS. If not availble, use cpu_count.
+        
+    Returns
+    -------
+    nthreads : int
+        Number of threads.
+    '''
+    
+    try:
+        nthreads = int(os.environ["OMP_NUM_THREADS"])
+    except KeyError:
+        nthreads = multiprocessing.cpu_count()
+        
+    return nthreads

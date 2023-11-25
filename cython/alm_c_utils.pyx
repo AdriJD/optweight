@@ -179,6 +179,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     Raises
     ------
     ValueError
+        if input alm dtype is not complex64/128.
         If input/output shapes/dtypes do not match.
         If alm array does not have triangular layout.
         if both alm_out and inplace are set.
@@ -195,6 +196,9 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     nelem = ainfo.nelem
     npol = alm.shape[-2]
     dtype = alm.dtype
+
+    if dtype not in (np.complex64, np.complex128):
+        raise ValueError(f'{alm.dtype=} should be complex64/128')
 
     if np.prod(preshape) * npol * ainfo.nelem != alm.size:
         raise ValueError(f'nelem ({nelem}) != alm.shape[-1] ({alm.shape[-1]}); '
