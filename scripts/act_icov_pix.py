@@ -8,7 +8,6 @@ import os
 import healpy as hp
 from astropy.io import fits
 from pixell import curvedsky, enplot, utils, enmap
-#from enlib import cg
 
 from optweight import sht
 from optweight import map_utils

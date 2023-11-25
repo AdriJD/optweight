@@ -122,7 +122,8 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     for idx in range(3):
         for jdx in range(3):
             fig, ax = plt.subplots(dpi=300)
-            im = ax.imshow(np.log10(np.abs(cov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))), interpolation='none')
+            im = ax.imshow(
+                np.log10(np.abs(cov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))), interpolation='none')
             fig.colorbar(im, ax=ax)
             fig.savefig(opj(imgdir, 'cov_real_log_{}_{}'.format(idx, jdx)))
             plt.close(fig)
@@ -162,7 +163,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     if no_beam:
         b_ell = np.ones_like(b_ell)
 
-    # Preprare spectrum. Input file is Dls in uk^2.
+    # Prepare spectrum. Input file is Dls in uk^2.
     c_ell = np.loadtxt(
         opj(maskdir, 'COM_PowerSpect_CMB-base-plikHM-TTTEEE-lowl-lowE-lensing-minimum-theory_R3.01.txt'),
         skiprows=1, usecols=[1, 2, 3, 4]) #  TT, TE, EE, BB.
