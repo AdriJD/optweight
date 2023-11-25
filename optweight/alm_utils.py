@@ -477,3 +477,34 @@ def add_to_alm(alm, blm, ainfo, binfo, overwrite=False):
             alm[slice_alm] += blm[slice_blm]
 
     return alm
+
+def ainfo_is_equiv(ainfo_1, ainfo_2):
+    '''
+    Test whether two alm info objects are equivalent.
+
+    Parameters
+    ----------
+    ainfo_1 : pixell.curvedsky.alm_info object
+        First alm info object.
+    ainfo_2 : pixell.curvedsky.alm_info object
+        Second alm info object.
+
+    Returns
+    -------
+    is_equiv : bool
+        True if equivalent, False if not.
+    '''
+
+    is_equiv = True
+    attributes = ['lmax', 'mmax', 'stride', 'nelem', 'mstart']
+
+    for attr in attributes:
+        try:
+            np.testing.assert_allclose(
+                getattr(ainfo_1, attr), getattr(ainfo_2, attr))
+        except AssertionError:
+            is_equiv = False
+            break
+
+    return is_equiv
+    

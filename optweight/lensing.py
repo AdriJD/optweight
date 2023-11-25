@@ -14,14 +14,27 @@ class LensAlm():
     ----------
     plm : (2, nelem_phi) or (1, nelem_phi) complex array
         Phi (and Omega) spherical harmonic coefficients.
-    ainfo_lens : pixell.curvedsky.AlmInfo object
+    ainfo_lens : pixell.curvedsky.alm_info object
         Metainfo of plm coefficients.
-    ainfo : pixell.curvedsky.AlmInfo object
+    ainfo : pixell.curvedsky.alm_info object
         Metainfo of sky alms to be lensed.
     epsilon : float, optional
         Precision of lenspyx's remapping operation.
     inplace : bool, optional
-        If set, perform lensing operations inplace.    
+        If set, perform lensing operations inplace.
+
+    Attributes
+    ----------
+    ainfo : pixell.curvedsky.alm_info object
+        Metainfo of sky alms to be lensed.    
+    geom : lenspyx.remapping.utils_geom.Geom object
+        Metainfo of internal map object.
+    deflection : lenspyx.remapping.deflection.deflection object
+        Deflection field object.
+    nthreads : int
+        Number of threads used.
+    inplace : bool
+        Whether lensing and adjoint lensing operations will be inplace.
     '''
     
     def __init__(self, plm, ainfo_lens, ainfo, epsilon=1e-6, inplace=False):

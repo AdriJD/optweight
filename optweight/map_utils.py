@@ -1895,7 +1895,8 @@ def minfo_is_equiv(minfo_1, minfo_2):
 
     for attr in attributes:
         try:
-            np.testing.assert_allclose(getattr(minfo_1, attr), getattr(minfo_2, attr))
+            np.testing.assert_allclose(
+                getattr(minfo_1, attr), getattr(minfo_2, attr))
         except AssertionError:
             is_equiv = False
             break

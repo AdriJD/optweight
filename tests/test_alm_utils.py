@@ -453,3 +453,13 @@ class TestAlmUtils(unittest.TestCase):
         blm = np.ones((11), dtype=np.complex128)
 
         self.assertRaises(ValueError, alm_utils.contract_almxblm, alm, blm)
+
+    def test_ainfo_is_equiv(self):
+
+        ainfo_1 = curvedsky.alm_info(3)
+        ainfo_2 = curvedsky.alm_info(3)
+        self.assertTrue(alm_utils.ainfo_is_equiv(ainfo_1, ainfo_2))
+
+        ainfo_2 = curvedsky.alm_info(4)
+        self.assertFalse(alm_utils.ainfo_is_equiv(ainfo_1, ainfo_2))
+        
