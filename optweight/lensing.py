@@ -4,7 +4,7 @@ Simple wrapper around routines in lenspyx.
 import numpy as np
 import lenspyx
 
-from optweight import sht, alm_c_utils, mat_utils
+from optweight import sht, alm_c_utils, mat_utils, map_utils
 
 class LensAlm():
     '''
@@ -29,6 +29,8 @@ class LensAlm():
         Metainfo of sky alms to be lensed.    
     geom : lenspyx.remapping.utils_geom.Geom object
         Metainfo of internal map object.
+    minfo : map_utils.MapInfo object
+        Metainfo if internal map object. Same info as geom.
     deflection : lenspyx.remapping.deflection.deflection object
         Deflection field object.
     nthreads : int
@@ -58,12 +60,33 @@ class LensAlm():
         self.nthreads = sht.get_nthreads()
         self.geom = lenspyx.lensing.get_geom(
             ('gl', {'lmax' : lmax_lens}))
+        self.minfo = self.geom2minfo(self.geom)
         self.deflection = lenspyx.remapping.deflection(
             self.geom, dlm[0], mmax, numthreads=self.nthreads,
             dclm=dlm[1] if nphi == 2 else None, epsilon=epsilon)
         self.ainfo = ainfo
         self.inplace = inplace        
 
+    @ staticmethod
+    def geom2minfo(geom):
+        '''
+        Convert lenspyx geometry object to MapInfo object.
+
+        Parameters
+        ----------
+        geom : lenspyx.remapping.utils_geom.Geom object
+            Metainfo of map.
+
+        Returns
+        -------
+        minfo : map_utils.MapInfo object.
+            Metainofo of map.
+        '''
+
+        return map_utils.MapInfo(
+            geom.theta, geom.weight, nphi=geom.nph, phi0=geom.phi0,
+            offsets=geom.ofs)
+        
     @staticmethod
     def get_slices(npol):
         '''
@@ -145,21 +168,17 @@ class LensAlm():
 
         mmax = None
         backwards = False
-            
+        
         if tslice is not None:
             omap = self.deflection.gclm2lenmap(
                 alm_lens[tslice], mmax, 0, backwards, polrot=True, ptg=None)
-            self.geom.adjoint_synthesis(
-                omap, 0, self.ainfo.lmax, self.ainfo.lmax, apply_weights=True,
-                nthreads=self.nthreads, alm=alm_lens[tslice])
+            sht.map2alm(omap, alm_lens[tslice], self.minfo, self.ainfo, 0)
 
         if pslice is not None:
             omap = self.deflection.gclm2lenmap(
                 alm_lens[pslice], mmax, 2, backwards, polrot=True, ptg=None)
-            self.geom.adjoint_synthesis(
-                omap, 2, self.ainfo.lmax, self.ainfo.lmax, apply_weights=True,
-                nthreads=self.nthreads, alm=alm_lens[pslice])
-
+            sht.map2alm(omap, alm_lens[pslice], self.minfo, self.ainfo, 2)
+            
         alm_lens = alm_lens.astype(idtype, copy=False)
         if self.inplace and idtype == np.complex64:
             # In this case we kept the original alm array.
