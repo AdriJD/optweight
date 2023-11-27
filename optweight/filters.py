@@ -148,7 +148,8 @@ class CGPixFilter(object):
         self.prec_masked_mg = prec_masked_mg   
 
     def filter(self, imap, niter=None, niter_masked_cg=5, 
-               benchmark=False, verbose=True, err_tol=1e-15):
+               benchmark=False, verbose=True, err_tol=1e-15,
+               draw_constr=False):
         """
         Filter a map using a pixel-space instrument noise model
         and a harmonic space signal model.
@@ -176,6 +177,8 @@ class CGPixFilter(object):
         err_tol: float
             If the CG error is below this number, stop iterating even if niter
             has not been reached.
+        draw_constr : bool, optional
+            If set, draw a constrained signal realization instead.
 
         Returns
         -------
@@ -196,7 +199,7 @@ class CGPixFilter(object):
 
         solver = solvers.CGWienerMap.from_arrays(imap, self.minfo, self.ainfo, self.icov_ell, 
                                                  self.icov_pix, b_ell=self.b_ell,
-                                                 draw_constr=False, mask_pix=self.mask_bool,
+                                                 draw_constr=draw_constr, mask_pix=self.mask_bool,
                                                  swap_bm=self.swap_bm, spin=self.spin,
                                                  sfilt=self.sfilt)
                 

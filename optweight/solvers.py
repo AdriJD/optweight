@@ -2,7 +2,7 @@ import numpy as np
 
 from pixell import curvedsky, utils
 
-from optweight import (operators, alm_utils, map_utils,
+from optweight import (operators, alm_utils, map_utils, mat_utils,
                        noise_utils, dft, sht as sht_tools)
 
 class CGWienerMap(utils.CG):
@@ -379,18 +379,32 @@ class CGWienerMap(utils.CG):
             Symmetric positive definite scaling matrix, if diagonal only the diagonal
             suffices.
         lensop : lensing.LensAlm object
-            Lennsing instance used to compute lensing and adjoint lensing.
+            Lensing instance used to compute lensing and adjoint lensing.
         seed : int or np.random._generator.Generator object, optional
             Seed for np.random.seed.
+
+        Raises
+        ------
+        ValueErorr
+            If input shape do not match.
         '''
 
         if spin is None:
-            spin = sht_tools.default_spin(imap.shape)
+            spin = sht_tools.default_spin(imap.shape)        
 
+        imap = mat_utils.atleast_nd(imap, 2)
+        icov_pix = mat_utils.atleast_nd(icov_pix, 2)
+        icov_ell = mat_utils.atleast_nd(icov_ell, 2)
+        
+        if icov_pix.shape[-2:] != imap.shape:
+            raise ValueError(f'Mismatch {icov_pix.shape=} and {imap.shape=}')
+        if icov_ell.shape[0] != imap.shape[0]:
+            raise ValueError(f'Mismatch {icov_ell.shape=} and {imap.shape=}')
+            
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
         icov_noise = operators.PixMatVecMap(icov_pix, 1, inplace=False)
 
-        if b_ell is not None:
+        if b_ell is not None:            
             beam = operators.EllMatVecAlm(ainfo, b_ell)
         else:
             beam = None
@@ -483,7 +497,7 @@ class CGWienerMap(utils.CG):
             so make sure iN_wav corresponds to the inverse noise covariance after
             flattening by iN^0.5.
         lensop : lensing.LensAlm object
-            Lennsing instance used to compute lensing and adjoint lensing.        
+            Lensing instance used to compute lensing and adjoint lensing.        
         seed : int or np.random._generator.Generator object, optional
             Seed for np.random.seed.
         '''

@@ -182,11 +182,24 @@ class PixMatVecMap(MatVecMap):
     def __init__(self, m_pix, power, inplace=False):
         
         if power != 1:
-            m_pix = mat_utils.matpow(m_pix, power)
+            m_pix = mat_utils.matpow(m_pix, power, return_diag=True)
         self.m_pix = m_pix
         self.inplace = inplace
     
     def call(self, imap):
+        '''
+        Apply the operator to an input map.
+
+        Parameters
+        ----------
+        imap : (npol, npix) array
+            Input map.
+
+        Returns
+        -------
+        out : (npol, npix) array
+            Output from matrix-vector operation.
+        '''
 
         return mat_utils.matvec(self.m_pix, imap, inplace=self.inplace)
     
