@@ -25,18 +25,18 @@ def apply_ringweight(imap, minfo, custom_weight=None):
 
     # Perform some checks to make sure minfo lines up with imap.
     if imap.shape[-1] != minfo.npix:
-        raise ValueError(f'input {imap.shape=} disagrees with {minfo.npix=}')
+        raise ValueError(f'input {imap.shape} disagrees with {minfo.npix}')
 
     if custom_weight is not None:
         if custom_weight.shape != minfo.weight.shape:
             raise ValueError(
-              f'{custom_weight.shape=}, expected {minfo.weight.shape=}')          
+              f'{custom_weight.shape}, expected {minfo.weight.shape}')          
         weight = custom_weight.astype(np.float64)
     else:
         weight = minfo.weight
 
     if not (0 < imap.ndim < 3):
-        raise ValueError(f'input map has to be 1 or 2d, got {imap.ndim=}')
+        raise ValueError(f'input map has to be 1 or 2d, got {imap.ndim}')
     if imap.ndim == 1:
         imap = imap[np.newaxis,:]
     ncomp = imap.shape[0]

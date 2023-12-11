@@ -198,7 +198,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     dtype = alm.dtype
 
     if dtype not in (np.complex64, np.complex128):
-        raise ValueError(f'{alm.dtype=} should be complex64/128')
+        raise ValueError(f'{alm.dtype} should be complex64/128')
 
     if np.prod(preshape) * npol * ainfo.nelem != alm.size:
         raise ValueError(f'nelem ({nelem}) != alm.shape[-1] ({alm.shape[-1]}); '
