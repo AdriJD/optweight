@@ -1536,7 +1536,7 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
         yo = 1
     
     # Determine number of y and x pixels on the full sky.
-    nx   = utils.nint(np.abs(360 / wcs.wcs.cdelt[0]))
+    nx = utils.nint(np.abs(360 / wcs.wcs.cdelt[0]))
     if nx != shape[-1]:
         raise ValueError(f'Input needs to span full range in phi, {shape[-1]}, {nx} ')
     
@@ -1544,7 +1544,7 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     ny = utils.nint(abs(180 / wcs.wcs.cdelt[1]) + yo)
 
     phi0 = enmap.pix2sky(shape, wcs, [0,0])[1]
-
+    
     # Create full sky minfo.
     stride_lon = np.sign(wcs.wcs.cdelt[0])
     stride_lat = np.abs(np.sign(wcs.wcs.cdelt[1])) * nx
@@ -1577,9 +1577,11 @@ def match_enmap_minfo(shape, wcs, mtype='CC'):
     if wcs.wcs.cdelt[0] > 0:
         offsets2keep = minfo.offsets[slice2keep] - minfo.offsets[slice2keep][0] 
     else:
+        # Running backwards through the rings, so we need to offset the
+        # starting point to the end of the ring.
         offsets2keep = minfo.offsets[slice2keep] - minfo.offsets[slice2keep][0] + nx - 1
         phi0 -= np.radians(wcs.wcs.cdelt[0])
-
+        
     theta2keep = minfo.theta[slice2keep]
     weight2keep = minfo.weight[slice2keep]
     stride = np.full(theta2keep.size, stride_lon)

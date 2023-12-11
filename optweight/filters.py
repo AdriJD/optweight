@@ -9,7 +9,7 @@ from optweight import map_utils, mat_utils, solvers, preconditioners
 class CGPixFilter(object):
     def __init__(self, theory_cls, b_ell, icov_pix, mask_bool,
                  include_te=True, q_low=0, q_high=1, swap_bm=False,
-                 scale_a=False):
+                 scale_a=False, lmax=None):
         """
         Prepare to filter maps using a pixel-space instrument noise model
         and a harmonic space signal model. 
@@ -49,6 +49,9 @@ class CGPixFilter(object):
         scale_a : bool, optional
             If set, scale the A matrix to localization of N^-1 term. This may
             help convergence with small beams and high SNR data.
+        lmax : int, optional
+            If given, solve the system up to this lmax. Will be determined from
+            icov_pix geometry is not provided.
         """
 
         if np.any(np.logical_not(np.isfinite(b_ell))): raise Exception
@@ -72,8 +75,9 @@ class CGPixFilter(object):
                 continue
             else:
                 break
-            
-        lmax = map_utils.minfo2lmax(minfo)
+
+        if lmax is None:
+            lmax = map_utils.minfo2lmax(minfo)
         icov_pix = map_utils.view_1d(icov_pix, minfo)
         mask_bool = map_utils.view_1d(mask_bool, minfo)        
 
