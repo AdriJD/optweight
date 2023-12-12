@@ -65,7 +65,7 @@ class CGPixFilter(object):
                             
         ncomp = icov_pix.shape[0]
         if mask_bool.shape[0] == 1:
-            mask_bool = (np.ones(3)[:,np.newaxis,np.newaxis] * mask_bool).astype(bool)
+            mask_bool = (np.ones(ncomp)[:,np.newaxis,np.newaxis] * mask_bool).astype(bool)
 
         for mtype in ['CC', 'fejer1',]:
             try:
