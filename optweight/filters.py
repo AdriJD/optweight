@@ -9,7 +9,7 @@ from optweight import map_utils, mat_utils, solvers, preconditioners
 class CGPixFilter(object):
     def __init__(self, theory_cls, b_ell, icov_pix, mask_bool,
                  include_te=True, q_low=0, q_high=1, swap_bm=False,
-                 scale_a=False, lmax=None):
+                 scale_a=False, lmax=None, lmax_prec_cg=None):
         """
         Prepare to filter maps using a pixel-space instrument noise model
         and a harmonic space signal model. 
@@ -52,6 +52,9 @@ class CGPixFilter(object):
         lmax : int, optional
             If given, solve the system up to this lmax. Will be determined from
             icov_pix geometry is not provided.
+        lmax_prec_cg : int, optional
+            Only apply the masked CG precondtioner to multipoles up to lmax.
+            Can be set to multipole where S/N < 1 to speed up the precondition.
         """
 
         if np.any(np.logical_not(np.isfinite(b_ell))): raise Exception
@@ -127,8 +130,9 @@ class CGPixFilter(object):
             ainfo, icov_ell, icov_pix, minfo, spin, b_ell=b_ell, sfilt=sfilt)
 
         prec_masked_cg = preconditioners.MaskedPreconditionerCG(
-            ainfo, icov_ell, spin, mask_bool[0].astype(bool), minfo, lmax=lmax,
-            nsteps=15, lmax_r_ell=None, sfilt=sfilt)
+            ainfo, icov_ell, spin, mask_bool[0].astype(bool), minfo,
+            lmax=lmax_prec_cg if lmax_prec_cg else lmax, nsteps=15,
+            lmax_r_ell=None, sfilt=sfilt)
 
         prec_masked_mg = preconditioners.MaskedPreconditioner(
             ainfo, icov_ell[0:1,0:1], 0, mask_bool[0], minfo,
