@@ -182,7 +182,8 @@ class CGPixFilter(object):
             If the CG error is below this number, stop iterating even if niter
             has not been reached.
         draw_constr : bool, optional
-            If set, draw a constrained signal realization instead.
+            If set, draw a constrained signal realization instead. In this case,
+            the 'walm' output will contain the realization.
 
         Returns
         -------
@@ -243,7 +244,7 @@ class CGPixFilter(object):
             solver.step()
             t_eval = timer() - t_start
 
-            if idx >= niter_masked_cg:
+            if idx >= niter_masked_cg and niter_masked_cg > 0:
                 errors.append(solver.err * errors[niter_masked_cg-1])
             else:
                 errors.append(solver.err)
@@ -262,10 +263,10 @@ class CGPixFilter(object):
                     print(f"optweight benchmark: \t chisq : {chisq:.2f} \t "
                           f"residual : {residual:.2f} \t qform : {qform:.2f}")
             if verbose:
-                print(f"optweight step {solver.i} / {niter_masked_cg + niter},"\
+                print(f"optweight step {idx + 1} / {niter_masked_cg + niter},"\
                       f", error {errors[-1]:.2e}, time {t_eval:.3f} s")
             if solver.err < err_tol: 
-                warnings.warn(f"Stopping early because the error {solver.err} is below err_tol {err_tol}")
+                warnings.warn(f"Stopping early because {solver.err=} is below {err_tol=}")
                 break
 
         output = {}

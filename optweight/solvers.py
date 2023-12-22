@@ -11,7 +11,7 @@ class CGWienerMap(utils.CG):
     coefficients and the projection matrix P is given by Mf M Y B L,
     construct a CG solver for x in the equation system A x = b where:
 
-        A : H S^-1 H + H Lt B Yt M Mft M N^-1 Mf M Y B L H,
+        A : H S^-1 H + H Lt B Yt M Mft N^-1 Mf M Y B L H,
         x : H^-1 x^wf, where x^wf is the Wiener filtered version of the input
             map as SH coefficients.
         b : H Lt B Yt Mft M N^-1 d,
@@ -21,28 +21,28 @@ class CGWienerMap(utils.CG):
         d    : input map,
         L    : Lensing operator,
         Lt   : Adjoint lensing operator,
-        B    : beam convolution operator,
-        Y    : SHT
-        Yt   : adjoint SHT
-        Mf   : filter operator,
-        Mft  : adjoint filter operator,
-        M    : mask operator,
-        N^-1 : inverse noise covariance in pixel space,
-        S^-1 : inverse signal covariance in harmonic space.
-        H    : Scaling filter that scales the linear system to help preconditing
-               but has no physical meaning.
+        B    : Beam convolution operator,
+        Y    : Spherical harmonic transformation (alm2map),
+        Yt   : adjoint Spherical harmonic transformation,
+        Mf   : Filter operator,
+        Mft  : Adjoint filter operator,
+        M    : Mask operator,
+        N^-1 : Inverse noise covariance in pixel space,
+        S^-1 : Inverse signal covariance in harmonic space,
+        H    : Scaling filter that scales the linear system to help
+               preconditioning but has no physical meaning.
 
     When the class instance is provided with random draws, the solver will
     instead solve A x = b + b_rand where:
 
-        x      : H^{-1} x^cr, where x^cr is a constrained signal realisation.
-        b      : H Lt B Yt Ht M N^-1 d
+        x      : H^{-1} x^cr, where x^cr is a constrained signal realisation,
+        b      : H Lt B Yt Ht M N^-1 d,
         b_rand : H Lt B Yt Mft M N^-0.5 w_s + H S^-0.5 w_n,
 
     where:
 
         w_s : Unit-variance Gaussian noise in pixel space,
-        w_n : Unit-variance Gaussian noise in SH space.
+        w_n : Unit-variance Gaussian noise in spherical harmonic space.
 
     Parameters
     ----------
@@ -288,7 +288,7 @@ class CGWienerMap(utils.CG):
 
     def set_b_vec(self, imap, rand_isignal=None, rand_inoise=None):
         '''
-        Set (or reset) the RHS of the equatio system. This corresponds
+        Set (or reset) the RHS of the equation system. This corresponds
         to setting RHS = b + b_rand.
 
         Parameters
@@ -299,13 +299,12 @@ class CGWienerMap(utils.CG):
             Draw from inverse signal covariance.
         rand_inoise : array, optional
             Draw from inverse noise covariance matrix.
-
         '''
 
         self.b_vec = self.get_b_vec(imap)
 
         if rand_isignal is not None and rand_inoise is not None:
-            self.b_vec += self.get_b_vec_constr(rand_inoise, rand_isignal)
+            self.b_vec += self.get_b_vec_constr(rand_isignal, rand_inoise)
 
         # Copy of input RHS because the solver overwrites this vector.
         self.b0 = self.b_vec.copy()
@@ -442,7 +441,7 @@ class CGWienerMap(utils.CG):
             lens = (lensop.lens, lensop.lens_adjoint)
         else:
             lens = None
-        
+
         return cls(imap, icov_signal, icov_noise, sht, beam=beam, lens=lens,
                    filt=filt, mask=mask, rand_isignal=rand_isignal,
                    rand_inoise=rand_inoise, swap_bm=swap_bm, scale_filter=sfilt)
