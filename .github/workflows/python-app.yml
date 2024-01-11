@@ -36,7 +36,7 @@ jobs:
         python -m pip install flake8
         python -m pip install pytest
         python -m pip install pytest-cov
-        python -m pip install "Cython<3.0.4"
+        python -m pip install "Cython>=3.0.3"
         python -m pip install numpy 
         python -m pip install scipy
         python -m pip install astropy
