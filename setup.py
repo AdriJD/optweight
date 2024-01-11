@@ -40,6 +40,23 @@ class CustomSrc(build_ext):
         presrc()
         return build_ext.run(self)
 
+# Mostly taken from pixell. The main change is the cython requirement.
+requirements =  ['numpy>=1.20.0',
+                 'astropy>=2.0',
+                 'setuptools>=39',
+                 'h5py>=2.7',
+                 'scipy>=1.0',
+                 'python_dateutil>=2.7',
+                 'cython>=3.0.0',
+                 'healpy>=1.13',
+                 'matplotlib>=2.0',
+                 'pyyaml>=5.0',
+                 'Pillow>=5.3.0',
+                 'pytest-cov>=2.6',
+                 'coveralls>=1.5',
+                 'pytest>=4.6',
+                 'ducc0>=0.31.0']
+
 cmdclass = {'build_ext': CustomSrc}
 
 ext_modules = [Extension('optweight.alm_c_utils',
@@ -67,6 +84,7 @@ ext_modules = [Extension('optweight.alm_c_utils',
 setup(name='optweight',
       packages=['optweight'],
       version='0.0.3',
+      install_requires=requirements,
       cmdclass=cmdclass,
       ext_modules=cythonize(ext_modules, annotate=True,
                             compiler_directives=compiler_directives))
