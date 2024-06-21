@@ -37,7 +37,7 @@ jobs:
         python -m pip install pytest
         python -m pip install pytest-cov
         python -m pip install "Cython>=3.0.0"
-        python -m pip install numpy 
+        python -m pip install "numpy<2"
         python -m pip install scipy
         python -m pip install astropy
         python -m pip install healpy
