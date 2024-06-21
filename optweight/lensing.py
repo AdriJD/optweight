@@ -39,7 +39,7 @@ class LensAlm():
         Whether lensing and adjoint lensing operations will be inplace.
     '''
     
-    def __init__(self, plm, ainfo_lens, ainfo, epsilon=1e-6, inplace=False):
+    def __init__(self, plm, ainfo_lens, ainfo, epsilon=1e-10, inplace=False):
 
         lmax_lens = ainfo_lens.lmax
         

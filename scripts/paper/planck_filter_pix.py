@@ -8,12 +8,13 @@ import argparse
 
 import healpy as hp
 from astropy.io import fits
-from pixell import curvedsky, enplot, utils
+from pixell import curvedsky, enplot, utils, enmap
 
-from optweight import sht, map_utils, mat_utils, solvers, operators, preconditioners
+from optweight import (sht, map_utils, mat_utils, solvers, operators,
+                       preconditioners, alm_utils)
 
 opj = os.path.join
-np.random.seed(39)
+rng = np.random.default_rng(39)
 
 def get_planck_b_ell(rimo_file, lmax):
     '''
@@ -45,7 +46,7 @@ def get_planck_b_ell(rimo_file, lmax):
 
 def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
          no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None,
-         no_beam=False, lmax_masked_cg=1500, write_steps=False):
+         no_beam=False, lmax_masked_cg=1500, write_steps=False, apod_icov=False):
     '''
     
     Parameters
@@ -74,6 +75,8 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         Lmax used for nested masked cg preconditioner.
     write_steps : bool, optional
         Write CG steps to disk as alms.
+    apod_icov : bool, optional
+        Apply apodization to icov_pix.
     '''
     
     if test_conv:
@@ -89,6 +92,29 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     utils.mkdir(imgdir)
     utils.mkdir(odir)
 
+    # Load masks
+    mask_I = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-temperature-100-hm2_2048_R3.00.fits'), field=0)
+    mask_I, minfo = map_utils.healpix2gauss(mask_I[np.newaxis,:], 2*lmax, area_pow=0)
+    if apod_icov:
+        mask_I_apo = mask_I.copy()
+    mask_I[mask_I>=0.1] = 1
+    mask_I[mask_I<0.1] = 0
+
+    mask_P = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-polarization-100-hm2_2048_R3.00.fits'), field=0)
+    mask_P, _ = map_utils.healpix2gauss(mask_P[np.newaxis,:], 2*lmax, area_pow=0)
+    if apod_icov:
+        mask_P_apo = mask_P.copy()    
+    mask_P[mask_P>=0.1] = 1
+    mask_P[mask_P<0.1] = 0
+
+    print('fsky T', np.sum(map_utils.inv_qweight_map(mask_I, minfo, qweight=True)) / 4 / np.pi)
+    print('fsky P', np.sum(map_utils.inv_qweight_map(mask_P, minfo, qweight=True)) / 4 / np.pi)
+
+    mask_gl = np.zeros((3, mask_I.shape[-1]))
+    mask_gl[0] = mask_I
+    mask_gl[1] = mask_P
+    mask_gl[2] = mask_P
+    
     # Load II, IQ, IU, QQ, QU, UU cov.
     cov = hp.read_map(opj(maskdir, 'HFI_SkyMap_100_2048_R3.01_full.fits'), field=(4, 5, 6, 7, 8, 9))
     cov *= 1e12 # Convert from K^2 to uK^2.
@@ -96,7 +122,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     if noise_scaling is not None:
         cov *= noise_scaling
 
-    cov, minfo = map_utils.healpix2gauss(cov, 2*lmax, area_pow=-1)
+    cov, _ = map_utils.healpix2gauss(cov, 2*lmax, area_pow=-1)
     cov_pix = np.zeros((3, 3, cov.shape[-1]))
     cov_pix[0,0] = cov[0]
     cov_pix[0,1] = cov[1]
@@ -108,6 +134,29 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     cov_pix[2,1] = cov[4]
     cov_pix[2,2] = cov[5]
 
+    if apod_icov:
+        mask_I_apo[mask_I_apo < 0.1] = 0
+        mask_P_apo[mask_P_apo < 0.1] = 0        
+        
+        mask_I_apo[mask_I_apo < 0.2] = 0.2
+        mask_P_apo[mask_P_apo < 0.2] = 0.2
+
+        mask_IP_apo = mask_I_apo * mask_P_apo
+        #mask_IP_apo = mask_I_apo * mask_P_apo
+        
+        np.divide(cov_pix[0,0], mask_I_apo[0] ** 2, out=cov_pix[0,0], where=mask_I_apo[0] != 0)
+        #np.divide(cov_pix[0,0], mask_I_apo[0], out=cov_pix[0,0], where=mask_I_apo[0] != 0)        
+        np.divide(cov_pix[0,1], mask_IP_apo[0], out=cov_pix[0,1], where=mask_IP_apo[0] != 0)
+        np.divide(cov_pix[0,2], mask_IP_apo[0], out=cov_pix[0,2], where=mask_IP_apo[0] != 0)
+        cov_pix[1,0] = cov_pix[0,1]
+        np.divide(cov_pix[1,1], mask_P_apo[0] ** 2, out=cov_pix[1,1], where=mask_P_apo[0] != 0)
+        #np.divide(cov_pix[1,1], mask_P_apo[0], out=cov_pix[1,1], where=mask_P_apo[0] != 0)        
+        np.divide(cov_pix[1,2], mask_IP_apo[0], out=cov_pix[1,2], where=mask_IP_apo[0] != 0)
+        cov_pix[2,0] = cov_pix[0,2]
+        cov_pix[2,1] = cov_pix[1,2]
+        np.divide(cov_pix[2,2], mask_P_apo[0] ** 2, out=cov_pix[2,2], where=mask_P_apo[0] != 0)
+        #np.divide(cov_pix[2,2], mask_P_apo[0], out=cov_pix[2,2], where=mask_P_apo[0] != 0)        
+    
     # NOTE try thresholding low *cov* values.
     #cov_pix = map_utils.round_icov_matrix(cov_pix, rtol=1e-1, threshold=True)
 
@@ -129,7 +178,23 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
             plt.close(fig)
 
     icov_pix = mat_utils.matpow(cov_pix, -1)
-    icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2)
+
+    # NOTE
+    icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2, threshold=True)    
+    
+    if apod_icov:
+        mask_IP = mask_I * mask_P
+        icov_pix[0,0] *= mask_I[0] ** 2
+        icov_pix[0,1] *= mask_IP[0]
+        icov_pix[0,2] *= mask_IP[0]
+        icov_pix[1,0] = icov_pix[0,1]
+        icov_pix[1,1] *= mask_P[0] ** 2
+        icov_pix[1,2] *= mask_IP[0]
+        icov_pix[2,0] = icov_pix[0,2]
+        icov_pix[2,1] = icov_pix[1,2]
+        icov_pix[2,2] *= mask_P[0] ** 2
+        
+    #icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2)
 
     for idx in range(3):
         for jdx in range(3):
@@ -139,24 +204,6 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
             fig.colorbar(im, ax=ax)
             fig.savefig(opj(imgdir, 'icov_{}_{}'.format(idx, jdx)))
             plt.close(fig)
-
-    mask_I = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-temperature-100-hm2_2048_R3.00.fits'), field=0)
-    mask_I, _ = map_utils.healpix2gauss(mask_I[np.newaxis,:], 2*lmax, area_pow=0)
-    mask_I[mask_I>=0.1] = 1
-    mask_I[mask_I<0.1] = 0
-
-    mask_P = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-polarization-100-hm2_2048_R3.00.fits'), field=0)
-    mask_P, _ = map_utils.healpix2gauss(mask_P[np.newaxis,:], 2*lmax, area_pow=0)
-    mask_P[mask_P>=0.1] = 1
-    mask_P[mask_P<0.1] = 0
-
-    print('fsky T', np.sum(map_utils.inv_qweight_map(mask_I, minfo, qweight=True)) / 4 / np.pi)
-    print('fsky P', np.sum(map_utils.inv_qweight_map(mask_P, minfo, qweight=True)) / 4 / np.pi)
-
-    mask_gl = np.zeros((3, mask_I.shape[-1]))
-    mask_gl[0] = mask_I
-    mask_gl[1] = mask_P
-    mask_gl[2] = mask_P
 
     # Load beam.
     b_ell = get_planck_b_ell(opj(maskdir, 'BeamWf_HFI_R3.01', 'Bl_TEB_R3.01_fullsky_100x100.fits'), lmax)
@@ -194,13 +241,14 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
             icov_ell[:,:,lidx] = np.linalg.inv(cov_ell[:,:,lidx])
 
     # Draw alms.
-    alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
+    ainfo = curvedsky.alm_info(cov_ell.shape[-1] - 1)
+    alm = alm_utils.rand_alm(cov_ell, ainfo, rng)
 
     if not test_conv:
         for pidx in range(alm.shape[0]):
             hp.almxfl(alm[pidx], b_ell[pidx], inplace=True)
     # Draw map-based noise and add to alm.
-    noise = map_utils.rand_map_pix(cov_pix)
+    noise = map_utils.rand_map_pix(cov_pix, rng)
     alm_noise = alm.copy()
     sht.map2alm(noise, alm_noise, minfo, ainfo, [0,2], adjoint=False)
     nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
@@ -230,7 +278,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
 
     solver = solvers.CGWienerMap.from_arrays(imap, minfo, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
                                              draw_constr=draw_constr, mask_pix=mask_gl, spin=[0, 2],
-                                             swap_bm=True)
+                                             swap_bm=False if apod_icov else True)
     
     prec_pinv = preconditioners.PseudoInvPreconditioner(
         ainfo, icov_ell, icov_pix, minfo, [0, 2], b_ell=b_ell)
@@ -386,8 +434,13 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     plt.close(fig)
 
     # Plot input sky signal.
-    omap = curvedsky.make_projectable_map_by_pos(
-        [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(alm.shape[0],))
+    #omap = curvedsky.make_projectable_map_by_pos(
+    #    [[np.pi/2, -np.pi/2],[-np.pi, np.pi]], lmax, dims=(alm.shape[0],))
+    oversample = 1
+    shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
+                                             2 * np.pi / (2 * oversample * lmax + 1)])
+    omap = enmap.zeros((alm.shape[0],) + shape, wcs)
+    
     omap = curvedsky.alm2map(alm, omap)
     plot = enplot.plot(omap, colorbar=True, font_size=50, grid=False, range='250:5', downgrade=4)
     enplot.write(opj(imgdir, 'alm_in'), plot)
@@ -474,6 +527,8 @@ if __name__ == '__main__':
                         help="lmax_masked_cg")
     parser.add_argument('--write-steps', action='store_true',
                         help="Write x to disk each step.")
+    parser.add_argument('--apod-icov', action='store_true',
+                        help="Use apodized icov_pix.")    
     args = parser.parse_args()
 
     print(args)
@@ -481,4 +536,5 @@ if __name__ == '__main__':
     main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
          niter_cg=args.niter_cg, niter_mg=args.niter_mg, no_masked_prec=args.no_masked_prec,
          pol_mg=args.pol_mg, use_prec_harm=args.use_prec_harm, noise_scaling=args.noise_scaling,
-         no_beam=args.no_beam, lmax_masked_cg=args.lmax_masked_cg, write_steps=args.write_steps)
+         no_beam=args.no_beam, lmax_masked_cg=args.lmax_masked_cg, write_steps=args.write_steps,
+         apod_icov=args.apod_icov)

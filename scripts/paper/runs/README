@@ -11,3 +11,6 @@ planck09	test_conv, 0g, 60mg with 0.02 noise-scaling, no beam, lmax_masked_cg = 
 planck10	test_conv, 15cg, 45mg with 0.02 noise-scaling, no beam, lmax_masked_cg = 2000
 
 planck11	5cg, 20mg with write_steps
+planck12	same as planck11 but testing with more stable MG
+planck13	same as 11, but no write steps and with apod icov.
+planck14	same as 13, but with same mask for T and P and no cross cov terms.

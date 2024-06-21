@@ -92,7 +92,6 @@ def map2alm(imap, alm, minfo, ainfo, spin, adjoint=False):
                 theta_interpol=False,
                 nthreads=nthreads)
 
-
 def alm2map(alm, omap, ainfo, minfo, spin, adjoint=False):
     '''
     Wrapper around ducc's synthesis. Computes Y or WY.

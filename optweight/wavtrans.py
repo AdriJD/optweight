@@ -188,7 +188,7 @@ class Wav():
 
     def slice_preshape(self, sel):
         '''
-        Slice into the leaking dimensions of the intenal maps.
+        Slice into the leading dimensions of the internal maps.
 
         Parameters
         ----------

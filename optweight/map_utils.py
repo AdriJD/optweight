@@ -906,7 +906,7 @@ def get_cc_minfo(lmax, theta_min=None, theta_max=None, return_arc_len=False):
     Returns
     -------
     map_info : map_utils.MapInfo object
-        metadata of Gausss-Legendre grid.
+        metadata of Clenshaw Curtis grid.
     arc_lengths : (ntheta) array
         If return_arc_len is set: arc length of rings along the theta direction.
     '''
