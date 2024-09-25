@@ -607,7 +607,7 @@ def get_white_icov_pix(noise_level, minfo, out=None, dtype=np.float64):
     
     Returns
     -------
-    icov_pix : (npol, npol, npix) or (npol, npix) array
+    icov_pix : (npol, npix) array
         Output map
 
     Raises
