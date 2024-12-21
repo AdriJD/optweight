@@ -5,6 +5,7 @@ planck03	test_conv, 60 normal steps, no masked prec
 planck04	test_conv, 60mg with mg pol
 planck05	test_conv, 0cg, 60mg with 0.2 noise-scaling
 planck06	test_conv, 15cg, 45mg with 0.2 noise-scaling
+planck06b	same as planck06
 planck07	test_conv, 0cg, 60mg with 0.1 noise-scaling, no beam, lmax_masked_cg = 2000
 planck08	test_conv, 15cg, 45mg with 0.1 noise-scaling, no beam, lmax_masked_cg = 2000
 planck09	test_conv, 0g, 60mg with 0.02 noise-scaling, no beam, lmax_masked_cg = 2000
