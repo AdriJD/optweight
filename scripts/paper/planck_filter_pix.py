@@ -26,17 +26,17 @@ def get_planck_b_ell(rimo_file, lmax):
         Path to RIMO beam file.
     lmax : int
         Truncate to this lmax.
-    
+
     Returns
     -------
     b_ell : (npol, nell)
     '''
-    
-    with fits.open(rimo_file) as hdul:        
+
+    with fits.open(rimo_file) as hdul:
         b_ell_T = hdul[1].data['T']
         b_ell_E = hdul[1].data['E']
         b_ell_B = hdul[1].data['B']
-    
+
     b_ell = np.zeros((3, lmax+1))
     b_ell[0] = b_ell_T[:lmax+1]
     b_ell[1] = b_ell_E[:lmax+1]
@@ -46,9 +46,10 @@ def get_planck_b_ell(rimo_file, lmax):
 
 def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
          no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None,
-         no_beam=False, lmax_masked_cg=1500, write_steps=False, apod_icov=False):
+         no_beam=False, lmax_masked_cg=1500, write_steps=False, apod_icov=False,
+         icov_pix_file=None, mask_file=None, no_round_icov=False):
     '''
-    
+
     Parameters
     ----------
     basedir : str
@@ -77,8 +78,14 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         Write CG steps to disk as alms.
     apod_icov : bool, optional
         Apply apodization to icov_pix.
+    icov_pix_file : str, optional
+        Path to enmap .fits file.
+    mask_file : str, optional
+        Path to enmap .fits file.
+    no_round_icov : bool, optional
+        Do not truncate small values in the icov matrix.
     '''
-    
+
     if test_conv:
         draw_constr = True
 
@@ -93,19 +100,26 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     utils.mkdir(odir)
 
     # Load masks
-    mask_I = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-temperature-100-hm2_2048_R3.00.fits'), field=0)
-    mask_I, minfo = map_utils.healpix2gauss(mask_I[np.newaxis,:], 2*lmax, area_pow=0)
-    if apod_icov:
-        mask_I_apo = mask_I.copy()
-    mask_I[mask_I>=0.1] = 1
-    mask_I[mask_I<0.1] = 0
+    if mask_file is None:
+        mask_I = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-temperature-100-hm2_2048_R3.00.fits'), field=0)
+        mask_I, minfo = map_utils.healpix2gauss(mask_I[np.newaxis,:], 2*lmax, area_pow=0)
+        if apod_icov:
+            mask_I_apo = mask_I.copy()
+        mask_I[mask_I>=0.1] = 1
+        mask_I[mask_I<0.1] = 0
 
-    mask_P = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-polarization-100-hm2_2048_R3.00.fits'), field=0)
-    mask_P, _ = map_utils.healpix2gauss(mask_P[np.newaxis,:], 2*lmax, area_pow=0)
-    if apod_icov:
-        mask_P_apo = mask_P.copy()    
-    mask_P[mask_P>=0.1] = 1
-    mask_P[mask_P<0.1] = 0
+        mask_P = hp.read_map(opj(maskdir, 'COM_Mask_Likelihood-polarization-100-hm2_2048_R3.00.fits'), field=0)
+        mask_P, _ = map_utils.healpix2gauss(mask_P[np.newaxis,:], 2*lmax, area_pow=0)
+        if apod_icov:
+            mask_P_apo = mask_P.copy()
+        mask_P[mask_P>=0.1] = 1
+        mask_P[mask_P<0.1] = 0
+    else:
+        mask_I = enmap.read_map(mask_file)
+        assert mask_I.ndim == 2
+        mask_I, minfo = map_utils.enmap2gauss(mask_I, 2 * lmax, order=0, area_pow=0, destroy_input=False,
+                                         mode='nearest')
+        mask_P = mask_I.copy()
 
     print('fsky T', np.sum(map_utils.inv_qweight_map(mask_I, minfo, qweight=True)) / 4 / np.pi)
     print('fsky P', np.sum(map_utils.inv_qweight_map(mask_P, minfo, qweight=True)) / 4 / np.pi)
@@ -114,49 +128,63 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     mask_gl[0] = mask_I
     mask_gl[1] = mask_P
     mask_gl[2] = mask_P
-    
-    # Load II, IQ, IU, QQ, QU, UU cov.
-    cov = hp.read_map(opj(maskdir, 'HFI_SkyMap_100_2048_R3.01_full.fits'), field=(4, 5, 6, 7, 8, 9))
-    cov *= 1e12 # Convert from K^2 to uK^2.
+
+    if icov_pix_file is not None:
+        icov_pix = enmap.read_map(icov_pix_file)
+        assert icov_pix.shape[:-2] == (3, 3)
+        icov_pix, minfo_icov = map_utils.enmap2gauss(icov_pix, 2 * lmax, order=3, area_pow=1, destroy_input=False,
+                                         mode='nearest')
+        cov_pix = mat_utils.matpow(icov_pix.reshape(3, 3, -1), -1)
+
+        # NOTE NOTE
+        #kernel_ell = np.ones(lmax + 1)
+        #ells = np.arange(lmax + 1)
+        #cov_pix = map_utils.inv_qweight_map(cov_pix, minfo_icov, inplace=False)
+        #cov_pix /= np.sum(kernel_ell ** 2 * (2 * ells + 1)) / 4 / np.pi
+
+    else:
+        # Load II, IQ, IU, QQ, QU, UU cov.
+        cov = hp.read_map(opj(maskdir, 'HFI_SkyMap_100_2048_R3.01_full.fits'), field=(4, 5, 6, 7, 8, 9))
+        cov *= 1e12 # Convert from K^2 to uK^2.
+
+        cov, _ = map_utils.healpix2gauss(cov, 2*lmax, area_pow=-1)
+        cov_pix = np.zeros((3, 3, cov.shape[-1]))
+        cov_pix[0,0] = cov[0]
+        cov_pix[0,1] = cov[1]
+        cov_pix[0,2] = cov[2]
+        cov_pix[1,0] = cov[1]
+        cov_pix[1,1] = cov[3]
+        cov_pix[1,2] = cov[4]
+        cov_pix[2,0] = cov[2]
+        cov_pix[2,1] = cov[4]
+        cov_pix[2,2] = cov[5]
 
     if noise_scaling is not None:
-        cov *= noise_scaling
-
-    cov, _ = map_utils.healpix2gauss(cov, 2*lmax, area_pow=-1)
-    cov_pix = np.zeros((3, 3, cov.shape[-1]))
-    cov_pix[0,0] = cov[0]
-    cov_pix[0,1] = cov[1]
-    cov_pix[0,2] = cov[2]
-    cov_pix[1,0] = cov[1]
-    cov_pix[1,1] = cov[3]
-    cov_pix[1,2] = cov[4]
-    cov_pix[2,0] = cov[2]
-    cov_pix[2,1] = cov[4]
-    cov_pix[2,2] = cov[5]
+        cov_pix *= noise_scaling
 
     if apod_icov:
         mask_I_apo[mask_I_apo < 0.1] = 0
-        mask_P_apo[mask_P_apo < 0.1] = 0        
-        
+        mask_P_apo[mask_P_apo < 0.1] = 0
+
         mask_I_apo[mask_I_apo < 0.2] = 0.2
         mask_P_apo[mask_P_apo < 0.2] = 0.2
 
         mask_IP_apo = mask_I_apo * mask_P_apo
         #mask_IP_apo = mask_I_apo * mask_P_apo
-        
+
         np.divide(cov_pix[0,0], mask_I_apo[0] ** 2, out=cov_pix[0,0], where=mask_I_apo[0] != 0)
-        #np.divide(cov_pix[0,0], mask_I_apo[0], out=cov_pix[0,0], where=mask_I_apo[0] != 0)        
+        #np.divide(cov_pix[0,0], mask_I_apo[0], out=cov_pix[0,0], where=mask_I_apo[0] != 0)
         np.divide(cov_pix[0,1], mask_IP_apo[0], out=cov_pix[0,1], where=mask_IP_apo[0] != 0)
         np.divide(cov_pix[0,2], mask_IP_apo[0], out=cov_pix[0,2], where=mask_IP_apo[0] != 0)
         cov_pix[1,0] = cov_pix[0,1]
         np.divide(cov_pix[1,1], mask_P_apo[0] ** 2, out=cov_pix[1,1], where=mask_P_apo[0] != 0)
-        #np.divide(cov_pix[1,1], mask_P_apo[0], out=cov_pix[1,1], where=mask_P_apo[0] != 0)        
+        #np.divide(cov_pix[1,1], mask_P_apo[0], out=cov_pix[1,1], where=mask_P_apo[0] != 0)
         np.divide(cov_pix[1,2], mask_IP_apo[0], out=cov_pix[1,2], where=mask_IP_apo[0] != 0)
         cov_pix[2,0] = cov_pix[0,2]
         cov_pix[2,1] = cov_pix[1,2]
         np.divide(cov_pix[2,2], mask_P_apo[0] ** 2, out=cov_pix[2,2], where=mask_P_apo[0] != 0)
-        #np.divide(cov_pix[2,2], mask_P_apo[0], out=cov_pix[2,2], where=mask_P_apo[0] != 0)        
-    
+        #np.divide(cov_pix[2,2], mask_P_apo[0], out=cov_pix[2,2], where=mask_P_apo[0] != 0)
+
     # NOTE try thresholding low *cov* values.
     #cov_pix = map_utils.round_icov_matrix(cov_pix, rtol=1e-1, threshold=True)
 
@@ -179,9 +207,9 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
 
     icov_pix = mat_utils.matpow(cov_pix, -1)
 
-    # NOTE
-    icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2, threshold=True)    
-    
+    if not no_round_icov:
+        icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2, threshold=True)        
+
     if apod_icov:
         mask_IP = mask_I * mask_P
         icov_pix[0,0] *= mask_I[0] ** 2
@@ -193,7 +221,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         icov_pix[2,0] = icov_pix[0,2]
         icov_pix[2,1] = icov_pix[1,2]
         icov_pix[2,2] *= mask_P[0] ** 2
-        
+
     #icov_pix = map_utils.round_icov_matrix(icov_pix, rtol=1e-2)
 
     for idx in range(3):
@@ -218,11 +246,11 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     ells = np.arange(lmax + 1)
     dells = ells * (ells + 1)  / 2 / np.pi
     cov_ell = np.zeros((3, 3, lmax + 1))
-    cov_ell[0,0,2:] = c_ell[0,:lmax-1] 
-    cov_ell[0,1,2:] = c_ell[1,:lmax-1] 
-    cov_ell[1,0,2:] = c_ell[1,:lmax-1] 
-    cov_ell[1,1,2:] = c_ell[2,:lmax-1] 
-    cov_ell[2,2,2:] = c_ell[3,:lmax-1] 
+    cov_ell[0,0,2:] = c_ell[0,:lmax-1]
+    cov_ell[0,1,2:] = c_ell[1,:lmax-1]
+    cov_ell[1,0,2:] = c_ell[1,:lmax-1]
+    cov_ell[1,1,2:] = c_ell[2,:lmax-1]
+    cov_ell[2,2,2:] = c_ell[3,:lmax-1]
 
     fig, axs = plt.subplots(ncols=3, nrows=3, dpi=300, constrained_layout=True)
     for idxs, ax in np.ndenumerate(axs):
@@ -260,11 +288,14 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     plt.close(fig)
 
     if not test_conv:
-        
+
         imap = np.zeros((3, minfo.npix))
         sht.alm2map(alm, imap, ainfo, minfo, [0, 2])
-        imap += noise 
+        imap += noise
         imap *= mask_gl
+    else:
+        # Dummy imap, will be replaced later.
+        imap = np.zeros((3, minfo.npix))
 
     niter = niter_cg + niter_mg
 
@@ -279,7 +310,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     solver = solvers.CGWienerMap.from_arrays(imap, minfo, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
                                              draw_constr=draw_constr, mask_pix=mask_gl, spin=[0, 2],
                                              swap_bm=False if apod_icov else True)
-    
+
     prec_pinv = preconditioners.PseudoInvPreconditioner(
         ainfo, icov_ell, icov_pix, minfo, [0, 2], b_ell=b_ell)
 
@@ -287,7 +318,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         ainfo, icov_ell, b_ell=b_ell, icov_pix=icov_pix, minfo=minfo)
 
     prec_masked_cg = preconditioners.MaskedPreconditionerCG(
-        ainfo, icov_ell, [0, 2], mask_gl.astype(bool), minfo, lmax=lmax_masked_cg, 
+        ainfo, icov_ell, [0, 2], mask_gl.astype(bool), minfo, lmax=lmax_masked_cg,
         nsteps=15, lmax_r_ell=None)
 
     if pol_mg:
@@ -325,18 +356,18 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     errors[2,0] = np.sqrt(solver.dot(alm[1], alm[1]))
     errors[3,0] = np.sqrt(solver.dot(alm[2], alm[2]))
     residuals[0] = solver.get_residual()
-                
+
     for idx in range(niter_cg):
         t0 = time.time()
         solver.step()
-        dt = time.time() - t0                
+        dt = time.time() - t0
         if write_steps:
             hp.write_alm(opj(odir, f'alm_x_{idx}.fits'), solver.get_wiener(),
                          overwrite=True)
         residual = solver.get_residual()
-        #chisq = solver.get_chisq()        
+        #chisq = solver.get_chisq()
         diff = solver.x - alm
-        
+
         cg_errors[idx+1] = solver.err
         errors[0,idx+1] = np.sqrt(solver.dot(diff, diff))
         errors[1,idx+1] = np.sqrt(solver.dot(diff[0], diff[0]))
@@ -347,7 +378,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         times[idx] = dt
         qforms[idx] = solver.get_qform()
         ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
-        
+
         #print(f'{solver.i}, cg_err : {solver.err}, chisq : {chisq}, residual : {residual}, '
         #      f'err[0] : {errors[1,idx+1]}, err[1] : {errors[2,idx+1]}, '
         #      f'err[2] : {errors[3,idx+1]}, qform = {qforms[idx]}, dt : {dt}')
@@ -375,14 +406,14 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
 
         t0 = time.time()
         solver.step()
-        dt = time.time() - t0                
+        dt = time.time() - t0
         if write_steps:
             hp.write_alm(opj(odir, f'alm_x_{idx}.fits'), solver.get_wiener(),
                          overwrite=True)
         residual = solver.get_residual()
-        #chisq = solver.get_chisq()        
+        #chisq = solver.get_chisq()
         diff = solver.x - alm
-        
+
         cg_errors[idx+1] = solver.err * cg_errors[niter_cg]
         errors[0,idx+1] = np.sqrt(solver.dot(diff, diff))
         errors[1,idx+1] = np.sqrt(solver.dot(diff[0], diff[0]))
@@ -393,7 +424,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         times[idx] = dt
         qforms[idx] = solver.get_qform()
         ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
-        
+
         #print(f'{solver.i}, cg_err : {solver.err}, chisq : {chisq}, residual : {residual}, '
         #      f'err[0] : {errors[1,idx+1]}, err[1] : {errors[2,idx+1]}, '
         #      f'err[2] : {errors[3,idx+1]}, qform = {qforms[idx]}, dt : {dt}')
@@ -440,7 +471,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
                                              2 * np.pi / (2 * oversample * lmax + 1)])
     omap = enmap.zeros((alm.shape[0],) + shape, wcs)
-    
+
     omap = curvedsky.alm2map(alm, omap)
     plot = enplot.plot(omap, colorbar=True, font_size=50, grid=False, range='250:5', downgrade=4)
     enplot.write(opj(imgdir, 'alm_in'), plot)
@@ -452,7 +483,7 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
         curvedsky.alm2map(alm, omap, ainfo=ainfo)
         plot = enplot.plot(omap, colorbar=True, font_size=50, grid=False, range='250:5', downgrade=4)
         enplot.write(opj(imgdir, 'imap'), plot)
-    
+
     # Plot result
     omap = curvedsky.alm2map(solver.get_wiener(), omap)
     plot = enplot.plot(omap, colorbar=True, font_size=50, grid=False, range='250:5', downgrade=4)
@@ -509,26 +540,32 @@ if __name__ == '__main__':
                         help='Draw a constrained realization')
     parser.add_argument('--test-conv', action='store_true',
                         help='Replace b with A(x) for known LCDM x.')
-    parser.add_argument('--niter-cg', type=int, default=20, 
+    parser.add_argument('--niter-cg', type=int, default=20,
                         help='Number of CG steps with nested CG as masked prec.')
-    parser.add_argument('--niter-mg', type=int, default=40, 
+    parser.add_argument('--niter-mg', type=int, default=40,
                         help='Number of CG steps with multigrid as masked prec.')
-    parser.add_argument('--no-masked-prec', action='store_true', 
+    parser.add_argument('--no-masked-prec', action='store_true',
                         help='Do not use the preconditioners for masked pixels.')
-    parser.add_argument('--pol-mg', action='store_true', 
+    parser.add_argument('--pol-mg', action='store_true',
                         help='Use the multigrid precondioner for polarization as well.')
-    parser.add_argument('--use-prec-harm', action='store_true', 
+    parser.add_argument('--use-prec-harm', action='store_true',
                         help='Use the harmonic preconditioner instead of the pseudo inverse.')
-    parser.add_argument('--noise-scaling', type=float, 
+    parser.add_argument('--noise-scaling', type=float,
                         help='Scale noise covariance by this number')
-    parser.add_argument('--no-beam', action='store_true', 
+    parser.add_argument('--no-beam', action='store_true',
                         help='Turn off beam.')
     parser.add_argument('--lmax-masked-cg', type=int, default=1500,
                         help="lmax_masked_cg")
     parser.add_argument('--write-steps', action='store_true',
                         help="Write x to disk each step.")
     parser.add_argument('--apod-icov', action='store_true',
-                        help="Use apodized icov_pix.")    
+                        help="Use apodized icov_pix.")
+    parser.add_argument('--icov-pix-file', type=str,
+                        help="Path to enmap .fits file containing (3, 3, ny, nx) icov in uK^-2.")
+    parser.add_argument('--mask-file', type=str,
+                        help="Path to enmap .fits file containing (ny, nx) binary mask.")
+    parser.add_argument('--no-round-icov', action='store_true',
+                        help="Do not truncate small values of the icov matrix.")
     args = parser.parse_args()
 
     print(args)
@@ -537,4 +574,5 @@ if __name__ == '__main__':
          niter_cg=args.niter_cg, niter_mg=args.niter_mg, no_masked_prec=args.no_masked_prec,
          pol_mg=args.pol_mg, use_prec_harm=args.use_prec_harm, noise_scaling=args.noise_scaling,
          no_beam=args.no_beam, lmax_masked_cg=args.lmax_masked_cg, write_steps=args.write_steps,
-         apod_icov=args.apod_icov)
+         apod_icov=args.apod_icov, icov_pix_file=args.icov_pix_file, mask_file=args.mask_file,
+         no_round_icov=args.no_round_icov)
