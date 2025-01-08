@@ -588,10 +588,6 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
     else:
         minfo = get_enmap_minfo(imap.shape, imap.wcs, lmax)
 
-    if order > 1:
-        imap = utils.interpol_prefilter(
-            imap, order=order, inplace=destroy_input)
-
     omap = np.zeros(imap.shape[:-2] + (minfo.npix,), dtype=imap.dtype)
 
     thetas, phis = _get_gauss_coords(minfo)
@@ -608,16 +604,14 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
         start = tidx * nphi
         end = start + nphi
 
-        omap[...,start:end] = imap.at(pos, order=order, mask_nan=False,
-                                      prefilter=False, mode=mode)
+        omap[...,start:end] = imap.at(pos, order=order, border=mode)
 
         if area_pow != 0:
             area_gauss = minfo.weight[tidx]
             omap[...,start:end] *= area_gauss ** area_pow
             # Linear interpolation should be good enough for pixel areas.
             omap[...,start:end] *= area_in.at(
-                pos, order=1, mask_nan=False, prefilter=False, 
-                mode='nearest') ** -area_pow
+                pos, order=1, border='nearest') ** -area_pow
 
     return omap, minfo
 

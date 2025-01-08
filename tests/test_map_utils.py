@@ -344,7 +344,8 @@ class TestMapUtils(unittest.TestCase):
         alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
         oversample = 6
         shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
-                                         2 * np.pi / (2 * oversample * lmax + 1)])
+                                                 2 * np.pi / (2 * oversample * lmax + 1)],
+                                            variant='CC')
         omap = enmap.zeros((1,) + shape, wcs)
 
         curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
@@ -374,7 +375,8 @@ class TestMapUtils(unittest.TestCase):
         alm, ainfo = curvedsky.rand_alm(cov_ell, return_ainfo=True)
         oversample = 6
         shape, wcs = enmap.fullsky_geometry(res=[np.pi / (oversample * lmax),
-                                         2 * np.pi / (2 * oversample * lmax + 1)])
+                                                 2 * np.pi / (2 * oversample * lmax + 1)],
+                                            variant='CC')
         omap = enmap.zeros((1,) + shape, wcs)
         
         curvedsky.alm2map_cyl(alm, omap, ainfo=ainfo, spin=spin)
@@ -1197,7 +1199,7 @@ class TestMapUtilsIO(unittest.TestCase):
         ny, nx = 360, 720
         res = [np.pi / (ny - 1), 2 * np.pi / nx]
         dec_cut = np.radians([-60, 30])
-        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car', variant='CC')
 
         minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax)
 
@@ -1229,7 +1231,7 @@ class TestMapUtilsIO(unittest.TestCase):
         ny, nx = 360, 720
         res = [np.pi / (ny - 1), 2 * np.pi / nx]
         dec_cut = np.radians([-60, 30])
-        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car', variant='CC')
 
         minfo = map_utils.get_enmap_minfo(shape, wcs, 2 * lmax, mtype='CC')
 
@@ -1261,9 +1263,8 @@ class TestMapUtilsIO(unittest.TestCase):
         # Full sky CC CAR map first.
         ny, nx = 37, 72
         res = [np.pi / (ny - 1), 2 * np.pi / nx]
-        #shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
 
-        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx))
+        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx), variant='CC')
         minfo = map_utils.match_enmap_minfo(shape, wcs)
 
         lmax = int(np.floor((ny - 1) / 2))
@@ -1318,7 +1319,8 @@ class TestMapUtilsIO(unittest.TestCase):
         ny, nx = 37, 72
         res = [np.pi / (ny - 1), 2 * np.pi / nx]
         dec_cut = np.radians([-60, 30])
-        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car')
+        shape, wcs = enmap.band_geometry(dec_cut, res=res, proj='car',
+                                         variant='CC')
 
         minfo = map_utils.match_enmap_minfo(shape, wcs)
 
@@ -1364,7 +1366,7 @@ class TestMapUtilsIO(unittest.TestCase):
         # Check all the cdelt variations.
         ny, nx = 37, 72
         res = [np.pi / (ny - 1), 2 * np.pi / nx]
-        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx))
+        shape, wcs = enmap.fullsky_geometry(res, shape=(ny, nx), variant='CC')
 
         lmax = int(np.floor((ny - 1) / 2))
         cov_ell = np.ones((1, lmax + 1))

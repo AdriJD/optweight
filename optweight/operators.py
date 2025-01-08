@@ -1162,9 +1162,15 @@ class FMatVecAlm(MatVecAlm):
         # Project m_k onto fourier space spanned by CC map.
         lwcs = dft.lwcs_real(self.tmp_map.shape, self.tmp_map.wcs)
         m_k = enmap.ndmap(m_k, wcs=lwcs_in)
-        
+
+        # Slightly hacky way to get enmap.project to do what I want:
+        # when order=1, and mode is not given, it default to mode='spline'.
+        # With those options, it zero pads the map by 1 pixel (context=1)
+        # I don't want that in this case, so I use mode='linear', for which
+        # enmap.project skips this padding.
         self.m_k_full = enmap.project(m_k, m_k.shape[:-2] + ft_shape, lwcs,
-                                      order=1, mode='nearest')
+                                      border='nearest', mode='linear', context=0)
+        
         self.m_k_full = np.fft.ifftshift(self.m_k_full, axes=[-2])
         self.lwcs = lwcs
         self.ainfo = ainfo
