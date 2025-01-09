@@ -132,15 +132,9 @@ def main(basedir, draw_constr=False, test_conv=False, niter_cg=20, niter_mg=40,
     if icov_pix_file is not None:
         icov_pix = enmap.read_map(icov_pix_file)
         assert icov_pix.shape[:-2] == (3, 3)
-        icov_pix, minfo_icov = map_utils.enmap2gauss(icov_pix, 2 * lmax, order=3, area_pow=1, destroy_input=False,
+        icov_pix, minfo_icov = map_utils.enmap2gauss(icov_pix, 2 * lmax, order=1, area_pow=1, destroy_input=False,
                                          mode='nearest')
         cov_pix = mat_utils.matpow(icov_pix.reshape(3, 3, -1), -1)
-
-        # NOTE NOTE
-        #kernel_ell = np.ones(lmax + 1)
-        #ells = np.arange(lmax + 1)
-        #cov_pix = map_utils.inv_qweight_map(cov_pix, minfo_icov, inplace=False)
-        #cov_pix /= np.sum(kernel_ell ** 2 * (2 * ells + 1)) / 4 / np.pi
 
     else:
         # Load II, IQ, IU, QQ, QU, UU cov.

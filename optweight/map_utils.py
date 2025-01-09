@@ -611,7 +611,7 @@ def enmap2gauss(imap, lmax, order=3, area_pow=0, destroy_input=False,
             omap[...,start:end] *= area_gauss ** area_pow
             # Linear interpolation should be good enough for pixel areas.
             omap[...,start:end] *= area_in.at(
-                pos, order=1, border='nearest') ** -area_pow
+                pos, mode='lin', border='nearest') ** -area_pow
 
     return omap, minfo
 
