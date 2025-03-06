@@ -134,10 +134,13 @@ class CGPixFilter(object):
             lmax=lmax_prec_cg if lmax_prec_cg else lmax, nsteps=15,
             lmax_r_ell=None, sfilt=sfilt)
 
-        prec_masked_mg = preconditioners.MaskedPreconditioner(
-            ainfo, icov_ell[0:1,0:1], 0, mask_bool[0], minfo,
-            min_pix=1000, n_jacobi=1, lmax_r_ell=lmax_mg,
-            sfilt=None if sfilt is None else sfilt[0:1,0:1])
+        try:
+            prec_masked_mg = preconditioners.MaskedPreconditioner(
+                ainfo, icov_ell[0:1,0:1], 0, mask_bool[0], minfo,
+                min_pix=1000, n_jacobi=1, lmax_r_ell=lmax_mg,
+                sfilt=None if sfilt is None else sfilt[0:1,0:1])
+        except AssertionError:
+            prec_masked_mg = None
 
         self.shape_in = shape_in
         self.icov_ell = icov_ell
@@ -240,6 +243,7 @@ class CGPixFilter(object):
             if idx == niter_masked_cg:
                 solver.reset_preconditioner()
                 solver.add_preconditioner(self.prec_pinv)
+                assert self.prec_masked_mg is not None, "failure to construct masked preconditioner (likely due to lmax issues)"
                 solver.add_preconditioner(self.prec_masked_mg, sel=np.s_[0])
                 solver.b_vec = solver.b0
                 solver.init_solver(x0=solver.x)
