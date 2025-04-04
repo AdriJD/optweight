@@ -9,7 +9,8 @@ from optweight import map_utils, mat_utils, solvers, preconditioners
 class CGPixFilter(object):
     def __init__(self, theory_cls, b_ell, icov_pix, mask_bool,
                  include_te=True, q_low=0, q_high=1, swap_bm=False,
-                 scale_a=False, lmax=None, lmax_prec_cg=None):
+                 scale_a=False, lmax=None, lmax_prec_cg=None,
+                 no_masked_prec_mg=False, no_masked_prec_cg=False):
         """
         Prepare to filter maps using a pixel-space instrument noise model
         and a harmonic space signal model. 
@@ -55,6 +56,10 @@ class CGPixFilter(object):
         lmax_prec_cg : int, optional
             Only apply the masked CG precondtioner to multipoles up to lmax.
             Can be set to multipole where S/N < 1 to speed up the precondition.
+        no_masked_prec_mg: bool, optional
+            Whether to initialize preconditioners.MaskedPreconditioner
+        no_masked_prec_cg: bool, optional
+            Whether to initialize preconditioners.MaskedPreconditionerCG
         """
 
         if np.any(np.logical_not(np.isfinite(b_ell))): raise Exception
@@ -129,18 +134,21 @@ class CGPixFilter(object):
         prec_pinv = preconditioners.PseudoInvPreconditioner(
             ainfo, icov_ell, icov_pix, minfo, spin, b_ell=b_ell, sfilt=sfilt)
 
-        prec_masked_cg = preconditioners.MaskedPreconditionerCG(
-            ainfo, icov_ell, spin, mask_bool[0].astype(bool), minfo,
-            lmax=lmax_prec_cg if lmax_prec_cg else lmax, nsteps=15,
-            lmax_r_ell=None, sfilt=sfilt)
+        if no_masked_prec_cg:
+            prec_masked_cg = None
+        else:
+            prec_masked_cg = preconditioners.MaskedPreconditionerCG(
+                ainfo, icov_ell, spin, mask_bool[0].astype(bool), minfo,
+                lmax=lmax_prec_cg if lmax_prec_cg else lmax, nsteps=15,
+                lmax_r_ell=None, sfilt=sfilt)
 
-        try:
+        if no_masked_prec_mg:
+            prec_masked_mg = None
+        else:
             prec_masked_mg = preconditioners.MaskedPreconditioner(
                 ainfo, icov_ell[0:1,0:1], 0, mask_bool[0], minfo,
                 min_pix=1000, n_jacobi=1, lmax_r_ell=lmax_mg,
                 sfilt=None if sfilt is None else sfilt[0:1,0:1])
-        except AssertionError:
-            prec_masked_mg = None
 
         self.shape_in = shape_in
         self.icov_ell = icov_ell
@@ -216,6 +224,8 @@ class CGPixFilter(object):
                                                  sfilt=self.sfilt)
                 
         solver.add_preconditioner(self.prec_pinv)
+        assert self.prec_masked_cg is not None, \
+            "failure to construct masked CG preconditioner"
         solver.add_preconditioner(self.prec_masked_cg)
         solver.init_solver()
         
@@ -243,7 +253,8 @@ class CGPixFilter(object):
             if idx == niter_masked_cg:
                 solver.reset_preconditioner()
                 solver.add_preconditioner(self.prec_pinv)
-                assert self.prec_masked_mg is not None, "failure to construct masked preconditioner (likely due to lmax issues)"
+                assert self.prec_masked_mg is not None, \
+                      "failure to construct masked preconditioner (likely due to lmax issues)"
                 solver.add_preconditioner(self.prec_masked_mg, sel=np.s_[0])
                 solver.b_vec = solver.b0
                 solver.init_solver(x0=solver.x)
