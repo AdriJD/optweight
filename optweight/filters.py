@@ -224,9 +224,8 @@ class CGPixFilter(object):
                                                  sfilt=self.sfilt)
                 
         solver.add_preconditioner(self.prec_pinv)
-        assert self.prec_masked_cg is not None, \
-            "failure to construct masked CG preconditioner"
-        solver.add_preconditioner(self.prec_masked_cg)
+        if self.prec_masked_cg is not None:
+            solver.add_preconditioner(self.prec_masked_cg)
         solver.init_solver()
         
         errors = []
@@ -253,9 +252,8 @@ class CGPixFilter(object):
             if idx == niter_masked_cg:
                 solver.reset_preconditioner()
                 solver.add_preconditioner(self.prec_pinv)
-                assert self.prec_masked_mg is not None, \
-                      "failure to construct masked preconditioner (likely due to lmax issues)"
-                solver.add_preconditioner(self.prec_masked_mg, sel=np.s_[0])
+                if self.prec_masked_mg is not None:
+                    solver.add_preconditioner(self.prec_masked_mg, sel=np.s_[0])
                 solver.b_vec = solver.b0
                 solver.init_solver(x0=solver.x)
 
