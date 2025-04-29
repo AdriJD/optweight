@@ -1,0 +1,11 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck11', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=True)
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 475, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 88, in main
+    utils.mkdir(imgdir)
+  File "/mnt/home/aduivenvoorden/local/pixell/pixell/utils.py", line 616, in mkdir
+    os.makedirs(path)
+  File "<frozen os>", line 225, in makedirs
+NotADirectoryError: [Errno 20] Not a directory: '/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck11/img'
+srun: error: worker5054: task 0: Exited with exit code 1

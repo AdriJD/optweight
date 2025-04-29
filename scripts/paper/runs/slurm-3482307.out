@@ -1,0 +1,10 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck13', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=False, apod_icov=True)
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 513, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 144, in main
+    np.divide(cov_pix[0,1], mask_IP_apo[0], out=cov_pix[0,1], where=mask_IP_apo != 0)
+ValueError: non-broadcastable output operand with shape (12507501,) doesn't match the broadcast shape (1,12507501)
+srun: error: worker5148: task 0: Exited with exit code 1

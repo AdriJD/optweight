@@ -1,0 +1,51 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck12', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=True)
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:138: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:208: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
+normal mg
+normal pinv
+normal cg
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:303: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+1, cg_err : 0.05352553818607962, residual : 313023.39108071214, err[0] : 213.6592605350882, err[1] : 15.96212477990044, err[2] : 0.9216067363516047, qform = -123883229.59208971, dt : 23.904073238372803
+2, cg_err : 0.003932257613973983, residual : 87233.80531921613, err[0] : 204.38457178506673, err[1] : 14.047222692421405, err[2] : 0.9151198639673624, qform = -126425219.22631551, dt : 23.598352432250977
+3, cg_err : 0.0007899949528020583, residual : 39345.87195100126, err[0] : 200.07596089572692, err[1] : 13.528242385993957, err[2] : 0.9127035085710316, qform = -126618961.99800041, dt : 23.824896097183228
+4, cg_err : 0.0002540264305869617, residual : 20316.9942394754, err[0] : 198.6028677046464, err[1] : 13.372381563095013, err[2] : 0.9117096868230918, qform = -126661754.7007046, dt : 23.489625215530396
+5, cg_err : 0.00015376210374397646, residual : 12571.138906542, err[0] : 197.33594522266364, err[1] : 13.33659915397344, err[2] : 0.9115462924287329, qform = -126678474.87971912, dt : 23.831785917282104
+normal pinv 2
+normal mg 2
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:349: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+1, cg_err : 0.4421828437534671, residual : 15716.691480350566, err[0] : 186.12765408906301, err[1] : 13.332057576484008, err[2] : 0.911539639150953, qform = -126690893.77159625, dt : 6.841085433959961
+2, cg_err : 0.600860883056348, residual : 14913.433845498228, err[0] : 193.110577906948, err[1] : 13.31961766818819, err[2] : 0.9115335327199563, qform = -126699998.16875201, dt : 6.955976724624634
+3, cg_err : 0.3990783013562822, residual : 12510.667880617793, err[0] : 184.04492027554093, err[1] : 13.309508988038441, err[2] : 0.9115358035863307, qform = -126708616.67945598, dt : 6.913407802581787
+4, cg_err : 0.25241653106636125, residual : 9534.729463572668, err[0] : 182.03801515272332, err[1] : 13.301997805111014, err[2] : 0.9115392289993535, qform = -126714069.20780733, dt : 6.8012402057647705
+5, cg_err : 0.12217996807237078, residual : 7194.758563997679, err[0] : 181.56248665150312, err[1] : 13.295765896661942, err[2] : 0.9115381788693251, qform = -126717225.02728833, dt : 7.037649154663086
+6, cg_err : 0.0700091350818147, residual : 5198.119197961753, err[0] : 181.07182925697845, err[1] : 13.29113224753761, err[2] : 0.9115345178556894, qform = -126718874.57577486, dt : 6.824970245361328
+7, cg_err : 0.03375143191942366, residual : 3656.0557081056104, err[0] : 180.72193802113867, err[1] : 13.2884634456966, err[2] : 0.9115318388309389, qform = -126719762.2478685, dt : 6.899278402328491
+8, cg_err : 0.022041143769055898, residual : 2851.322230345321, err[0] : 180.9303680820421, err[1] : 13.287141245022747, err[2] : 0.9115309484003605, qform = -126720199.51904365, dt : 6.881231069564819
+9, cg_err : 0.01816998710524147, residual : 2579.8837013420166, err[0] : 180.6517887261234, err[1] : 13.286261484793373, err[2] : 0.9115311769689585, qform = -126720538.9355711, dt : 6.801778554916382
+10, cg_err : 0.015079882165954624, residual : 2416.992840009131, err[0] : 180.87165064800234, err[1] : 13.285876849114306, err[2] : 0.911532114238268, qform = -126720834.78691195, dt : 6.834796667098999
+11, cg_err : 0.009283962164796001, residual : 2006.2575481792303, err[0] : 181.07958021336864, err[1] : 13.285968220833341, err[2] : 0.9115327420783222, qform = -126721052.15214214, dt : 7.014237880706787
+12, cg_err : 0.005006724532400426, residual : 1595.293819988294, err[0] : 180.76979844546116, err[1] : 13.286193696215946, err[2] : 0.9115326466936335, qform = -126721171.7635764, dt : 6.88422703742981
+13, cg_err : 0.003151397075622109, residual : 1157.9423188648846, err[0] : 180.86661616437576, err[1] : 13.286347362565028, err[2] : 0.9115322605845565, qform = -126721241.33859336, dt : 7.026825428009033
+14, cg_err : 0.0020881182478945308, residual : 800.079326285706, err[0] : 180.80644315346834, err[1] : 13.28639116596211, err[2] : 0.9115319566359643, qform = -126721287.58083129, dt : 6.7500598430633545
+15, cg_err : 0.0013388882139557102, residual : 679.2521236734013, err[0] : 180.6449216129815, err[1] : 13.286341137212498, err[2] : 0.911531858654738, qform = -126721315.40454766, dt : 6.969921112060547
+16, cg_err : 0.0010534509044440048, residual : 668.690177067028, err[0] : 180.73326114337124, err[1] : 13.286213333632633, err[2] : 0.9115318601541033, qform = -126721336.46008393, dt : 6.7960662841796875
+17, cg_err : 0.0007198157024580905, residual : 606.8538384663734, err[0] : 180.61289973751573, err[1] : 13.286083905033454, err[2] : 0.9115318741330135, qform = -126721352.62523304, dt : 6.906309366226196
+18, cg_err : 0.0004932536374730464, residual : 485.144782159213, err[0] : 180.60291345879912, err[1] : 13.285996792154275, err[2] : 0.9115318627456525, qform = -126721363.72065106, dt : 6.911258697509766
+19, cg_err : 0.0003219619016718824, residual : 362.9089854988325, err[0] : 180.60383017900995, err[1] : 13.285962005524787, err[2] : 0.9115318355697001, qform = -126721370.87398915, dt : 6.918272018432617
+20, cg_err : 0.0002387849588078194, residual : 283.27483947259856, err[0] : 180.5722426707478, err[1] : 13.285964110711696, err[2] : 0.911531797841825, qform = -126721375.99773706, dt : 6.838388681411743
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:384: UserWarning: Attempt to set non-positive ylim on a log-scaled axis will be ignored.
+  ax.set_ylim(ax.get_ylim())
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 483, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 391, in main
+    omap = curvedsky.make_projectable_map_by_pos(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'pixell.curvedsky' has no attribute 'make_projectable_map_by_pos'
+srun: error: worker3122: task 0: Exited with exit code 1

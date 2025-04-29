@@ -1,0 +1,28 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck12', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=True)
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:138: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:208: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
+normal mg
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 488, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 253, in main
+    prec_masked_mg = preconditioners.MaskedPreconditioner(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/preconditioners.py", line 611, in __init__
+    self.levels = multigrid.get_levels(mask_bool, minfo, icov_ell,
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 246, in get_levels
+    levels.append(Level(mask_level, minfo_level, d_ell, spin,
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 70, in __init__
+    self.smoother, self.pinv_g = self._init_dense_smoother()
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 137, in _init_dense_smoother
+    return smoother, pinv_mat
+                     ^^^^^^^^
+NameError: name 'pinv_mat' is not defined
+srun: error: worker3122: task 0: Exited with exit code 1

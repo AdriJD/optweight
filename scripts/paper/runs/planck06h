@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH --job-name=planck06h
+#SBATCH --partition=gen
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=20
+#SBATCH --time=00:45:00
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+module load adri_gcc
+module load adri_base
+
+source /mnt/home/aduivenvoorden/.pyenv/versions/enki/bin/activate
+
+TAG=planck06h
+SCRIPTDIR="/mnt/home/aduivenvoorden/local/optweight/scripts/paper"
+BASEDIR="/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/${TAG}"
+
+NITER_CG=15
+NITER_MG=45
+
+srun -u --cpu-bind=cores -c$SLURM_CPUS_PER_TASK python ${SCRIPTDIR}/planck_filter_pix.py ${BASEDIR} --test-conv --niter-cg ${NITER_CG} --niter-mg ${NITER_MG} --test-conv --icov-pix-file "/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/dx12_v3_smica_noise_icov.fits" --mask-file  "/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/mask_2500.fits" --no-round-icov

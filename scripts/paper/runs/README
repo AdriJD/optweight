@@ -12,6 +12,7 @@ planck06d	same as planck06c but with the smica icov_pix
 planck06e	same as planck06d but with the smica icov_pix weighted to take into account area difference near poles.
 planck06f	same as planck06e but with the smica mask as well, also unsmoothed icov.
 planck06g	same as planck06f but with no-round-icov
+planck06h	same as planck06g but with adef1 for both cg and mg
 planck07	test_conv, 0cg, 60mg with 0.1 noise-scaling, no beam, lmax_masked_cg = 2000
 planck08	test_conv, 15cg, 45mg with 0.1 noise-scaling, no beam, lmax_masked_cg = 2000
 planck09	test_conv, 0g, 60mg with 0.02 noise-scaling, no beam, lmax_masked_cg = 2000

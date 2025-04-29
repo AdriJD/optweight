@@ -1,0 +1,17 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck14', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=False, apod_icov=True)
+fsky T 837265.2950389322
+fsky P 837265.2950389322
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix_apo.py:188: RuntimeWarning: divide by zero encountered in log10
+  np.log10(np.abs(cov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))), interpolation='none')
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix_apo.py:216: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix_apo.py:268: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
+normal mg
+normal pinv
+normal cg
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix_apo.py:363: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+1, cg_err : 19.534616075095535, residual : 361518.3817671279, err[0] : 455.5499253840159, err[1] : 36.39529587133581, err[2] : 0.9435629928309811, qform = -86115062.32781547, dt : 13.781074285507202
+srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
+slurmstepd: error: *** JOB 3483273 ON worker6023 CANCELLED AT 2024-05-26T23:34:58 ***

@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 16, in <module>
+    rng = numpy.random.default_rng(39)
+          ^^^^^
+NameError: name 'numpy' is not defined
+srun: error: worker3122: task 0: Exited with exit code 1

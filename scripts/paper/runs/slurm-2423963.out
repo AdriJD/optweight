@@ -1,0 +1,33 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck11', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=True)
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:127: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(cov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))), interpolation='none')
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:138: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+fsky T 0.7368453611204222
+fsky P 0.7606127498302695
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 476, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 232, in main
+    solver = solvers.CGWienerMap.from_arrays(imap, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/solvers.py", line 379, in from_arrays
+    return cls(imap, icov_signal, icov_noise, sht, beam=beam, filt=filt,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/solvers.py", line 114, in __init__
+    self.b_vec = self.get_b_vec(self.imap)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/solvers.py", line 247, in get_b_vec
+    omap = self.icov_noise(imap)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/operators.py", line 23, in __call__
+    return self.call(imap, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/operators.py", line 191, in call
+    return mat_utils.matvec(self.m_pix, imap, inplace=self.inplace)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/mat_utils.py", line 490, in matvec
+    if mat.shape != vec.shape:
+       ^^^^^^^^^
+AttributeError: 'sharp.map_info' object has no attribute 'shape'
+srun: error: worker5506: task 0: Exited with exit code 1

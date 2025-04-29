@@ -1,0 +1,2 @@
+/mnt/home/aduivenvoorden/.pyenv/versions/3.11.1/envs/enki/bin/python: can't open file '/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter.py': [Errno 2] No such file or directory
+srun: error: worker7227: task 0: Exited with exit code 2

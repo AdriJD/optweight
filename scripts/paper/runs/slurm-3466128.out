@@ -1,0 +1,5 @@
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 198
+    alm, ainfo = alm_utils.rand_alm(cov_ell, ainfo=ainfo, rng)
+                                                             ^
+SyntaxError: positional argument follows keyword argument
+srun: error: worker3122: task 0: Exited with exit code 1

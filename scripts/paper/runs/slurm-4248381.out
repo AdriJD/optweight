@@ -1,0 +1,11 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck06d', draw_constr=False, test_conv=True, niter_cg=15, niter_mg=45, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=1500, write_steps=False, apod_icov=False, icov_pix_file='/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/dx12_v3_smica_noise_icov_1dg.fits')
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 551, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 126, in main
+    cov_pix = mat_utils.eigpow(icov_pix.reshape(3, 3, -1), -1)
+              ^^^^^^^^^^^^^^^^
+AttributeError: module 'optweight.mat_utils' has no attribute 'eigpow'. Did you mean: '_eigpow'?
+srun: error: worker6060: task 0: Exited with exit code 1

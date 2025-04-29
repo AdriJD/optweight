@@ -1,0 +1,7 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck06g', draw_constr=False, test_conv=True, niter_cg=15, niter_mg=45, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=1500, write_steps=False, apod_icov=False, icov_pix_file='/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/dx12_v3_smica_noise_icov.fits', mask_file='/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/mask_2500.fits', no_round_icov=True)
+fsky T 0.6702093525588608
+fsky P 0.6702093525588608
+starting interpolation icov
+slurmstepd: error: *** JOB 4278393 ON worker6036 CANCELLED AT 2025-01-08T12:12:41 ***
+srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
+slurmstepd: error: *** STEP 4278393.0 ON worker6036 CANCELLED AT 2025-01-08T12:12:41 ***

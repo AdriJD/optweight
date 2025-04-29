@@ -1,0 +1,56 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck12', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=True)
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:138: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:208: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
+normal mg
+normal pinv
+normal cg
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:303: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+1, cg_err : 0.05352553818607962, residual : 313023.39108071214, err[0] : 213.6592605350882, err[1] : 15.96212477990044, err[2] : 0.9216067363516047, qform = -123883229.59208971, dt : 23.432225942611694
+2, cg_err : 0.003932257613973983, residual : 87233.80531921613, err[0] : 204.38457178506673, err[1] : 14.047222692421405, err[2] : 0.9151198639673624, qform = -126425219.22631551, dt : 23.141616344451904
+3, cg_err : 0.0007899949528020583, residual : 39345.87195100126, err[0] : 200.07596089572692, err[1] : 13.528242385993957, err[2] : 0.9127035085710316, qform = -126618961.99800041, dt : 23.694020748138428
+4, cg_err : 0.0002540264305869617, residual : 20316.9942394754, err[0] : 198.6028677046464, err[1] : 13.372381563095013, err[2] : 0.9117096868230918, qform = -126661754.7007046, dt : 23.1741943359375
+5, cg_err : 0.00015376210374397646, residual : 12571.138906542, err[0] : 197.33594522266364, err[1] : 13.33659915397344, err[2] : 0.9115462924287329, qform = -126678474.87971912, dt : 23.422784328460693
+normal pinv 2
+normal mg 2
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 488, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 326, in main
+    solver.init_solver(x0=solver.x)
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/solvers.py", line 142, in init_solver
+    super().__init__(self.a_matrix, self.b_vec, **kwargs)
+  File "/mnt/home/aduivenvoorden/local/pixell/pixell/utils.py", line 3064, in __init__
+    z = self.M(self.r)
+        ^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/operators.py", line 1274, in add
+    ovec[slice_2] += op_2(ivec[slice_2].copy())
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/operators.py", line 13, in __call__
+    return self.call(alm, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/preconditioners.py", line 643, in call
+    omap = multigrid.v_cycle(self.levels, imap, self.spin, 
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 444, in v_cycle
+    c_H = v_cycle(levels, r_H, spin, idx=idx + 1, n_jacobi=n_jacobi)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 444, in v_cycle
+    c_H = v_cycle(levels, r_H, spin, idx=idx + 1, n_jacobi=n_jacobi)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 444, in v_cycle
+    c_H = v_cycle(levels, r_H, spin, idx=idx + 1, n_jacobi=n_jacobi)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  [Previous line repeated 1 more time]
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 428, in v_cycle
+    return levels[idx].smoother(imap)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/multigrid.py", line 134, in smoother
+    omap[self.mask_unobs] = linalg.lstsq(
+    ~~~~^^^^^^^^^^^^^^^^^
+ValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (4,) + inhomogeneous part.
+srun: error: worker3060: task 0: Exited with exit code 1

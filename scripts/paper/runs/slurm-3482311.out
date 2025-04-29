@@ -1,0 +1,31 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck13', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=False, apod_icov=True)
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:192: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:244: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
+normal mg
+normal pinv
+normal cg
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:339: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+1, cg_err : 183.0241001874173, residual : 1128485.9062860166, err[0] : 362.9183257951604, err[1] : 15.013677275568782, err[2] : 0.9120741746346758, qform = -3884.066868714518, dt : 16.86448621749878
+2, cg_err : 48.66108995520827, residual : 1129258.8295101314, err[0] : 362.9091846354589, err[1] : 15.029752486175784, err[2] : 0.9121493236366316, qform = -7967.200979663771, dt : 16.417540073394775
+3, cg_err : 58.672894035824626, residual : 1129735.4700705195, err[0] : 362.89495962413224, err[1] : 15.079088841334205, err[2] : 0.9124316658126016, qform = -14247.64324301115, dt : 16.81308150291443
+4, cg_err : 51.80545088637909, residual : 1130091.2090076776, err[0] : 362.8291736275173, err[1] : 15.375063521726577, err[2] : 0.9140302929959238, qform = -42913.3493260436, dt : 17.199198961257935
+5, cg_err : 170.53743077785134, residual : 1132848.8269123484, err[0] : 362.5032909756606, err[1] : 16.6326244019424, err[2] : 0.9220875760776532, qform = -182682.3548627781, dt : 17.36406707763672
+normal pinv 2
+normal mg 2
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:385: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+1, cg_err : 0.6461476007090364, residual : 1130246.5153343738, err[0] : 362.49990478496784, err[1] : 15.934425365726552, err[2] : 0.9179667973823827, qform = -259841.22976388445, dt : 4.304426908493042
+2, cg_err : 0.34713726838089354, residual : 1128170.1604278097, err[0] : 362.49663047045397, err[1] : 15.437034147614396, err[2] : 0.9150001812501897, qform = -314794.4565239998, dt : 4.435802936553955
+3, cg_err : 0.7543906358893159, residual : 1127557.9456613094, err[0] : 362.4951817188538, err[1] : 15.293584595976688, err[2] : 0.9140185367804684, qform = -330782.8977227179, dt : 4.302247524261475
+4, cg_err : 1.471880015869193, residual : 1127242.5551476704, err[0] : 362.49426336452694, err[1] : 15.21621888223354, err[2] : 0.91350270135531, qform = -339087.00303522445, dt : 4.433652639389038
+5, cg_err : 0.1345039129835745, residual : 1127079.8728612014, err[0] : 362.49376413789366, err[1] : 15.172929803132696, err[2] : 0.9132394066305806, qform = -343345.57055407105, dt : 4.4163126945495605
+6, cg_err : 0.05198575731522056, residual : 1126742.4818842553, err[0] : 362.49137867276454, err[1] : 15.070750323976439, err[2] : 0.9126178120303201, qform = -354542.3206173209, dt : 4.400812387466431
+7, cg_err : 0.0427712602966084, residual : 1126593.6450541657, err[0] : 362.4882697149565, err[1] : 15.02620284613458, err[2] : 0.9123114580757373, qform = -361343.6094177944, dt : 4.339177846908569
+srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
+slurmstepd: error: *** JOB 3482311 ON worker5148 CANCELLED AT 2024-05-26T00:45:15 ***
+slurmstepd: error: *** STEP 3482311.0 ON worker5148 CANCELLED AT 2024-05-26T00:45:15 ***

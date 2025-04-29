@@ -1,0 +1,5 @@
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 123
+    assert icov_pix.shape[:-2] = (3, 3)
+                               ^
+SyntaxError: invalid syntax
+srun: error: worker6060: task 0: Exited with exit code 1

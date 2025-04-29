@@ -1,0 +1,5 @@
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 470
+    parser.add_argument('--write-steps', action='store_true',
+                       ^
+SyntaxError: '(' was never closed
+srun: error: worker5054: task 0: Exited with exit code 1

@@ -1,0 +1,19 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck13', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=False, apod_icov=True)
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:166: RuntimeWarning: divide by zero encountered in log10
+  np.log10(np.abs(cov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))), interpolation='none')
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:177: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:229: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
+normal mg
+normal pinv
+normal cg
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:324: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  ps_c_ell[idx,...] = ainfo.alm2cl(solver.x[:,None,:], solver.x[None,:,:])
+1, cg_err : 1.1496460860055395, residual : 4865150.1859588465, err[0] : 644.3390138289777, err[1] : 17.775271714936142, err[2] : 1.4172470223716034, qform = -127567565.00741105, dt : 16.623279571533203
+2, cg_err : 0.9194363386157233, residual : 4064573.985918368, err[0] : 750.9577540985032, err[1] : 18.209701747321283, err[2] : 1.6637534017355495, qform = -198080160.82646596, dt : 16.456809759140015
+srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
+slurmstepd: error: *** JOB 3482305 ON worker5148 CANCELLED AT 2024-05-26T00:16:53 ***
+slurmstepd: error: *** STEP 3482305.0 ON worker5148 CANCELLED AT 2024-05-26T00:16:53 ***

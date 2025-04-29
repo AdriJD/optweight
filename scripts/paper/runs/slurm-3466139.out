@@ -1,0 +1,13 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck12', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=True)
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:138: RuntimeWarning: divide by zero encountered in log10
+  im = ax.imshow(np.log10(np.abs(icov_pix[idx,jdx].reshape(minfo.nrow, minfo.nphi[0]))),
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 483, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 199, in main
+    alm, ainfo = alm_utils.rand_alm(cov_ell, ainfo, rng)
+    ^^^^^^^^^^
+ValueError: too many values to unpack (expected 2)
+srun: error: worker3122: task 0: Exited with exit code 1

@@ -1,0 +1,16 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck11', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=True)
+fsky T 0.7368453611204222
+fsky P 0.7606127498302695
+normal mg
+normal pinv
+normal cg
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 474, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 273, in main
+    chisqs[0] = solver.get_chisq()
+                ^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/optweight/optweight/solvers.py", line 288, in get_chisq
+    raise NotImplementedError
+NotImplementedError
+srun: error: worker5273: task 0: Exited with exit code 1

@@ -1,0 +1,31 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck06f', draw_constr=False, test_conv=True, niter_cg=15, niter_mg=45, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=1500, write_steps=False, apod_icov=False, icov_pix_file='/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/dx12_v3_smica_noise_icov_1dg.fits', mask_file='/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/mask_2500.fits')
+fsky T 0.6702093525588608
+fsky P 0.6702093525588608
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 569, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 131, in main
+    icov_pix = enmap.read_map(icov_pix_file)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/pixell/pixell/enmap.py", line 2319, in read_map
+    res = read_fits(fname, sel=sel, box=box, pixbox=pixbox, geometry=geometry, wrap=wrap, mode=mode, sel_threshold=sel_threshold, wcs=wcs, hdu=hdu, delayed=delayed, verbose=verbose)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/local/pixell/pixell/enmap.py", line 2413, in read_fits
+    hdu = astropy.io.fits.open(fname)[hdu]
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/.pyenv/versions/3.11.1/envs/enki/lib/python3.11/site-packages/astropy/io/fits/hdu/hdulist.py", line 222, in fitsopen
+    return HDUList.fromfile(
+           ^^^^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/.pyenv/versions/3.11.1/envs/enki/lib/python3.11/site-packages/astropy/io/fits/hdu/hdulist.py", line 486, in fromfile
+    return cls._readfrom(
+           ^^^^^^^^^^^^^^
+  File "/mnt/home/aduivenvoorden/.pyenv/versions/3.11.1/envs/enki/lib/python3.11/site-packages/astropy/io/fits/hdu/hdulist.py", line 1157, in _readfrom
+    fileobj = _File(
+              ^^^^^^
+  File "/mnt/home/aduivenvoorden/.pyenv/versions/3.11.1/envs/enki/lib/python3.11/site-packages/astropy/io/fits/file.py", line 218, in __init__
+    self._open_filename(fileobj, mode, overwrite)
+  File "/mnt/home/aduivenvoorden/.pyenv/versions/3.11.1/envs/enki/lib/python3.11/site-packages/astropy/io/fits/file.py", line 641, in _open_filename
+    self._file = open(self.name, IO_FITS_MODES[mode])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/home/aduivenvoorden/project/actpol/20241008_delensing/icov/dx12_v3_smica_noise_icov_1dg.fits'
+srun: error: worker7140: task 0: Exited with exit code 1

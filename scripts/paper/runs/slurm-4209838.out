@@ -1,0 +1,13 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck06', draw_constr=False, test_conv=True, niter_cg=15, niter_mg=45, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=0.02, no_beam=False, lmax_masked_cg=1500, write_steps=False, apod_icov=False)
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:254: DeprecationWarning: `product` is deprecated as of NumPy 1.25.0, and will be removed in NumPy 2.0. Please use `prod` instead.
+  nl = ainfo.alm2cl(alm_noise[:,None,:], alm_noise[None,:,:])
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 536, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 279, in main
+    solver = solvers.CGWienerMap.from_arrays(imap, minfo, ainfo, icov_ell, icov_pix, minfo, b_ell=b_ell,
+                                             ^^^^
+UnboundLocalError: cannot access local variable 'imap' where it is not associated with a value
+srun: error: worker7106: task 0: Exited with exit code 1

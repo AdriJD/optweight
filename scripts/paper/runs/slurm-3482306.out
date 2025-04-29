@@ -1,0 +1,17 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck13', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=False, apod_icov=True)
+fsky T 820869.7894213775
+fsky P 841653.9130172196
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:141: RuntimeWarning: divide by zero encountered in divide
+  cov_pix[0,0] /= mask_I_apo[0] ** 2
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:142: RuntimeWarning: divide by zero encountered in divide
+  cov_pix[0,1] /= mask_I_apo[0] * mask_P_apo[0]
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:143: RuntimeWarning: divide by zero encountered in divide
+  cov_pix[0,2] /= mask_I_apo[0] * mask_P_apo[0]
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:145: RuntimeWarning: divide by zero encountered in divide
+  cov_pix[1,1] /= mask_P_apo[0] ** 2
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:146: RuntimeWarning: divide by zero encountered in divide
+  cov_pix[1,2] /= mask_I_apo[0] * mask_P_apo[0]
+/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py:149: RuntimeWarning: divide by zero encountered in divide
+  cov_pix[2,2] /= mask_P_apo[0] ** 2
+srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
+slurmstepd: error: *** JOB 3482306 ON worker5170 CANCELLED AT 2024-05-26T00:17:56 ***

@@ -1,0 +1,9 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck13', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=False, apod_icov=True)
+Traceback (most recent call last):
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 511, in <module>
+    main(args.basedir, draw_constr=args.draw_constr, test_conv=args.test_conv,
+  File "/mnt/home/aduivenvoorden/local/optweight/scripts/paper/planck_filter_pix.py", line 110, in main
+    print('fsky T', np.sum(map_utils.inv_qweight_map(mask_I, minfo, qweight=True)) / 4 / np.pi)
+                                                             ^^^^^
+UnboundLocalError: cannot access local variable 'minfo' where it is not associated with a value
+srun: error: worker5148: task 0: Exited with exit code 1

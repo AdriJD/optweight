@@ -1,0 +1,4 @@
+Namespace(basedir='/mnt/home/aduivenvoorden/project/actpol/20230621_pcg_planck/planck13', draw_constr=False, test_conv=False, niter_cg=5, niter_mg=20, no_masked_prec=False, pol_mg=False, use_prec_harm=False, noise_scaling=None, no_beam=False, lmax_masked_cg=2000, write_steps=False, apod_icov=True)
+srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
+slurmstepd: error: *** JOB 3482319 ON worker5146 CANCELLED AT 2024-05-26T01:23:38 ***
+slurmstepd: error: *** STEP 3482319.0 ON worker5146 CANCELLED AT 2024-05-26T01:23:38 ***
