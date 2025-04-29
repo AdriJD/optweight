@@ -760,7 +760,7 @@ def gauss2map(imap, minfo_in, minfo_out, order=3, area_pow=0):
 
     # Loop over out dims
     for index in np.ndindex(imap.shape[:-1]):
-
+        
         map2rbs = imap_2d[index][theta_idxs,:]
         map2rbs = map2rbs[:,phi_idxs]
         rbs = RectBivariateSpline(thetas_in[theta_idxs], phis_in[phi_idxs],
@@ -963,7 +963,7 @@ def get_equal_area_minfo(minfo, orig_band=np.pi/8, ratio_pow=1.):
         metadata of grid.    
     '''
 
-    assert orig_band >= 0, ('orig_band must be >= 0, got {gl_band}')
+    assert orig_band >= 0, (f'orig_band must be >= 0, got {orig_band}')
 
     # Use pixel area on equator as reference. This assumes this ring is included.
     # Make sure this ring is actually included.

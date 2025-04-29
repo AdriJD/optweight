@@ -101,8 +101,7 @@ class CGWienerMap(utils.CG):
             self.lens = lambda alm : alm
             self.lens_adjoint = lambda alm : alm
         else:
-            self.lens = lens[0]
-            self.lens_adjoint = lens[1]
+            self.set_lens(lens)
 
         if filt is None:
             self.filt = lambda alm : alm
@@ -309,6 +308,16 @@ class CGWienerMap(utils.CG):
         # Copy of input RHS because the solver overwrites this vector.
         self.b0 = self.b_vec.copy()
 
+    def set_lens(self, lens):
+        '''
+        lens : tuple of callable
+            Tuple containing the lensing L operator and the adjoint Lt operator.
+            Both L and Lt transform an alm_data-shaped array to another alm array.
+        '''
+        
+        self.lens = lens[0]
+        self.lens_adjoint = lens[1]
+        
     def get_wiener(self):
         '''Return copy of Wiener-filtered input at current state.'''
 
