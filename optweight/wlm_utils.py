@@ -3,6 +3,7 @@ Simple python implementation of the Scale-Discrete wavelet kernels
 described in Leistedt et al., 2013 (1211.1680).
 '''
 import numpy as np
+from scipy.integrate import trapezoid
 
 def get_sd_kernels(lamb, lmax, j0=None, lmin=None, jmax=None, lmax_j=None,
                    return_j=False):
@@ -262,9 +263,9 @@ def k_lambda(ts, lamb):
         ts_prime_num = np.linspace(tee, 1, num=nint, endpoint=True)
         ts_prime_den = np.linspace(1 / lamb, 1, num=nint, endpoint=True)
 
-        out[tidx] = np.trapz(
+        out[tidx] = trapezoid(
             s_lambda(ts_prime_num, lamb) ** 2 / ts_prime_num, x=ts_prime_num)
-        out[tidx] /= np.trapz(
+        out[tidx] /= trapezoid(
             s_lambda(ts_prime_den, lamb) ** 2 / ts_prime_den, x=ts_prime_den)
 
     return out
