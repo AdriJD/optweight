@@ -18,7 +18,8 @@ OPTFLAG = -O3 -ffast-math -march=native
 
 # We explicitely link to the sequential version of MKL, because we want to avoid nested parallelization.
 # We will do the openMP threading ourselves in the outer loops of the C scripts.
-LINK_MKL = -L${MKLROOT}/lib/intel64 -lmkl_rt -Wl,--no-as-needed -lpthread -lm -ldl
+LINK_MKL = -L${MKLROOT}/lib -lmkl_rt -Wl,--no-as-needed,-rpath,${MKLROOT}/lib -lpthread -lm -ldl
+
 CFLAGS_MKL = -m64  -I"${MKLROOT}/include"
 
 all: $(LDIR)/liboptweight.so 
@@ -30,7 +31,7 @@ $(ODIR)/optweight_alm_c_utils.o:
 	$(CC) $(CFLAGS) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_alm_c_utils.c -I${IDIR} -fPIC
 
 $(ODIR)/optweight_mat_c_utils.o:
-	$(CC) $(CFLAGS) $(CFLAGS_MKL) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_mat_c_utils.c $(LINK_MKL) -lgomp -I${IDIR} -fPIC
+	$(CC) $(CFLAGS) $(CFLAGS_MKL) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_mat_c_utils.c -I${IDIR} -fPIC
 
 $(ODIR)/optweight_map_c_utils.o:
 	$(CC) $(CFLAGS) $(OMPFLAG) $(OPTFLAG) -c -o $@ $< ${SDIR}/optweight_map_c_utils.c -lgomp -I${IDIR} -fPIC
