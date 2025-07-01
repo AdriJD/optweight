@@ -990,7 +990,7 @@ class WavMatVecWav(MatVecWav):
 
 class PixEllPixMatVecMap(MatVecMap):
     '''
-    Calculate M_pix^p X_ell^q M_pix^p map for X and M diagonal in the multipole and 
+    Calculate M_pix^p Y X_ell^q Yt M_pix^p map for X and M diagonal in the multipole and 
     pixel domain, respectively. Both matrices should be positive semi-definite symmetric
     in other axes.
 
@@ -1043,7 +1043,7 @@ class PixEllPixMatVecMap(MatVecMap):
 
         if power_x != 1:
             x_ell = mat_utils.matpow(x_ell, power_x, return_diag=True)
-
+        
         self.m_pix = m_pix
         self.x_ell = x_ell
         self.npol = x_ell.shape[0]
@@ -1087,6 +1087,7 @@ class PixEllPixMatVecMap(MatVecMap):
                 np.einsum('abp, bp -> ap', self.m_pix, out, out=out, optimize=True)
             else:
                 out *= self.m_pix
+
         sht.map2alm(out, alm, self.minfo, self.ainfo, self.spin,
                     adjoint=self.adjoint is self.use_weights)
         alm_c_utils.lmul(alm, self.x_ell, self.ainfo, inplace=True)
@@ -1099,7 +1100,212 @@ class PixEllPixMatVecMap(MatVecMap):
                 out *= self.m_pix
 
         return out
+    
+class InvSqrtPixEllPixMatVecMap(MatVecMap):
+    '''
+    Use conjugate gradient to apply the (non-symmetric) inverse square root of a
+    PixEllPixMatVecMap type noise model.
 
+    Solve A x = b, where:
+        A = M' M_pix^p Y X_ell^q Yt M_pix^p M'
+        b =  M' M_pix^p Y X_ell^(q/2)    
+
+    Parameters
+    ----------
+    m_pix : (npol, npol, npix) array or (npol, npix) array, or None.
+        Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed. Can also be set to None,
+        in which case the matrix is ignored.
+    x_ell : (npol, npol, nell) array or (npol, nell) array
+        A matrix, either symmetric but dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    minfo : map_utils.MapInfo object
+        Metainfo for pixelization of input map and the M matrix.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    power_m : int, float, optional
+        Power of M matrix.
+    power_x : int, float, optional
+        Power of X matrix.
+    mask : (npol, npix) or (npix) array, optional
+        Binary sky mask.
+    adjoint : bool, optional
+        If set, calculate (M_pix W Y X_ell Yt W M_pix) instead of 
+        (M_pix Y X_ell Yt M_pix).
+    lmax : int, optional
+        Max multipole for internal harmonic operations. Will be inferred from
+        minfo if not provided.
+    verbose : bool, optional
+        If set, print information about CG convergence.
+
+    Methods
+    -------
+    call(imap) : Apply the operator to a map.
+    '''
+    
+    def __init__(self, m_pix, x_ell, minfo, spin, power_m=1, power_x=1, 
+                 mask=None, adjoint=False, lmax=None, inv_op=None, verbose=False):
+
+
+        if inv_op:
+            self.inv_op = inv_op
+        else:
+            self.inv_op = InvPixEllPixMatVecMap(
+                m_pix, x_ell, minfo, spin, power_m=power_m, power_x=power_x,
+                 mask=mask, adjoint=adjoint, lmax=lmax, verbose=verbose)
+        
+        self.npol = x_ell.shape[0]            
+        self.minfo = minfo
+        self.spin = spin
+        self.adjoint = adjoint
+        self.x_ell_halfq = mat_utils.matpow(x_ell, power_x / 2, return_diag=True)
+        if m_pix is not None:
+            self.m_pix_p = self.inv_op._a_mat.m_pix
+        else:
+            self.m_pix_p = None
+        self.mask = mask
+            
+    def _sqrt_n(self, ialm):
+        '''
+        Apply the (asymmetric) square root of the noise covariance: N^0.5 = M' M_pix^p Y X_ell^q / 2
+        to an input set of spherical harmonic coefficients.
+
+        Parameters
+        ----------
+        ialm : (npol, nelem) complex array
+            Input coefficients.
+
+        Returns
+        -------
+        out : (npol, npix) array
+            Output map.
+        '''
+
+        ainfo = self.inv_op._a_mat.ainfo
+        alm = alm_c_utils.lmul(ialm, self.x_ell_halfq, ainfo)
+
+        out = np.zeros((self.npol, self.minfo.npix))
+        sht.alm2map(alm, out, ainfo, self.minfo, self.spin,
+                    adjoint=self.adjoint)
+
+        if self.m_pix_p is not None:
+            if self.m_pix_p.ndim == 3:
+                np.einsum('abp, bp -> ap', self.m_pix_p, out, out=out, optimize=True)
+            else:
+                out *= self.m_pix_p        
+
+        if self.mask is not None:
+            out *= self.mask
+
+        return out
+
+    def call(self, ialm):
+        '''
+        Apply the operator to an input set of spherical harmonic coefficients. 
+
+        Parameters
+        ----------
+        ialm : (npol, nelem) complex array
+            Input coefficients.
+
+        Returns
+        -------
+        out : (npol, npix) array
+            Output from matrix-vector operation.
+        '''
+
+        out = self._sqrt_n(ialm)
+        return self.inv_op(out)
+        
+class InvPixEllPixMatVecMap(MatVecMap):
+    '''
+    Invert M' M_pix^p Y X_ell^q Yt M_pix^p M' using Conjugate Gradient. Here M' is a binary
+    pixel mask. X and M are diagonal in the multipole and pixel domain, respectively. Both
+    matrices should be positive semi-definite symmetric in other axes.  
+
+    Parameters
+    ----------
+    m_pix : (npol, npol, npix) array or (npol, npix) array, or None.
+        Matrix diagonal in pixel domain, either dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed. Can also be set to None,
+        in which case the matrix is ignored.
+    x_ell : (npol, npol, nell) array or (npol, nell) array
+        A matrix, either symmetric but dense in first two axes or diagonal,
+        in which case only the diagonal elements are needed.
+    minfo : map_utils.MapInfo object
+        Metainfo for pixelization of input map and the M matrix.
+    spin : int, array-like
+        Spin values for spherical harmonic transforms, should be
+        compatible with npol.
+    mask : (npol, npix) or (npix) array, optional.
+        Binary pixel mask.
+    power_m : int, float, optional
+        Power of M matrix.
+    power_x : int, float, optional
+        Power of X matrix.
+    adjoint : bool, optional
+        If set, calculate (M_pix W Y X_ell Yt W M_pix) instead of 
+        (M_pix Y X_ell Yt M_pix).
+    lmax : int, optional
+        Max multipole for internal harmonic operations. Will be inferred from
+        minfo if not provided.
+    nsteps : int, optional
+        Number of CG steps.
+    verbose : bool, optional
+       If set, print information about CG convergence.
+
+
+    Methods
+    -------
+    call(imap) : Apply the operator to a map.
+    '''
+
+    def __init__(self, m_pix, x_ell, minfo, spin, power_m=1, power_x=1, 
+                 mask=None, adjoint=False, lmax=None, nsteps=5):
+
+        self._a_mat = PixEllPixMatVecMap(m_pix, x_ell, minfo, spin, power_m=power_m, power_x=power_x,
+                                         inplace=False, adjoint=adjoint, lmax=lmax)
+        
+        self._prec = PixEllPixMatVecMap(m_pix, x_ell, minfo, spin, power_m=-power_m, power_x=-power_x,
+                                        inplace=False, adjoint=not adjoint, lmax=lmax)
+        
+        if mask is not None:
+            self._a_mat_masked = lambda imap: mask * self._a_mat(mask * imap)
+            self._prec_masked = lambda imap: mask * self._prec(mask * imap)
+        else:
+            self._a_mat_masked = self._a_mat
+            self._prec_masked = self._prec
+        
+        self._dot = lambda x, y: np.sum(x * y)
+        self.nsteps = nsteps
+        self.verbose = verbose
+        
+    def call(self, imap, verbose=False):
+        '''
+        Apply operator to input map.
+        
+        Parameters
+        ----------
+        imap : (npol, npix) array
+            Input map.
+        
+        Returns
+        -------
+        omap : (npol, npix) array
+            Output map.         
+        '''
+
+        b_vec = imap.copy()
+        solver = utils.CG(self._a_mat_masked, b_vec, M=self._prec_masked, dot=self._dot)
+
+        for _ in range(self.nsteps):
+            solver.step()
+            if self.verbose:
+                print(solver.i, solver.err)
+
+        return solver.x    
+        
 class FMatVecAlm(MatVecAlm):
     '''
     Calculate Yt W F^-1 M F Y alm for M diagonal in the Fourier domain and

@@ -255,7 +255,7 @@ class CGWienerMap(utils.CG):
         out : array
             Output alm array, corresponding to b.
         '''
-
+        
         omap = self.icov_noise(imap)
         oalm = self.proj_adjoint(omap)
         oalm = self.scale_filter(oalm)
@@ -455,6 +455,122 @@ class CGWienerMap(utils.CG):
                    filt=filt, mask=mask, rand_isignal=rand_isignal,
                    rand_inoise=rand_inoise, swap_bm=swap_bm, scale_filter=sfilt)
 
+    @classmethod
+    def from_arrays_const_cor(cls, imap, minfo, ainfo, icov_ell, icov_pix, icov_noise_ell,
+                              *extra_args, nsteps=5, b_ell=None, mask_pix=None, minfo_mask=None,
+                              draw_constr=False, spin=None, sfilt=None, lensop=None, seed=None,
+                              verbose=False):
+        '''
+        Initialize solver with arrays instead of callables for a constant-correlation noise model:
+        
+        N = M N^0.5_pix Y C_ell Y^H N^0.5_pix M.
+
+        Parameters
+        ----------
+        imap : (npol, npix) array
+            Input map
+        minfo : map_utils.MapInfo object
+            Metainfo for input map.
+        ainfo : pixell.curvedsky.alm_info object
+            Metainfo for output alms.
+        icov_ell : (npol, npol, nell) or (npol, nell) array
+            Inverse signal covariance. If diagonal, only the diagonal suffices.
+        icov_pix : (npol, npol, npix) or (npol, npix) array
+            Inverse noise covariance. If diagonal, only the diagonal suffices.
+        icov_noise_ell :  (npol, npol, nell) or (npol, nell) array
+            Inverse noise covariance. If diagonal, only the diagonal suffices.
+        *extra_args
+            Possible extra arguments to init, used for inherited classes.
+        nsteps : int, optional
+            Number of CG steps used to invert N.
+        b_ell : (npol, nell) array, optional
+            Beam window functions.
+        mask_pix = (npol, npix) array, optional
+            Pixel mask.
+        minfo_mask : map_utils.MapInfo object
+            Metainfo for pixel mask.
+        draw_constr : bool, optional
+            If set, initialize for constrained realization instead of Wiener.
+        spin : int, array-like, optional
+            Spin values for transform, should be compatible with npol. If not provided,
+            value will be derived from npol: 1->0, 2->2, 3->[0, 2].
+        sfilt : (npol, nell) or (npol, npol, nell) array, optional
+            Symmetric positive definite scaling matrix, if diagonal only the diagonal
+            suffices.
+        lensop : lensing.LensAlm object
+            Lensing instance used to compute lensing and adjoint lensing.
+        seed : int or np.random._generator.Generator object, optional
+            Seed for np.random.seed.
+        verbose : bool, optional
+            If set, print information about convergence of internal CG solver.
+
+        Raises
+        ------
+        ValueErorr
+            If input shape do not match.
+        '''
+
+        if spin is None:
+            spin = sht_tools.default_spin(imap.shape)        
+
+        imap = mat_utils.atleast_nd(imap, 2)
+        icov_pix = mat_utils.atleast_nd(icov_pix, 2)
+        icov_ell = mat_utils.atleast_nd(icov_ell, 2)
+        icov_noise_ell = mat_utils.atleast_nd(icov_noise_ell, 2)
+        
+        if icov_pix.shape[-2:] != imap.shape:
+            raise ValueError(f'Mismatch {icov_pix.shape=} and {imap.shape=}')
+        if icov_ell.shape[0] != imap.shape[0]:
+            raise ValueError(f'Mismatch {icov_ell.shape=} and {imap.shape=}')
+            
+        icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
+        icov_noise = operators.InvPixEllPixMatVecMap(
+            icov_pix, icov_noise_ell, minfo, spin, power_m=-0.5, power_x=-1, mask=mask_pix,
+            nsteps=nsteps, verbose=verbose)
+
+        if b_ell is not None:            
+            beam = operators.EllMatVecAlm(ainfo, b_ell)
+        else:
+            beam = None
+
+        if sfilt is not None:
+            sfilt = operators.EllMatVecAlm(ainfo, sfilt)
+
+        # NOTE, FIXME.
+        filt = None
+
+        if mask_pix is not None:
+            if minfo_mask is None:
+                minfo_mask = minfo
+            mask = operators.PixMatVecMap(mask_pix, 1, inplace=False)
+        else:
+            mask = None
+
+        if draw_constr:
+            rand_isignal = alm_utils.rand_alm(icov_ell, ainfo, seed)
+            rand_inoise = alm_utils.unit_var_alm(ainfo, imap.shape[:-1], seed)
+            sqrt_icov_noise_op = operators.InvSqrtPixEllPixMatVecMap(
+                icov_pix, icov_noise_ell, minfo, spin, power_m=-0.5, power_x=-1,
+                mask=mask_pix, inv_op=icov_noise, verbose=verbose)
+            rand_inoise = sqrt_icov_noise_op(rand_inoise)
+        else:
+            rand_isignal = None
+            rand_inoise = None
+
+        sht = (operators.YMatVecAlm(ainfo, minfo, spin, qweight=False),
+               operators.YTWMatVecMap(minfo, ainfo, spin, qweight=False))
+
+        if lensop:
+            if not alm_utils.ainfo_is_equiv(ainfo, lensop.ainfo):
+                raise ValueError(f'f{ainfo=} != {lensop.ainfo=}')
+            lens = (lensop.lens, lensop.lens_adjoint)
+        else:
+            lens = None
+
+        return cls(imap, icov_signal, icov_noise, sht, beam=beam, lens=lens,
+                   filt=filt, mask=mask, rand_isignal=rand_isignal,
+                   rand_inoise=rand_inoise, scale_filter=sfilt)
+    
     @classmethod
     def from_arrays_fwav(cls, imap, minfo, ainfo, icov_ell, cov_wav, fkernelset,
                          *extra_args, b_ell=None, mask_pix=None, minfo_mask=None,
@@ -768,7 +884,7 @@ class CGWiener(utils.CG):
         out : array
             Output alm array, corresponding to b.
         '''
-
+        
         alm = self.icov_noise(alm.copy())
         if self.swap_bm:
             alm = self.filt_adjoint(alm)
