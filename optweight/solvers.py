@@ -458,8 +458,8 @@ class CGWienerMap(utils.CG):
     @classmethod
     def from_arrays_const_cor(cls, imap, minfo, ainfo, icov_ell, icov_pix, icov_noise_ell,
                               *extra_args, nsteps=5, b_ell=None, mask_pix=None, minfo_mask=None,
-                              draw_constr=False, spin=None, sfilt=None, lensop=None, seed=None,
-                              verbose=False):
+                              no_masked_noise, draw_constr=False, spin=None, sfilt=None,
+                              lensop=None, seed=None, verbose=False):
         '''
         Initialize solver with arrays instead of callables for a constant-correlation noise model:
         
@@ -489,6 +489,9 @@ class CGWienerMap(utils.CG):
             Pixel mask.
         minfo_mask : map_utils.MapInfo object
             Metainfo for pixel mask.
+        no_masked_noise : bool, optional
+            If set, assume that the noise has not been masked, i.e. M in the the noise
+            model is set to 1.
         draw_constr : bool, optional
             If set, initialize for constrained realization instead of Wiener.
         spin : int, array-like, optional
@@ -525,8 +528,8 @@ class CGWienerMap(utils.CG):
             
         icov_signal = operators.EllMatVecAlm(ainfo, icov_ell)
         icov_noise = operators.InvPixEllPixMatVecMap(
-            icov_pix, icov_noise_ell, minfo, spin, power_m=-0.5, power_x=-1, mask=mask_pix,
-            nsteps=nsteps, verbose=verbose)
+            icov_pix, icov_noise_ell, minfo, spin, power_m=-0.5, power_x=-1,
+            mask=None if no_masked_noise else mask_pix, nsteps=nsteps, verbose=verbose)
 
         if b_ell is not None:            
             beam = operators.EllMatVecAlm(ainfo, b_ell)
@@ -551,7 +554,7 @@ class CGWienerMap(utils.CG):
             rand_inoise = alm_utils.unit_var_alm(ainfo, imap.shape[:-1], seed)
             sqrt_icov_noise_op = operators.InvSqrtPixEllPixMatVecMap(
                 icov_pix, icov_noise_ell, minfo, spin, power_m=-0.5, power_x=-1,
-                mask=mask_pix, inv_op=icov_noise, verbose=verbose)
+                mask=None if no_masked_noise else mask_pix, inv_op=icov_noise, verbose=verbose)
             rand_inoise = sqrt_icov_noise_op(rand_inoise)
         else:
             rand_isignal = None
