@@ -1,6 +1,6 @@
 # optweight
 
-![Build](https://github.com/AdriJD/optweight/actions/workflows/python-app.yml/badge.svg?branch=master)
+[![Build](https://img.shields.io/github/actions/workflow/status/adrijd/optweight/python-app.yml?branch=master)](https://github.com/adrijd/optweight/actions)
 [![codecov](https://codecov.io/gh/AdriJD/optweight/graph/badge.svg?token=I6GNMW49E6)](https://codecov.io/gh/AdriJD/optweight)
 
 `optweight` is a library for filtering two-dimensional data on the sphere (e.g. CMB or weak lensing data) in a statically optimal way. The main use is the computation of [Wiener-filtered](https://en.wikipedia.org/wiki/Generalized_Wiener_filter) data. Additionally, the library can be used to compute inverse-covariance weighted data and draw constrained signal realizations. 
@@ -15,7 +15,7 @@ Under the hood, the code solves a large linear system using the conjugate gradie
 
 ### Dependencies
 
-- Python>=3.8,<=3.11
+- Python>=3.10
 - Intel MKL library 
 - a C compiler (tested with gcc and icc)
 - [ducc0](https://gitlab.mpcdf.mpg.de/mtr/ducc)
