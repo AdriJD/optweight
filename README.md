@@ -29,9 +29,9 @@ Start by making sure the MKL library is loaded in your environment. On most clus
 
 Once the MKL environment has been set, `git clone` this repository, go into the directory and run:
 ```
-pip install .
+pip install --no-build-isolation --verbose .
 ```
-Consider adding the `-e` flag (`pip install -e .`) to enable automatic 
+Consider adding the `-e` flag (`pip install --no-build-isolation --verbose -e .`) to enable automatic 
 updating of code changes when developing.
 
 Run tests:
