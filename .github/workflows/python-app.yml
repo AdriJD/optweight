@@ -54,7 +54,7 @@ jobs:
       run: |
           export CPATH=/usr/include/mkl/:$PATH
           export LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:$LIBRARY_PATH
-          python -m pip install . -v
+          python -m pip install --no-build-isolation --verbose .
     - name: Test with pytest
       run: |
         cd tests
