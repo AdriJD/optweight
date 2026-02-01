@@ -1255,7 +1255,6 @@ class InvPixEllPixMatVecMap(MatVecMap):
     verbose : bool, optional
        If set, print information about CG convergence.
 
-
     Methods
     -------
     call(imap) : Apply the operator to a map.
@@ -1263,7 +1262,7 @@ class InvPixEllPixMatVecMap(MatVecMap):
 
     def __init__(self, m_pix, x_ell, minfo, spin, power_m=1, power_x=1, 
                  mask=None, adjoint=False, lmax=None, nsteps=5, verbose=False):
-
+        
         self._a_mat = PixEllPixMatVecMap(m_pix, x_ell, minfo, spin, power_m=power_m, power_x=power_x,
                                          inplace=False, adjoint=adjoint, lmax=lmax)
         

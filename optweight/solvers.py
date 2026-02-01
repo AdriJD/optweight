@@ -458,7 +458,7 @@ class CGWienerMap(utils.CG):
     @classmethod
     def from_arrays_const_cor(cls, imap, minfo, ainfo, icov_ell, icov_pix, icov_noise_ell,
                               *extra_args, nsteps=5, b_ell=None, mask_pix=None, minfo_mask=None,
-                              no_masked_noise, draw_constr=False, spin=None, sfilt=None,
+                              no_masked_noise=False, draw_constr=False, spin=None, sfilt=None,
                               lensop=None, seed=None, verbose=False):
         '''
         Initialize solver with arrays instead of callables for a constant-correlation noise model:
