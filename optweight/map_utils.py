@@ -1106,8 +1106,6 @@ def rand_map_pix(cov_pix, seed):
         npol * npix).astype(cov_pix.dtype, copy=False)
     uv = uv.reshape((npol, npix))
     
-    #uv = np.random.randn(npol, npix).astype(cov_pix.dtype)
-
     if cov_pix.ndim == 2:
         cov_pix_sqrt = np.sqrt(cov_pix)
         uv *= cov_pix_sqrt
