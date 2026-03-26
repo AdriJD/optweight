@@ -1,9 +1,9 @@
 import numpy as np
 
-from pixell import utils, curvedsky
+from pixell import curvedsky
 
 from optweight import (operators, mat_utils, multigrid, type_utils, sht,
-                       alm_utils, map_utils, alm_c_utils, dft)
+                       alm_utils, map_utils, alm_c_utils, dft, solver_utils)
 
 class HarmonicPreconditioner(operators.MatVecAlm):
     '''
@@ -767,7 +767,7 @@ class MaskedPreconditionerCG(operators.MatVecAlm):
 
         sht.alm2map(alm_lowres, imap, self.ainfo_lowres, self.minfo, self.spin)
         imap *= self.mask_unobs
-        cg = utils.CG(self.g_op, imap, dot=self.dot, M=self.prec)
+        cg = solver_utils.CG(self.g_op, imap, dot=self.dot, M=self.prec)
 
         for idx in range(self.nsteps):
             cg.step()

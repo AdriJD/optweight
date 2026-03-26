@@ -1,10 +1,10 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-from pixell import curvedsky, enmap, utils
+from pixell import curvedsky, enmap
 
 from optweight import (sht, dft, wavtrans, alm_utils, type_utils, alm_c_utils,
-                       mat_utils, map_utils)
+                       mat_utils, map_utils, solver_utils)
 
 class MatVecAlm(ABC):
     '''Template for all matrix-vector operators working on alm input.'''
@@ -411,7 +411,7 @@ class InvFWavMatVecF(MatVecF):
         '''
 
         b_vec = fmap.copy()
-        solver = utils.CG(self._a_mat, b_vec, M=self._prec, dot=dft.contract_fxg)
+        solver = solver_utils.CG(self._a_mat, b_vec, M=self._prec, dot=dft.contract_fxg)
         
         for _ in range(self.nsteps):
             solver.step()
@@ -1296,7 +1296,7 @@ class InvPixEllPixMatVecMap(MatVecMap):
         '''
 
         b_vec = imap.copy()
-        solver = utils.CG(self._a_mat_masked, b_vec, M=self._prec_masked, dot=self._dot)
+        solver = solver_utils.CG(self._a_mat_masked, b_vec, M=self._prec_masked, dot=self._dot)
 
         for _ in range(self.nsteps):
             solver.step()

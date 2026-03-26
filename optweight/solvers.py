@@ -3,9 +3,9 @@ import numpy as np
 from pixell import curvedsky, utils
 
 from optweight import (operators, alm_utils, map_utils, mat_utils,
-                       noise_utils, dft, sht as sht_tools)
+                       noise_utils, dft, sht as sht_tools, solver_utils)
 
-class CGWienerMap(utils.CG):
+class CGWienerMap(solver_utils.CG):    
     '''
     Given the data model d = P s + n, where s is input signal in SH
     coefficients and the projection matrix P is given by Mf M Y B L,
@@ -132,7 +132,7 @@ class CGWienerMap(utils.CG):
         Parameters
         ----------
         **kwargs
-            Keyword arguments for pixell.utils.CG.
+            Keyword arguments for solver_utils.CG.
         '''
 
         kwargs.setdefault('dot', alm_utils.contract_almxblm)
@@ -694,7 +694,7 @@ class CGWienerMap(utils.CG):
                    filt=filt, mask=mask, rand_isignal=rand_isignal,
                    rand_inoise=rand_inoise, swap_bm=swap_bm, scale_filter=sfilt)
 
-class CGWiener(utils.CG):
+class CGWiener(solver_utils.CG):
     '''
     Construct a CG solver for x in the equation system A x = b where:
 
@@ -792,7 +792,7 @@ class CGWiener(utils.CG):
         Parameters
         ----------
         **kwargs
-            Keyword arguments for pixell.utils.CG.
+            Keyword arguments for solver_utils.CG.
         '''
 
         kwargs.setdefault('dot', alm_utils.contract_almxblm)

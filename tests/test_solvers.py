@@ -1,11 +1,12 @@
 import unittest
 import numpy as np
 
-from pixell import curvedsky, utils
+from pixell import curvedsky
 
 from optweight import solvers
 from optweight import alm_utils
 from optweight import map_utils
+from optweight import solver_utils
 
 class TestCGWiener(unittest.TestCase):
     
@@ -21,7 +22,7 @@ class TestCGWiener(unittest.TestCase):
         self.assertTrue(hasattr(solver, 'icov_signal'))
         self.assertTrue(hasattr(solver, 'icov_noise'))
         self.assertTrue(hasattr(solver, 'beam'))
-        self.assertTrue(issubclass(solvers.CGWiener, utils.CG))
+        self.assertTrue(issubclass(solvers.CGWiener, solver_utils.CG))
         self.assertIs(solver.dot, alm_utils.contract_almxblm)
 
     def test_CGWiener_init_kwargs(self):
@@ -129,7 +130,7 @@ class TestCGWiener(unittest.TestCase):
         self.assertTrue(hasattr(solver, 'rand_isignal'))
         self.assertTrue(hasattr(solver, 'rand_inoise'))
         self.assertTrue(hasattr(solver, 'beam'))
-        self.assertTrue(issubclass(solvers.CGWiener, utils.CG))
+        self.assertTrue(issubclass(solvers.CGWiener, solver_utils.CG))
 
     def test_CGWiener_constrained_realisation_run(self):
         
@@ -251,7 +252,7 @@ class TestCGWienerScaled(unittest.TestCase):
         self.assertTrue(hasattr(solver, 'icov_noise'))
         self.assertTrue(hasattr(solver, 'sqrt_cov_signal'))
         self.assertTrue(hasattr(solver, 'beam'))
-        self.assertTrue(issubclass(solvers.CGWiener, utils.CG))
+        self.assertTrue(issubclass(solvers.CGWiener, solver_utils.CG))
         self.assertIs(solver.dot, alm_utils.contract_almxblm)
 
     def test_CGWienerScaled_init_kwargs(self):
