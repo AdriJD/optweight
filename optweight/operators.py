@@ -1136,6 +1136,8 @@ class InvSqrtPixEllPixMatVecMap(MatVecMap):
     lmax : int, optional
         Max multipole for internal harmonic operations. Will be inferred from
         minfo if not provided.
+    inv_op : callable, optional
+        An already initialized version of the A matrix.
     verbose : bool, optional
         If set, print information about CG convergence.
 

@@ -151,6 +151,44 @@ class TestAlmCUtils(unittest.TestCase):
         alm_out_exp = ainfo.lmul(alm, lmat)
         np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
 
+    def test_lmul_add_dp(self):
+        
+        lmax = 4
+        ncomp = 3
+
+        ainfo = curvedsky.alm_info(4)
+        alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
+        alm = alm.reshape(ncomp, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_out = np.ones_like(alm)
+
+        lmat = np.arange(ncomp * ncomp * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(ncomp, ncomp, lmax + 1)
+
+        alm_c_utils.lmul(alm, lmat, ainfo, alm_out=alm_out, add=True)
+        alm_out_exp = ainfo.lmul(alm, lmat) + np.ones_like(alm)
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
+    def test_lmul_add_inplace_dp(self):
+        
+        lmax = 4
+        ncomp = 3
+
+        ainfo = curvedsky.alm_info(4)
+        alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex128)
+        alm = alm.reshape(ncomp, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_in = alm.copy()
+        
+        lmat = np.arange(ncomp * ncomp * (lmax + 1), dtype=float)
+        lmat = lmat.reshape(ncomp, ncomp, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat) + alm_in
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True, add=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+        
     def test_lmul_inplace_dp(self):
         
         lmax = 4
@@ -269,6 +307,44 @@ class TestAlmCUtils(unittest.TestCase):
         alm_out_exp = ainfo.lmul(alm, lmat)
         np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
 
+    def test_lmul_add_sp(self):
+        
+        lmax = 4
+        ncomp = 3
+
+        ainfo = curvedsky.alm_info(4)
+        alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex64)
+        alm = alm.reshape(ncomp, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_out = np.ones_like(alm)
+
+        lmat = np.arange(ncomp * ncomp * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(ncomp, ncomp, lmax + 1)
+
+        alm_c_utils.lmul(alm, lmat, ainfo, alm_out=alm_out, add=True)
+        alm_out_exp = ainfo.lmul(alm, lmat) + np.ones_like(alm)
+        np.testing.assert_array_almost_equal(alm_out, alm_out_exp)
+
+    def test_lmul_add_inplace_sp(self):
+        
+        lmax = 4
+        ncomp = 3
+
+        ainfo = curvedsky.alm_info(4)
+        alm = np.arange(ncomp * ainfo.nelem, dtype=np.complex64)
+        alm = alm.reshape(ncomp, ainfo.nelem)
+        alm *= 1 + 1j
+
+        alm_in = alm.copy()
+        
+        lmat = np.arange(ncomp * ncomp * (lmax + 1), dtype=np.float32)
+        lmat = lmat.reshape(ncomp, ncomp, lmax + 1)
+
+        alm_out_exp = ainfo.lmul(alm, lmat) + alm_in
+        alm_c_utils.lmul(alm, lmat, ainfo, inplace=True, add=True)
+        np.testing.assert_array_almost_equal(alm, alm_out_exp)
+        
     def test_lmul_inplace_sp(self):
         
         lmax = 4

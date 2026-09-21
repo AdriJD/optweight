@@ -52,9 +52,9 @@ def wlm2alm(w_ell, wlm, alm, lmax_w, lmax_a):
         raise ValueError(f"dtype wlm : {wlm.dtype} != alm dtype : {alm.dtype}")
 
     if wlm.dtype == np.complex128:
-        _wlm2alm_dp(w_ell.astype(np.float64), wlm, alm, lmax_w, lmax_a, ncomp)
+        _wlm2alm_dp(w_ell.astype(np.float64, copy=False), wlm, alm, lmax_w, lmax_a, ncomp)
     elif wlm.dtype == np.complex64:
-        _wlm2alm_sp(w_ell.astype(np.float32), wlm, alm, lmax_w, lmax_a, ncomp)
+        _wlm2alm_sp(w_ell.astype(np.float32, copy=False), wlm, alm, lmax_w, lmax_a, ncomp)
     else:
         raise ValueError('dtype wlm : {} not supported'.format(
                                                    wlm.dtype))
@@ -154,7 +154,7 @@ def _trunc_alm_sp(alm_in, alm_out, lmax_in, lmax_out, ncomp):
     calm_c_utils.trunc_alm_sp(
        &alm_in_[0], &alm_out_[0], lmax_in, lmax_out, ncomp)
 
-def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
+def lmul(alm, lmat, ainfo, alm_out=None, inplace=False, add=False):
     '''       
     Compute the a'[...,i,lm] = m[i,j,ell] a[...,j,lm] matrix multiplication.
 
@@ -167,9 +167,11 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     ainfo : pixell.curvedsky.alm_info object
         Metainfo alms.
     alm_out : (ncomp, nelem) complex array, optional
-        Output alms. Will be overwritten!
+        Output alms. Will be overwritten based on `add`
     inplace : bool
         In-place computation, output stored in alm.
+    add : bool
+    	If set, add result to the output array.
 
     Returns
     -------
@@ -183,6 +185,8 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
         If input/output shapes/dtypes do not match.
         If alm array does not have triangular layout.
         if both alm_out and inplace are set.
+	if alm is not C-contiguous and inplace=True.
+	if alm_out is not C-contiguous.
 
     Notes
     -----
@@ -206,24 +210,30 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
 
     if alm_out is not None and inplace:
         raise ValueError('Cannot set both inplace and alm_out')
-    
+
+    if inplace and not alm.flags['C_CONTIGUOUS']:
+            raise ValueError('alm not C-contiguous while inplace=True')
+
+    if alm_out is not None and not alm_out.flags['C_CONTIGUOUS']:
+            raise ValueError('alm_out not C-contiguous')            
+
     if inplace is False:
         if alm_out is None:             
-            alm_out = np.empty(alm.shape, dtype=dtype, order='C')
+            alm_out = np.zeros(alm.shape, dtype=dtype, order='C')
         else:
             if alm_out.size != alm.size:
                 raise ValueError('alm.size {} != alm_out.size {}'.
                                  format(alm.size, alm_out.size))
             if alm_out.dtype != dtype:
                 raise ValueError('alm.dtype {} != alm_out.dtype {}'.
-                                 format(alm.size, alm_out.size))
+                                 format(alm.dtype, alm_out.dtype))
     
     if lmat.ndim == 1:
         lmat = lmat * np.ones((npol, lmat.size), dtype=lmat.dtype)
-
+            
     if dtype == np.complex128:
 
-        lmat = lmat.astype(np.float64)
+        lmat = lmat.astype(np.float64, copy=False)
         if inplace:
             lmul_func = _lmul_inplace_dp
         else:
@@ -231,7 +241,7 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
     
     elif dtype == np.complex64:
 
-        lmat = lmat.astype(np.float32)
+        lmat = lmat.astype(np.float32, copy=False)
         if inplace:
             lmul_func = _lmul_inplace_sp
         else:
@@ -239,29 +249,29 @@ def lmul(alm, lmat, ainfo, alm_out=None, inplace=False):
 
     if inplace:
         for idxs in np.ndindex(preshape):
-            lmul_func(lmat, alm[idxs], lmax, npol)
+            lmul_func(lmat, alm[idxs], lmax, npol, int(add))
     else:
         for idxs in np.ndindex(preshape):
-            lmul_func(lmat, alm[idxs], alm_out[idxs], lmax, npol)
+            lmul_func(lmat, alm[idxs], alm_out[idxs], lmax, npol, int(add))
         
     if inplace:
         return alm.reshape(shape_in)
     else:
         return alm_out.reshape(shape_in)
     
-def _lmul_dp(lmat, alm, alm_out, lmax, ncomp):
+def _lmul_dp(lmat, alm, alm_out, lmax, ncomp, add):
     '''Double precision variant.'''
 
     cdef double complex [::1] alm_ = alm.reshape(-1)
     cdef double [::1] lmat_ = lmat.reshape(-1)
     cdef double complex [::1] alm_out_ = alm_out.reshape(-1)
-    
+
     if lmat.ndim == 3:  
         if lmat.size != ncomp * ncomp * (lmax + 1):
             raise ValueError('lmat.size {} != {} x {} x ({} + 1)'.format(
                 lmat.size, ncomp, ncomp, lmax))
     
-        calm_c_utils.lmul_dp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp)
+        calm_c_utils.lmul_dp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp, add)
 
     elif lmat.ndim == 2:
 
@@ -269,12 +279,12 @@ def _lmul_dp(lmat, alm, alm_out, lmax, ncomp):
             raise ValueError('lmat.size {} != {} x ({} + 1)'.format(
                  lmat.size, ncomp, lmax))
 
-        calm_c_utils.lmul_diag_dp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp)
+        calm_c_utils.lmul_diag_dp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp, add)
 
     else:
         raise ValueError('Shape lmat : {} not suported'.format(lmat.shape))
 
-def _lmul_inplace_dp(lmat, alm, lmax, ncomp):
+def _lmul_inplace_dp(lmat, alm, lmax, ncomp, add):
     '''Double precision inplace variant.'''
 
     cdef double complex [::1] alm_ = alm.reshape(-1)
@@ -285,7 +295,7 @@ def _lmul_inplace_dp(lmat, alm, lmax, ncomp):
             raise ValueError('lmat.size {} != {} x {} x ({} + 1)'.format(
                 lmat.size, ncomp, ncomp, lmax))
     
-        calm_c_utils.lmul_inplace_dp(&lmat_[0], &alm_[0], lmax, ncomp)
+        calm_c_utils.lmul_inplace_dp(&lmat_[0], &alm_[0], lmax, ncomp, add)
 
     elif lmat.ndim == 2:
 
@@ -293,12 +303,12 @@ def _lmul_inplace_dp(lmat, alm, lmax, ncomp):
             raise ValueError('lmat.size {} != {} x ({} + 1)'.format(
                  lmat.size, ncomp, lmax))
 
-        calm_c_utils.lmul_diag_inplace_dp(&lmat_[0], &alm_[0], lmax, ncomp)
+        calm_c_utils.lmul_diag_inplace_dp(&lmat_[0], &alm_[0], lmax, ncomp, add)
 
     else:
         raise ValueError('Shape lmat : {} not suported'.format(lmat.shape))
 
-def _lmul_sp(lmat, alm, alm_out, lmax, ncomp):
+def _lmul_sp(lmat, alm, alm_out, lmax, ncomp, add):
     '''Single precision variant.'''
 
     cdef float complex [::1] alm_ = alm.reshape(-1)
@@ -310,7 +320,7 @@ def _lmul_sp(lmat, alm, alm_out, lmax, ncomp):
             raise ValueError('lmat.size {} != {} x {} x ({} + 1)'.format(
                 lmat.size, ncomp, ncomp, lmax))
     
-        calm_c_utils.lmul_sp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp)
+        calm_c_utils.lmul_sp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp, add)
 
     elif lmat.ndim == 2:
 
@@ -318,12 +328,12 @@ def _lmul_sp(lmat, alm, alm_out, lmax, ncomp):
             raise ValueError('lmat.size {} != {} x ({} + 1)'.format(
                  lmat.size, ncomp, lmax))
 
-        calm_c_utils.lmul_diag_sp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp)
+        calm_c_utils.lmul_diag_sp(&lmat_[0], &alm_[0], &alm_out_[0], lmax, ncomp, add)
 
     else:
         raise ValueError('Shape lmat : {} not suported'.format(lmat.shape))
 
-def _lmul_inplace_sp(lmat, alm, lmax, ncomp):
+def _lmul_inplace_sp(lmat, alm, lmax, ncomp, add):
     '''Single precision inplace variant.'''
 
     cdef float complex [::1] alm_ = alm.reshape(-1)
@@ -334,7 +344,7 @@ def _lmul_inplace_sp(lmat, alm, lmax, ncomp):
             raise ValueError('lmat.size {} != {} x {} x ({} + 1)'.format(
                 lmat.size, ncomp, ncomp, lmax))
     
-        calm_c_utils.lmul_inplace_sp(&lmat_[0], &alm_[0], lmax, ncomp)
+        calm_c_utils.lmul_inplace_sp(&lmat_[0], &alm_[0], lmax, ncomp, add)
 
     elif lmat.ndim == 2:
 
@@ -342,7 +352,7 @@ def _lmul_inplace_sp(lmat, alm, lmax, ncomp):
             raise ValueError('lmat.size {} != {} x ({} + 1)'.format(
                  lmat.size, ncomp, lmax))
 
-        calm_c_utils.lmul_diag_inplace_sp(&lmat_[0], &alm_[0], lmax, ncomp)
+        calm_c_utils.lmul_diag_inplace_sp(&lmat_[0], &alm_[0], lmax, ncomp, add)
 
     else:
         raise ValueError('Shape lmat : {} not suported'.format(lmat.shape))

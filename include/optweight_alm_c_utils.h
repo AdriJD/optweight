@@ -12,13 +12,15 @@
  * alm_out  : (ncomp * nell) array for output alm vector.
  * lmax     : Maximum multipole of both matrix and alm arrays.
  * ncomp    : Number of components of alm vector.
+ * add      : if 1, add to output array, if 0, first zero output array.
  */
 
 void lmul_dp(const double *restrict lmat,
              const double _Complex *restrict alm_in,
              double _Complex *restrict alm_out,
              int lmax,
-             int ncomp);
+             int ncomp,
+	     int add);
 
 /*
  * Compute multiplication out[i,nelem] = mat_ell[i,nell] alm[i,nelem].
@@ -30,13 +32,15 @@ void lmul_dp(const double *restrict lmat,
  * alm_out  : (ncomp * nell) array for output alm vector.
  * lmax     : Maximum multipole of both matrix and alm arrays.
  * ncomp    : Number of components of alm vector.
+ * add      : if 1, add to output array, if 0, first zero output array.
  */
 
 void lmul_diag_dp(const double *restrict lmat,
              const double _Complex *restrict alm_in,
              double _Complex *restrict alm_out,
              int lmax,
-             int ncomp);
+	     int ncomp,
+	     int add);
 
 /*
  * Compute alm[i,nelem] += w_ell[nell] wlm[i,nelem].
@@ -49,6 +53,7 @@ void lmul_diag_dp(const double *restrict lmat,
  * lmax_w   : Maximum multipole of wlm array.
  * lmax_a   : Maximum multipole of alm array.
  * ncomp    : Number of components of alm vector.
+ * add      : if 1, add to output array, if 0, first zero output array.
  */
 
 void wlm2alm_dp(const double *restrict w_ell,
@@ -67,12 +72,14 @@ void wlm2alm_dp(const double *restrict w_ell,
  * alm      : (ncomp * nell) array with alm vector.
  * lmax     : Maximum multipole of both matrix and alm arrays.
  * ncomp    : Number of components of alm vector.
+ * add      : if 1, add to output array, if 0, first zero output array.
  */
 
 void lmul_inplace_dp(const double *restrict lmat,
              double _Complex *restrict alm,
              int lmax,
-             int ncomp);
+	     int ncomp,
+	     int add);
 
 /*
  * Compute multiplication out[i,nelem] = mat_ell[i,nell] alm[i,nelem].
@@ -83,12 +90,14 @@ void lmul_inplace_dp(const double *restrict lmat,
  * alm      : (ncomp * nell) array with alm vector.
  * lmax     : Maximum multipole of both matrix and alm arrays.
  * ncomp    : Number of components of alm vector.
+ * add      : if 1, add to output array, if 0, first zero output array.
  */
 
 void lmul_diag_inplace_dp(const double *restrict lmat,
              double _Complex *restrict alm,
              int lmax,
-             int ncomp);
+	     int ncomp,
+	     int add);
 
 /*
  * Truncate alm to a smaller lmax.
@@ -116,13 +125,15 @@ void lmul_sp(const float *restrict lmat,
              const float _Complex *restrict alm_in,
              float _Complex *restrict alm_out,
              int lmax,
-             int ncomp);
+             int ncomp,
+	     int add);
 
 void lmul_diag_sp(const float *restrict lmat,
              const float _Complex *restrict alm_in,
              float _Complex *restrict alm_out,
              int lmax,
-             int ncomp);
+	     int ncomp,
+	     int add);
 
 void wlm2alm_sp(const float *restrict w_ell,
              const float _Complex *restrict wlm,
@@ -134,15 +145,17 @@ void wlm2alm_sp(const float *restrict w_ell,
 void lmul_inplace_sp(const float *restrict lmat,
              float _Complex *restrict alm,
              int lmax,
-             int ncomp);
+	     int ncomp,
+	     int add);
 
 void lmul_diag_inplace_sp(const float *restrict lmat,
              float _Complex *restrict alm,
              int lmax,
-             int ncomp);
+	     int ncomp,
+             int add);
 
 void trunc_alm_sp(const float _Complex *restrict alm,
              float _Complex *restrict alm_out,
              int lmax,
              int lmax_out,
-             int ncomp);
+	     int ncomp);

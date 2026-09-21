@@ -13,29 +13,31 @@ void lmul_dp(const double *restrict lmat,
 	     const double _Complex *restrict alm_in,
 	     double _Complex *restrict alm_out,
 	     int lmax,
-	     int ncomp){
+	     int ncomp,
+	     int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
 
   #pragma omp parallel
   {
-    // Set output array to zero.
-    #pragma omp for schedule(guided)
-    for (int m=0; m<=lmax; m++){
+    if (add == 0){
+      // Set output array to zero.
+      #pragma omp for schedule(guided)
+      for (int m=0; m<=lmax; m++){
 
-      int mstart = get_mstart(m, lmax);
+        int mstart = get_mstart(m, lmax);
 
-      for (int ell=m; ell<=lmax; ell++){
+	for (int ell=m; ell<=lmax; ell++){
 
-	for (int idx=0; idx<ncomp; idx++){
+	  for (int idx=0; idx<ncomp; idx++){
 
-	  int astart = idx * nelem;
-	  alm_out[astart + mstart + ell] = 0;
+	    int astart = idx * nelem;
+	    alm_out[astart + mstart + ell] = 0;
+	  }
 	}
       }
     }
-
     // Actual matrix multiplication.
     // Weirdly enough, this access pattern gives less cache misses 
     // and thus a bit better performance. Perhaps easier prefetching?
@@ -67,29 +69,31 @@ void lmul_diag_dp(const double *restrict lmat,
 		  const double _Complex *restrict alm_in,
 		  double _Complex *restrict alm_out,
 		  int lmax,
-		  int ncomp){
+		  int ncomp,
+		  int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
 
   #pragma omp parallel
   {
-    // Set output array to zero.
-    #pragma omp for schedule(guided)
-    for (int m=0; m<=lmax; m++){
+    if (add == 0){      
+      // Set output array to zero.
+      #pragma omp for schedule(guided)
+      for (int m=0; m<=lmax; m++){
 
-      int mstart = get_mstart(m, lmax);
+	int mstart = get_mstart(m, lmax);
 
-      for (int ell=m; ell<=lmax; ell++){
+	for (int ell=m; ell<=lmax; ell++){
 
-	for (int idx=0; idx<ncomp; idx++){
+	  for (int idx=0; idx<ncomp; idx++){
 
-	  int astart = idx * nelem;
-	  alm_out[astart + mstart + ell] = 0;
+	    int astart = idx * nelem;
+	    alm_out[astart + mstart + ell] = 0;
+	  }
 	}
       }
     }
-
     // Diagonal matrix multiplication.
     #pragma omp for schedule(guided)
     for (int m=0; m<=lmax; m++){
@@ -146,7 +150,8 @@ void wlm2alm_dp(const double *restrict w_ell,
 void lmul_inplace_dp(const double *restrict lmat,
          	     double _Complex *restrict alm,
 	             int lmax,
-	             int ncomp){
+	             int ncomp,
+		     int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
@@ -169,7 +174,8 @@ void lmul_inplace_dp(const double *restrict lmat,
 	for (int idx=0; idx<ncomp; idx++){	
 
 	  int astart_i = idx * nelem;
-	  alm[astart_i + mstart + ell] = 0;
+	  // if add != 0, accumulate to existing values.
+	  alm[astart_i + mstart + ell] = add ? tmp[idx] : 0;
 
 	  for (int jdx=0; jdx<ncomp; jdx++){
 
@@ -187,14 +193,15 @@ void lmul_inplace_dp(const double *restrict lmat,
 void lmul_diag_inplace_dp(const double *restrict lmat,
                 	  double _Complex *restrict alm,
 	                  int lmax,
-	                  int ncomp){
+	                  int ncomp,
+			  int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
 
   #pragma omp parallel
   {
-    double _Complex tmp;;  
+    double _Complex tmp;  
 
     #pragma omp for schedule(guided)
     for (int m=0; m<=lmax; m++){
@@ -207,7 +214,7 @@ void lmul_diag_inplace_dp(const double *restrict lmat,
 
 	  int astart_i = idx * nelem;
 	  tmp = alm[astart_i + mstart + ell];
-	  alm[astart_i + mstart + ell] = 0;
+	  alm[astart_i + mstart + ell] = add ? tmp : 0;
 	  int matstart = idx * nell;       	    
 	  alm[astart_i + mstart + ell] += lmat[matstart + ell] * tmp;	  
 	}
@@ -252,7 +259,8 @@ void lmul_sp(const float *restrict lmat,
 	     const float _Complex *restrict alm_in,
 	     float _Complex *restrict alm_out,
 	     int lmax,
-	     int ncomp){
+	     int ncomp,
+	     int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
@@ -260,21 +268,22 @@ void lmul_sp(const float *restrict lmat,
   #pragma omp parallel
   {
     // Set output array to zero.
-    #pragma omp for schedule(guided)
-    for (int m=0; m<=lmax; m++){
+    if (add == 0){
+      #pragma omp for schedule(guided)
+      for (int m=0; m<=lmax; m++){
 
-      int mstart = get_mstart(m, lmax);
+	int mstart = get_mstart(m, lmax);
 
-      for (int ell=m; ell<=lmax; ell++){
+	for (int ell=m; ell<=lmax; ell++){
 
-	for (int idx=0; idx<ncomp; idx++){
+	  for (int idx=0; idx<ncomp; idx++){
 
-	  int astart = idx * nelem;
-	  alm_out[astart + mstart + ell] = 0;
+	    int astart = idx * nelem;
+	    alm_out[astart + mstart + ell] = 0;
+	  }
 	}
       }
     }
-
     // Actual matrix multiplication.
     // Weirdly enough, this access pattern gives less cache misses 
     // and thus a bit better performance. Perhaps easier prefetching?
@@ -306,29 +315,31 @@ void lmul_diag_sp(const float *restrict lmat,
 		  const float _Complex *restrict alm_in,
 		  float _Complex *restrict alm_out,
 		  int lmax,
-		  int ncomp){
+		  int ncomp,
+		  int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
 
-  #pragma omp parallel
+  #pragma omp parallel  
   {
-    // Set output array to zero.
-    #pragma omp for schedule(guided)
-    for (int m=0; m<=lmax; m++){
+    if (add == 0){      
+      // Set output array to zero.
+      #pragma omp for schedule(guided)
+      for (int m=0; m<=lmax; m++){
 
-      int mstart = get_mstart(m, lmax);
+        int mstart = get_mstart(m, lmax);
 
-      for (int ell=m; ell<=lmax; ell++){
+	for (int ell=m; ell<=lmax; ell++){
 
-	for (int idx=0; idx<ncomp; idx++){
+	 for (int idx=0; idx<ncomp; idx++){
 
-	  int astart = idx * nelem;
-	  alm_out[astart + mstart + ell] = 0;
+	   int astart = idx * nelem;
+	   alm_out[astart + mstart + ell] = 0;
+	 }
 	}
       }
     }
-
     // Diagonal matrix multiplication.
     #pragma omp for schedule(guided)
     for (int m=0; m<=lmax; m++){
@@ -385,7 +396,8 @@ void wlm2alm_sp(const float *restrict w_ell,
 void lmul_inplace_sp(const float *restrict lmat,
 	             float _Complex *restrict alm,
 	             int lmax,
-	             int ncomp){
+	             int ncomp,
+		     int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
@@ -408,7 +420,7 @@ void lmul_inplace_sp(const float *restrict lmat,
 	for (int idx=0; idx<ncomp; idx++){	
 
 	  int astart_i = idx * nelem;
-	  alm[astart_i + mstart + ell] = 0;
+	  alm[astart_i + mstart + ell] = add ? tmp[idx] : 0;
 
 	  for (int jdx=0; jdx<ncomp; jdx++){
 
@@ -426,14 +438,15 @@ void lmul_inplace_sp(const float *restrict lmat,
 void lmul_diag_inplace_sp(const float *restrict lmat,
 	                  float _Complex *restrict alm,
 	                  int lmax,
-	                  int ncomp){
+	                  int ncomp,
+			  int add){
 
   int nelem = get_nelem(lmax);
   int nell = lmax + 1;
 
   #pragma omp parallel
   {
-    float _Complex tmp;;  
+    float _Complex tmp;  
 
     #pragma omp for schedule(guided)
     for (int m=0; m<=lmax; m++){
@@ -446,7 +459,7 @@ void lmul_diag_inplace_sp(const float *restrict lmat,
 
 	  int astart_i = idx * nelem;
 	  tmp = alm[astart_i + mstart + ell];
-	  alm[astart_i + mstart + ell] = 0;
+	  alm[astart_i + mstart + ell] = add ? tmp : 0;	  
 	  int matstart = idx * nell;       	    
 	  alm[astart_i + mstart + ell] += lmat[matstart + ell] * tmp;	  
 	}
